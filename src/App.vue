@@ -10,10 +10,13 @@ import { humanBytes, humanTime, plannedFrameCount, friendlyError, baseName } fro
 import type { VideoInfo } from './lib/media'
 import type { FramePreview, FrameSnapshot, FrameFormat, FrameWidth } from './lib/frames'
 import type { SplitResult } from './lib/split'
-import { chooseFolder, downloadBlob, supportsFolderWrite } from './lib/storage'
-import { inspectWithWorker, runWorkerJob } from './lib/worker-client'
+import { chooseFolder, downloadBlob, supportsFolderWrite, saveBlob } from './lib/storage'
+import { inspectWithWorker, runWorkerJob, analyzeWithWorker } from './lib/worker-client'
 import type { WorkerPayload } from './lib/worker-client'
 import type { VerificationLevel } from './lib/verify'
+import type { KeyframeStatistics } from './lib/keyframe-stats.mjs'
+import { createExportManifest } from './lib/manifest.mjs'
+import { createStoryboard } from './lib/storyboard'
 
 type Mode = 'split' | 'frames'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
@@ -35,6 +38,15 @@ const parts = ref<SplitResult[]>([])
 const frames = ref<FramePreview[]>([])
 const finishedFrames = ref(0)
 const jobElapsedMs = ref(0)
+const mediaAnalysis = ref<KeyframeStatistics | null>(null)
+const analyzing = ref(false)
+const analysisProgress = ref(0)
+const analysisError = ref('')
+const exportReportJson = ref('')
+const reportNotice = ref('')
+const savedFrameNames = ref<string[]>([])
+const storyboardBusy = ref(false)
+const storyboardError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const confirmation = ref(false)
 const currentAbort = ref<AbortController | null>(null)
@@ -68,10 +80,12 @@ const progressPercent = computed(() => Math.round(progress.value * 100))
 
 let parseRevision = 0
 let inspectController: AbortController | null = null
+let analysisController: AbortController | null = null
 async function loadFile(nextFile?: File | null) {
   if (!nextFile || status.value === 'running') return
   if (nextFile.size === 0) { errorText.value = '无法处理空文件。'; return }
   inspectController?.abort()
+  clearAnalysis()
   inspectController = new AbortController()
   parseRevision += 1
   const revision = parseRevision
@@ -99,6 +113,56 @@ async function loadFile(nextFile?: File | null) {
   }
 }
 
+function clearAnalysis() {
+  analysisController?.abort()
+  analysisController = null
+  mediaAnalysis.value = null
+  analyzing.value = false
+  analysisProgress.value = 0
+  analysisError.value = ''
+}
+async function runAnalysis() {
+  if (!file.value || !info.value || analyzing.value || status.value === 'running') return
+  const targetFile = file.value
+  const controller = new AbortController()
+  analysisController = controller
+  analyzing.value = true
+  analysisError.value = ''
+  analysisProgress.value = 0
+  try {
+    const report = await analyzeWithWorker(targetFile, controller.signal, fraction => {
+      analysisProgress.value = Math.max(0, Math.min(1, fraction))
+    })
+    if (!controller.signal.aborted && file.value === targetFile) mediaAnalysis.value = report
+  } catch (error) {
+    if (!controller.signal.aborted && file.value === targetFile) {
+      analysisError.value = friendlyError(error)
+    }
+  } finally {
+    if (analysisController === controller) {
+      analyzing.value = false
+      analysisController = null
+    }
+  }
+}
+function cancelAnalysis() { analysisController?.abort() }
+
+const analysisWarnings = computed(() => {
+  const result = mediaAnalysis.value
+  if (!result) return []
+  const warnings = [...result.warnings]
+  if (mode.value === 'split' && splitStrategy.value === 'duration' &&
+      result.maxGopSeconds > splitMinutes.value * 60 + 0.001) {
+    warnings.push('最长关键帧间隔超过当前目标分割时长，需要增大时长才能保证无损分割。')
+  }
+  if (mode.value === 'split' && splitStrategy.value === 'size' &&
+      result.maxGopVideoBytes > targetBytes.value * 0.95) {
+    warnings.push('至少一个视频关键帧组的字节数已超过分割容量预算；加上音轨后更可能无法切割。')
+  }
+  return warnings
+})
+const maxAnalysisBitrate = computed(() => Math.max(0.001, ...(mediaAnalysis.value?.bitrateBins ?? [])))
+
 function onInputChange(event: Event) {
   const input = event.target as HTMLInputElement
   void loadFile(input.files?.[0])
@@ -122,6 +186,11 @@ function resetOutput() {
   frames.value = []
   finishedFrames.value = 0
   jobElapsedMs.value = 0
+  exportReportJson.value = ''
+  reportNotice.value = ''
+  savedFrameNames.value = []
+  storyboardBusy.value = false
+  storyboardError.value = ''
   status.value = 'idle'
   progress.value = 0
   progressLabel.value = ''
@@ -133,6 +202,7 @@ function clearFile() {
   parseRevision++
   inspectController?.abort()
   inspectController = null
+  clearAnalysis()
   resetOutput()
   file.value = null
   info.value = null
@@ -201,6 +271,8 @@ async function start() {
   if (mode.value === 'split' && info.value.audioTracks > 1) {
     errorText.value = '目前最多支持一条音轨，避免导出时丢失其他音轨。'; return
   }
+  // Avoid processing two expensive jobs in parallel with the analysis scan.
+  if (analyzing.value) { errorText.value = '请先完成或取消视频体检后再开始处理。'; return }
   const currentFile = file.value
   const currentInfo = info.value
   const controller = new AbortController()
@@ -236,9 +308,36 @@ async function start() {
       onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
       onSegment: part => { parts.value.push(part) },
       onPreview: addPreview,
+      onSaved: name => { savedFrameNames.value.push(name) },
     })
     jobElapsedMs.value = summary.elapsedMs
     if (mode.value === 'frames') finishedFrames.value = summary.count
+    // Human-readable JSON alongside the media outputs; no original file paths.
+    const report = createExportManifest({
+      source: currentInfo,
+      mode: mode.value,
+      settings: mode.value === 'split'
+        ? { strategy: splitStrategy.value, targetBytes: splitStrategy.value === 'size' ? targetBytes.value : null,
+            maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : null,
+            verificationLevel: verificationLevel.value }
+        : { intervalSeconds: interval.value, startSeconds: frameStart.value,
+            endSeconds: frameEnd.value, format: imageFormat.value,
+            width: imageWidth.value, quality: jpegQuality.value },
+      parts: parts.value,
+      images: jobFolder ? savedFrameNames.value : frames.value.map(item => item.name),
+      completedFrames: finishedFrames.value,
+      elapsedMs: summary.elapsedMs,
+    })
+    exportReportJson.value = JSON.stringify(report, null, 2)
+    if (jobFolder) {
+      try {
+        await saveBlob(jobFolder, 'frameslice-report.json',
+          new Blob([exportReportJson.value], { type: 'application/json' }), new AbortController().signal)
+        reportNotice.value = '处理报告已保存到输出目录'
+      } catch (error) {
+        reportNotice.value = '自动保存报告失败，可以点击下方按钮下载：' + friendlyError(error)
+      }
+    }
     status.value = 'done'
     progress.value = 1
     progressLabel.value = mode.value === 'split'
@@ -257,6 +356,24 @@ function savePreview(preview: FramePreview) {
   if (!preview.blob) return
   downloadBlob(preview.blob, preview.name)
 }
+function downloadManifest() {
+  if (!exportReportJson.value || !file.value) return
+  downloadBlob(new Blob([exportReportJson.value], { type: 'application/json;charset=utf-8' }),
+    baseName(file.value.name) + '_report.json')
+}
+async function downloadStoryboard() {
+  if (!frames.value.length || storyboardBusy.value || !file.value) return
+  storyboardBusy.value = true
+  storyboardError.value = ''
+  try {
+    const blob = await createStoryboard(frames.value, file.value.name)
+    downloadBlob(blob, baseName(file.value.name) + '_storyboard.jpg')
+  } catch (error) {
+    storyboardError.value = friendlyError(error)
+  } finally {
+    storyboardBusy.value = false
+  }
+}
 function retry() { resetOutput(); errorText.value = '' }
 
 function warnOnUnload(event: BeforeUnloadEvent) {
@@ -269,6 +386,7 @@ window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
   inspectController?.abort()
+  analysisController?.abort()
   window.removeEventListener('beforeunload', warnOnUnload)
   currentAbort.value?.abort()
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
