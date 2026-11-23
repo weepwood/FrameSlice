@@ -10,6 +10,8 @@ import {
 import { baseName, checkCanceled } from './format'
 import { planGroups, planGroupsByDuration } from './planning.mjs'
 import { openInput } from './media'
+import { PacketFingerprint, verifySegment } from './verify'
+import type { VerificationLevel, VerificationReport } from './verify'
 
 interface Group {
   time: number
@@ -28,12 +30,14 @@ export interface SplitResult {
   size: number
   start: number
   end: number
+  verification: VerificationReport
 }
 
 export interface SplitOptions {
   file: File
   maxBytes: number
   maxSeconds?: number
+  verificationLevel?: VerificationLevel
   folder: FileSystemDirectoryHandle
   signal: AbortSignal
   onProgress: (fraction: number, label: string) => void
@@ -53,6 +57,7 @@ function groupIndex(groups: Group[], timestamp: number): number {
 
 export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> {
   const { file, maxBytes, maxSeconds, folder, signal, onProgress, onSegment } = options
+  const verificationLevel = options.verificationLevel ?? 'quick'
   if (!/\.(mp4|m4v|mov)$/i.test(file.name)) {
     throw new Error('无损分割目前优先支持 MP4 / M4V / MOV 输入；其他容器请先转换为 MP4。')
   }
@@ -145,6 +150,9 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       const audioSource = audioCodec ? new EncodedAudioPacketSource(audioCodec) : null
       if (audioSource) output.addAudioTrack(audioSource)
       let finalized = false
+      let committed = false
+      const sourceVideoFingerprint = verificationLevel === 'deep' ? new PacketFingerprint() : null
+      const sourceAudioFingerprint = verificationLevel === 'deep' && audio ? new PacketFingerprint() : null
       try {
         await output.start()
         const pumpVideo = async () => {
@@ -165,6 +173,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
               packet.duration, packet.sequenceNumber, packet.byteLength, packet.sideData,
             )
             await videoSource.add(shifted, first ? { decoderConfig: videoConfig } : undefined)
+            sourceVideoFingerprint?.add(packet.data)
             first = false
             const fraction = Math.min(1, Math.max(0, (packet.timestamp - startTime) / Math.max(1, endTime - startTime)))
             report(0.12 + 0.88 * (i + fraction) / segments.length,
@@ -186,6 +195,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
               packet.duration, packet.sequenceNumber, packet.byteLength, packet.sideData,
             )
             await audioSource.add(shifted, first ? { decoderConfig: audioConfig } : undefined)
+            sourceAudioFingerprint?.add(packet.data)
             first = false
           }
           audioSource.close()
@@ -208,15 +218,28 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
           await folder.removeEntry(filename).catch(() => {})
           throw new Error(`片段 ${i + 1} 实际大小超过上限（封装开销高于预估），已移除该片段。请减小目标大小后重试。`)
         }
-        const result = { filename, size: finalFile.size, start: startTime, end: endTime }
+        report(0.12 + 0.88 * (i + 0.98) / segments.length,
+          `正在校验片段 ${i + 1} / ${segments.length}…`, true)
+        const verification = await verifySegment({
+          file: finalFile,
+          videoCodec,
+          audioCodec,
+          expectedDuration: endTime - startTime,
+          level: verificationLevel,
+          signal,
+          expectedVideo: sourceVideoFingerprint?.digest(),
+          expectedAudio: sourceAudioFingerprint?.digest(),
+        })
+        checkCanceled(signal)
+        const result: SplitResult = { filename, size: finalFile.size, start: startTime, end: endTime, verification }
         results.push(result)
+        committed = true
         onSegment(result)
         report(0.12 + 0.88 * (i + 1) / segments.length, `已完成片段 ${i + 1} / ${segments.length}`, true)
       } catch (err) {
-        if (!finalized) {
-          await output.cancel().catch(() => {})
-          await folder.removeEntry(filename).catch(() => {})
-        }
+        if (!finalized) await output.cancel().catch(() => {})
+        // A file is only considered complete after the chosen integrity check.
+        if (!committed) await folder.removeEntry(filename).catch(() => {})
         throw err
       }
     }
