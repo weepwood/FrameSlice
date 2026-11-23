@@ -12,6 +12,7 @@ export interface WorkerCallbacks {
   onProgress: (fraction: number, label: string) => void
   onSegment: (result: SplitResult) => void
   onPreview: (snapshot: FrameSnapshot) => void
+  onSaved?: (filename: string) => void
 }
 
 export interface JobSummary {
@@ -107,6 +108,7 @@ export function runWorkerJob(
           break
         case 'saved':
           incomplete.delete(message.filename)
+          callbacks.onSaved?.(message.filename)
           break
         case 'segment':
           incomplete.delete(message.result.filename)
