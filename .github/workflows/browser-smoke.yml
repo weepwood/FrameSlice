@@ -7,12 +7,7 @@ on:
     paths:
       - '.github/workflows/browser-smoke.yml'
       - 'scripts/browser-smoke.mjs'
-      - 'src/workers/**'
-      - 'src/lib/worker-client.ts'
-      - 'src/lib/verify.ts'
-      - 'src/lib/frames.ts'
-      - 'src/lib/split.ts'
-      - 'src/App.vue'
+      - 'src/**'
       - 'vite.config.ts'
 
 permissions:
