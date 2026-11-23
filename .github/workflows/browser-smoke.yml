@@ -1,0 +1,56 @@
+name: Chrome 真实浏览器 Worker 冒烟测试
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/browser-smoke.yml'
+      - 'scripts/browser-smoke.mjs'
+      - 'src/workers/**'
+      - 'src/lib/worker-client.ts'
+      - 'src/lib/verify.ts'
+      - 'src/lib/frames.ts'
+      - 'src/lib/split.ts'
+      - 'src/App.vue'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frameslice-browser-smoke
+  cancel-in-progress: true
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装固定版本项目依赖
+        run: npm ci --no-audit --no-fund
+      - name: 测试浏览器依赖（不修改 lockfile）
+        run: npm install --no-save --no-package-lock --no-audit --no-fund playwright-core@^1.55.0
+      - name: 设置 Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          install-dependencies: true
+      - name: 构建与启动预览
+        run: |
+          npm run build
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/frameslice-vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4173/FrameSlice/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/frameslice-vite.log
+          exit 1
+      - name: 验证 Worker、真实 OPFS 目录句柄、MP4 分割与 JPEG 抽帧
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          APP_URL: http://127.0.0.1:4173/FrameSlice/
+        run: node scripts/browser-smoke.mjs
