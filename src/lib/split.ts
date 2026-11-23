@@ -58,6 +58,14 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
   }
   const input = openInput(file)
   const results: SplitResult[] = []
+  let lastProgressAt = -Infinity
+  function report(value: number, message: string, force = false) {
+    const now = performance.now()
+    if (force || now - lastProgressAt >= 150) {
+      onProgress(value, message)
+      lastProgressAt = now
+    }
+  }
   try {
     checkCanceled(signal)
     const [videos, audios, allTracks, duration] = await Promise.all([
@@ -81,7 +89,8 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
     const videoSink = new EncodedPacketSink(video)
     const audioSink = audio ? new EncodedPacketSink(audio) : null
     const groups: Group[] = []
-    onProgress(0.01, '正在扫描关键帧与压缩数据索引…')
+    report(0.01, '正在扫描关键帧与压缩数据索引…', true)
+    let videoBytesScanned = 0
     // metadataOnly avoids materializing a 12 GB file during preflight.
     for await (const packet of videoSink.packets(undefined, undefined, { metadataOnly: true })) {
       checkCanceled(signal)
@@ -94,11 +103,13 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       }
       if (!groups.length) throw new Error('视频开始处没有可用关键帧，无法保证输出片段独立播放。')
       groups[groups.length - 1].bytes += packet.byteLength
+      videoBytesScanned += packet.byteLength
+      report(Math.min(0.07, 0.01 + 0.06 * videoBytesScanned / Math.max(1, file.size)), '正在扫描关键帧与压缩数据索引…')
     }
     if (!groups.length) throw new Error('视频没有可用关键帧。')
     // Add audio payload sizes to the GOP containing the corresponding presentation time.
     if (audioSink) {
-      onProgress(0.07, '正在统计音轨大小…')
+      report(0.07, '正在统计音轨大小…', true)
       for await (const packet of audioSink.packets(undefined, undefined, { metadataOnly: true })) {
         checkCanceled(signal)
         if (!Number.isSafeInteger(packet.byteLength) || packet.byteLength < 0) {
@@ -115,7 +126,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       return { start: section[0], end: nextStart,
         estimatedBytes: section.reduce((sum, g) => sum + g.bytes, 0) }
     })
-    onProgress(0.12, `已找到 ${segments.length} 个片段；开始无损封装…`)
+    report(0.12, `已找到 ${segments.length} 个片段；开始无损封装…`, true)
 
     for (let i = 0; i < segments.length; i++) {
       checkCanceled(signal)
@@ -156,7 +167,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
             await videoSource.add(shifted, first ? { decoderConfig: videoConfig } : undefined)
             first = false
             const fraction = Math.min(1, Math.max(0, (packet.timestamp - startTime) / Math.max(1, endTime - startTime)))
-            onProgress(0.12 + 0.88 * (i + fraction) / segments.length,
+            report(0.12 + 0.88 * (i + fraction) / segments.length,
               `正在写入片段 ${i + 1} / ${segments.length} · 无损复制`)
           }
           videoSource.close()
@@ -180,7 +191,16 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
           audioSource.close()
         }
         // Concurrent pumping prevents the muxer's audio/video queues from growing unbounded.
-        await Promise.all([pumpVideo(), pumpAudio()])
+        const pumps = [pumpVideo(), pumpAudio()]
+        try {
+          await Promise.all(pumps)
+        } catch (error) {
+          // Cancel the muxer before waiting for both producers to settle.
+          // Otherwise a surviving producer could keep writing into a failed output.
+          await output.cancel().catch(() => {})
+          await Promise.allSettled(pumps)
+          throw error
+        }
         await output.finalize()
         finalized = true
         const finalFile = await fileHandle.getFile()
@@ -191,7 +211,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         const result = { filename, size: finalFile.size, start: startTime, end: endTime }
         results.push(result)
         onSegment(result)
-        onProgress(0.12 + 0.88 * (i + 1) / segments.length, `已完成片段 ${i + 1} / ${segments.length}`)
+        report(0.12 + 0.88 * (i + 1) / segments.length, `已完成片段 ${i + 1} / ${segments.length}`, true)
       } catch (err) {
         if (!finalized) {
           await output.cancel().catch(() => {})
