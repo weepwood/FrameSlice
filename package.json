@@ -1,0 +1,26 @@
+{
+  "name": "frameslice",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^0.468.0",
+    "mediabunny": "1.66.2",
+    "vue": "^3.5.20"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0",
+    "vue-tsc": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
