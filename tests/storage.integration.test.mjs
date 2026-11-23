@@ -39,3 +39,19 @@ test('partial output is removed when a directory write fails', async (t) => {
   assert.equal(aborted, true)
   assert.equal(removed, 'frame_001.jpg')
 })
+
+test('file creation failure removes the new empty file', async (t) => {
+  const outfile = join(process.cwd(), '.frameslice-storage-create-' + process.pid + '.mjs')
+  t.after(() => rm(outfile, { force: true }))
+  await build({ entryPoints: ['src/lib/storage.ts'], bundle: true, platform: 'node', format: 'esm', outfile })
+  const { saveBlob } = await import(pathToFileURL(outfile).href)
+  let removed = null
+  const folder = {
+    async getFileHandle() {
+      return { async createWritable() { throw new Error('permission denied') } }
+    },
+    async removeEntry(name) { removed = name },
+  }
+  await assert.rejects(saveBlob(folder, 'frame.jpg', new Blob(['x']), new AbortController().signal), /permission denied/)
+  assert.equal(removed, 'frame.jpg')
+})
