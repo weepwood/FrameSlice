@@ -32,7 +32,7 @@ const sampleCues: Cue[]=[
 ];
 function iconStatus(text:string){return <span className="pill-status"><ShieldCheck size={13}/>{text}</span>}
 
-export default function App(){
+export default function App({embedded=false}:{embedded?:boolean}={}){
   const [file,setFile]=useState<File|null>(null);
   const [projectName,setProjectName]=useState('未命名项目');
   const [originalMediaName,setOriginalMediaName]=useState('');
@@ -247,13 +247,13 @@ export default function App(){
   });
   const mediaMissing=Boolean(originalMediaName&&!file);
 
-  return <div className={`app-shell ${dragging?'dragging':''}`}
+  return <div className={`app-shell ${embedded?'embedded':''} ${dragging?'dragging':''}`}
     onDragEnter={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current++;setDragging(true)}}}
     onDragOver={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){e.preventDefault();e.dataTransfer.dropEffect='copy'}}}
     onDragLeave={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current=Math.max(0,dragDepth.current-1);if(!dragDepth.current)setDragging(false)}}}
     onDrop={e=>{e.preventDefault();dragDepth.current=0;setDragging(false);if(e.dataTransfer.files[0])openMediaOrSubtitle(e.dataTransfer.files[0])}}>
     {dragging&&<div className="file-drop-overlay" role="status"><div><UploadCloud size={30}/><strong>松开以导入文件</strong><span>支持音视频、SRT、VTT 与字幕工程</span></div></div>}
-    <header className="topbar">
+    {!embedded&&<header className="topbar">
       <div className="brand"><span className="brand-mark"><AudioLines size={20} strokeWidth={2.5}/></span><div><b>caption<span className="brand-light">studio</span></b><small>LOCAL FIRST EDITOR</small></div></div>
       <span className="header-divider"/>
       <div className="project-name"><input aria-label="项目名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/><ChevronDown size={14}/></div>
@@ -262,29 +262,38 @@ export default function App(){
       <button className="btn small icon-help" onClick={()=>setShortcutsOpen(true)} title="查看键盘快捷键" aria-label="键盘快捷键"><Keyboard size={17}/></button>
       <button className="btn small outline" onClick={exportProject}><HardDriveDownload size={16}/>导出工程</button>
       <button className="btn small primary" onClick={()=>mediaInput.current?.click()}><FolderOpen size={16}/>打开媒体</button>
-    </header>
+    </header>}
     <input ref={mediaInput} type="file" accept="video/*,audio/*,.mp4,.m4a,.webm,.wav,.mov" hidden onChange={e=>{if(e.target.files?.[0])loadMedia(e.target.files[0]);e.target.value=''}}/>
     <input ref={captionsInput} type="file" accept=".srt,.vtt" hidden onChange={e=>{if(e.target.files?.[0])void importSubtitles(e.target.files[0]);e.target.value=''}}/>
     <input ref={projectInput} type="file" accept=".json" hidden onChange={e=>{if(e.target.files?.[0])void importProject(e.target.files[0]);e.target.value=''}}/>
     <input ref={fontInput} type="file" accept=".ttf,.otf" hidden onChange={e=>{setFont(e.target.files?.[0]??null);e.target.value=''}}/>
 
     <div className="workspace">
-      <aside className="nav-rail" aria-label="工作区">
+      {!embedded&&<aside className="nav-rail" aria-label="工作区">
         <span className="rail-label">FRAMESLICE / WORKSPACE</span>
         <a href="/FrameSlice/" className="rail-item frame-home-link"><ArrowLeft size={18}/>返回视频工具</a>
         <button className="rail-item selected"><Subtitles size={18}/>字幕工作台</button>
-        <button className="rail-item" onClick={()=>captionsInput.current?.click()}><FileText size={18}/>导入字幕</button>
-        <button className="rail-item" onClick={()=>projectInput.current?.click()}><FolderOpen size={18}/>打开工程</button>
         <div className="rail-spacer"/>
         <div className="rail-info"><ShieldCheck size={17}/><div><b>纯本地处理</b><small>媒体不会上传到服务端。模型与运行资源需首次联网下载。</small></div></div>
         <button className="rail-item reset" onClick={()=>{if(window.confirm('确定新建空白工程？未导出的媒体不会保存。'))void reset()}}><RotateCcw size={17}/>新建工程</button>
         <div className="rail-version">FRAMESLICE / CAPTION STUDIO · 0.4.0</div>
-      </aside>
+      </aside>}
       <main className="editor-area">
-        <div className="editor-header">
+        {embedded&&<div className="caption-action-toolbar" role="toolbar" aria-label="字幕工作台操作">
+          <div className="caption-project-field"><span>工程</span><input aria-label="字幕工程名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/></div>
+          <span className="caption-action-spacer"/>
+          <span className="caption-save-state">{saved==='saved'?'已自动保存':saved==='saving'?'保存中…':saved==='loading'?'读取工程中':'保存异常'}</span>
+          <button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={15}/>导入字幕</button>
+          <button className="btn outline" onClick={()=>projectInput.current?.click()}><FolderOpen size={15}/>打开工程</button>
+          <button className="btn outline" onClick={exportProject}><HardDriveDownload size={15}/>导出工程</button>
+          <button className="btn outline" onClick={()=>{if(window.confirm('确定新建空白工程？未导出的内容可能丢失。'))void reset()}}><Plus size={15}/>新建</button>
+          <button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={15}/>打开媒体</button>
+        </div>}
+        {!embedded&&<div className="editor-header">
           <div><div className="eyebrow">EDITOR / LOCAL WORKSPACE</div><h1>字幕编辑工作台</h1><p>导入媒体 · 本地识别 · 精确校对 · 导出成片</p></div>
           <div className="editor-header-actions">{iconStatus('无需上传视频')}<span className="line-separator"/><span className="header-meta">{cues.length} 条字幕</span></div>
         </div>
+        }
         <div className="workflow-strip" aria-label="制作流程">
           <div className={`workflow-step ${file?'complete':'current'}`}><span>01</span><div><b>导入素材</b><small>{file?'已关联本地媒体':'等待选择媒体'}</small></div></div>
           <div className={`workflow-step ${busy?'current':cues.length?'complete':''}`}><span>02</span><div><b>语音转录</b><small>{busy?'正在处理':cues.length?'已生成字幕':'本地 Whisper'}</small></div></div>
