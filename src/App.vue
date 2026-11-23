@@ -17,11 +17,13 @@ import type { VerificationLevel } from './lib/verify'
 import type { KeyframeStatistics } from './lib/keyframe-stats.mjs'
 import { createExportManifest } from './lib/manifest.mjs'
 import { createStoryboard } from './lib/storyboard'
+import CaptionWorkspace from './components/CaptionWorkspace.vue'
 
-type Mode = 'split' | 'frames'
+type Mode = 'split' | 'frames' | 'captions'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
 
 const mode = ref<Mode>('split')
+const captionVisited = ref(false)
 const file = ref<File | null>(null)
 const info = ref<VideoInfo | null>(null)
 const videoUrl = ref('')
@@ -211,10 +213,15 @@ function clearFile() {
   videoUrl.value = ''
 }
 function changeMode(next: Mode) {
-  if (status.value === 'running') return
+  if (status.value === 'running' || next === mode.value) return
+  if (next === 'captions') captionVisited.value = true
+  // Switching between video tools resets the prior tool's result, but entering
+  // and leaving the subtitle editor must not destroy either workspace's state.
+  if (mode.value !== 'captions' && next !== 'captions') {
+    resetOutput()
+    errorText.value = ''
+  }
   mode.value = next
-  resetOutput()
-  errorText.value = ''
 }
 async function pickFolder() {
   try {
@@ -395,7 +402,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'caption-active': mode === 'captions' }">
     <aside class="sidebar">
       <div class="identity">
         <div class="mark"><span></span><span></span><span></span></div>
@@ -409,7 +416,7 @@ onBeforeUnmount(() => {
         <button type="button" class="nav-item" :class="{ active: mode === 'frames' }" :disabled="status === 'running'" @click="changeMode('frames')">
           <ImageIcon :size="18" stroke-width="1.9"/> <span>定时抽帧</span> <span class="nav-index">02</span>
         </button>
-        <a class="nav-item fs-nav-link" href="/FrameSlice/subtitles/" title="打开本地 AI 字幕工作台"><Subtitles :size="18" stroke-width="1.9"/><span>AI 字幕工作台</span><span class="nav-index">03</span></a>
+        <button type="button" class="nav-item" :class="{ active: mode === 'captions' }" :disabled="status === 'running'" @click="changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
@@ -420,11 +427,20 @@ onBeforeUnmount(() => {
 
     <main class="workspace">
       <header class="topbar">
-        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ mode === 'split' ? '视频分割' : '定时抽帧' }}</strong></div>
+        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ mode === 'split' ? '视频分割' : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
         <div class="top-actions"><span class="privacy-indicator"><span></span> LOCAL ONLY</span><span class="header-separator"></span><span class="browser-label"><Monitor :size="14"/> Desktop</span></div>
       </header>
 
-      <div class="content">
+      <div v-if="captionVisited" v-show="mode === 'captions'" class="caption-page">
+        <div class="page-head">
+          <div class="eyebrow"><span class="eyebrow-dash"></span> MEDIA WORKSPACE / 03</div>
+          <h1>字幕工作台<span class="heading-period">.</span></h1>
+          <p>本地 AI 语音转录、字幕校对与时间轴编辑，导入、编辑与导出都在当前工作区完成。</p>
+        </div>
+        <CaptionWorkspace />
+      </div>
+
+      <div v-show="mode !== 'captions'" class="content">
         <div class="page-head">
           <div class="eyebrow"><span class="eyebrow-dash"></span> MEDIA WORKSPACE / {{ mode === 'split' ? '01' : '02' }}</div>
           <h1>{{ mode === 'split' ? '视频分割' : '定时抽帧' }}<span class="heading-period">.</span></h1>
@@ -563,6 +579,6 @@ onBeforeUnmount(() => {
         <footer class="footer"><span>FrameSlice — Process locally, keep control.</span><span><LockKeyhole :size="13"/> 文件始终保留在你的设备上</span></footer>
       </div>
     </main>
-    <aside class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
+    <aside v-show="mode !== 'captions'" class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
   </div>
 </template>
