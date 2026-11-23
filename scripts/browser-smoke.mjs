@@ -207,6 +207,45 @@ try {
   if (!(await containerPanel.locator('.ct-output').innerText()).includes('字幕轨已写入')) {
     throw new Error('MKV output does not report verified WebVTT subtitle')
   }
+  // Re-import the *actual* generated MKV, including its WebVTT track, to
+  // verify Matroska inspection warns before selectively remuxing to MP4.
+  const matroskaBytes = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    for await (const [, dir] of root.entries()) {
+      if (dir.kind !== 'directory') continue
+      for await (const [name, handle] of dir.entries()) {
+        if (handle.kind === 'file' && name.endsWith('_packaged.mkv')) {
+          const bytes = await (await handle.getFile()).arrayBuffer()
+          return Array.from(new Uint8Array(bytes))
+        }
+      }
+    }
+    return []
+  })
+  if (!matroskaBytes.length) throw new Error('No MKV soft subtitle output found in OPFS')
+  await containerPanel.locator('input[type=file]').first().setInputFiles({
+    name: 'reimported.mkv', mimeType: 'video/x-matroska',
+    buffer: Buffer.from(matroskaBytes),
+  })
+  await page.waitForFunction(() =>
+    document.querySelectorAll('.ct-workspace .ct-track').length >= 3,
+    undefined, { timeout: 20_000 })
+  if (await containerPanel.locator('.ct-unavailable').count() < 1) {
+    throw new Error('MKV inspector silently omitted an embedded subtitle track')
+  }
+  await containerPanel.locator('.ct-ack input').check()
+  await containerPanel.locator('select[aria-label="封装目标格式"]').selectOption('mp4')
+  await containerPanel.getByRole('button', { name: /开始无损重新封装/ }).click()
+  await page.waitForFunction(() => {
+    const panel = document.querySelector('.ct-workspace')
+    return panel?.querySelector('.ct-output') || panel?.querySelector('.ct-error')
+  }, undefined, { timeout: 45_000 })
+  if (await containerPanel.locator('.ct-error').count()) {
+    throw new Error('Real MKV→MP4 remux failed: ' + await containerPanel.locator('.ct-error').innerText())
+  }
+  if (!(await containerPanel.locator('.ct-output').innerText()).includes('.mp4')) {
+    throw new Error('Real MKV→MP4 export did not produce a checked MP4')
+  }
   // Returning to the normal split tool must not trigger page navigation.
   await page.getByRole('button', { name: /无损分割/ }).click()
   if (!page.url().startsWith(initialURL)) throw new Error('Container subtool changed the page URL')
@@ -225,7 +264,7 @@ try {
     throw new Error('Direct caption deep link did not activate the unified subtitle tab')
   }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', containerDemux: 'passed', subtitleMux: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', containerDemux: 'passed', subtitleMux: 'passed', mkvToMp4: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
