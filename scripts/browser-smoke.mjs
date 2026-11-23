@@ -121,8 +121,31 @@ try {
   if (!files.some(file => file.path.endsWith('.jpg') && file.bytes > 100)) {
     throw new Error('No JPEG export found in OPFS')
   }
+  // The migrated Caption-Studio must be served as a REAL same-origin
+  // application, not a link to the standalone repository or an iframe.
+  await page.getByRole('link', { name: /AI 字幕工作台/ }).click()
+  await page.waitForURL(/\\/FrameSlice\\/subtitles\\/?$/, { timeout: 30_000 })
+  await page.locator('.editor-header h1').waitFor({ timeout: 30_000 })
+  await page.getByRole('link', { name: /返回视频工具/ }).waitFor()
+  await page.locator('input[accept=".srt,.vtt"]').setInputFiles({
+    name: 'integration.srt', mimeType: 'text/plain',
+    buffer: Buffer.from('1\\n00:00:01,000 --> 00:00:03,000\\nFrameSlice 字幕合并测试\\n', 'utf8'),
+  })
+  await page.getByRole('tab', { name: /导出/ }).click()
+  const [subtitleDownload] = await Promise.all([
+    page.waitForEvent('download', { timeout: 30_000 }),
+    page.locator('.export-grid button').first().click(),
+  ])
+  const subtitleContent = await readFile(await subtitleDownload.path(), 'utf8')
+  if (!subtitleContent.includes('FrameSlice 字幕合并测试') ||
+      !subtitleContent.includes('00:00:01,000')) {
+    throw new Error('Migrated subtitle editor failed SRT import/export roundtrip')
+  }
+  await page.getByRole('link', { name: /返回视频工具/ }).click()
+  await page.waitForURL(/\\/FrameSlice\\/?$/, { timeout: 30_000 })
+  await page.getByRole('button', { name: /开始分割视频/ }).waitFor()
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'passed', captionSRT: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
