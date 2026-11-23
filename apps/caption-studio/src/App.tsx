@@ -283,6 +283,11 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
           <div className="caption-project-field"><span>工程</span><input aria-label="字幕工程名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/></div>
           <span className="caption-action-spacer"/>
           <span className="caption-save-state">{saved==='saved'?'已自动保存':saved==='saving'?'保存中…':saved==='loading'?'读取工程中':'保存异常'}</span>
+          <button className="btn outline" disabled={!file||!cues.length||busy}
+            title={!file?'请先打开媒体文件，再封装当前字幕':'将当前字幕和本地媒体发送到轨道封装工具'}
+            onClick={()=>window.dispatchEvent(new CustomEvent('frameslice:subtitle-package',{
+              detail:{file,subtitle:new File([toSRT(cues)],'caption-export.srt',{type:'text/plain;charset=utf-8'})},
+            }))}><Subtitles size={15}/>封装软字幕</button>
           <button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={15}/>导入字幕</button>
           <button className="btn outline" onClick={()=>projectInput.current?.click()}><FolderOpen size={15}/>打开工程</button>
           <button className="btn outline" onClick={exportProject}><HardDriveDownload size={15}/>导出工程</button>
