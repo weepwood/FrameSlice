@@ -1,8 +1,8 @@
 # Caption Studio / 本地 AI 字幕工作台
 
-**FrameSlice 集成入口：** [https://weepwood.github.io/FrameSlice/subtitles/](https://weepwood.github.io/FrameSlice/subtitles/) · **独立原版：** [https://weepwood.github.io/Caption-Studio/](https://weepwood.github.io/Caption-Studio/)
+**FrameSlice 统一页面：** [https://weepwood.github.io/FrameSlice/#captions](https://weepwood.github.io/FrameSlice/#captions) · **独立原版：** [https://weepwood.github.io/Caption-Studio/](https://weepwood.github.io/Caption-Studio/)
 
-> 本目录从 [weepwood/Caption-Studio](https://github.com/weepwood/Caption-Studio) 迁入 FrameSlice 单仓库。保留 React 子应用、许可说明与同源 IndexedDB 工程保存逻辑；字幕模块和 Vue 视频模块独立构建，不使用外部 iframe。 · [GitHub Actions 部署记录](https://github.com/weepwood/Caption-Studio/actions)
+> 本目录从 [weepwood/Caption-Studio](https://github.com/weepwood/Caption-Studio) 迁入 FrameSlice 单仓库。字幕工作台已改为可以嵌入 Vue 主页面的 React 组件库：位于同一个 URL 的三选项导航内，不是独立页面或 iframe。移除嵌入模式的旧侧边栏、顶栏，将「导入字幕」「打开工程」移到字幕区域操作栏。使用 Shadow DOM 避免组件样式影响视频工具，并保留许可、Whisper 处理与 IndexedDB 工程保存逻辑。 · [GitHub Actions 部署记录](https://github.com/weepwood/Caption-Studio/actions)
 
 
 > 在 [sudesh1456/whisper-caption-editor](https://github.com/sudesh1456/whisper-caption-editor)（MIT）的实现思路上制作的独立优化版本。**保留浏览器本地 Whisper + 字幕编辑 + SRT/VTT + MP4 烧录路径**，重点增强中文字幕、时间轴和项目恢复体验。
@@ -16,8 +16,8 @@
 建议使用 **Node.js 22.12+** 和 **npm 11.6+**（旧 npm 10 在部分 Vitest 依赖组合下可能出现 `edgesOut` 错误）：
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run dev  # 仅用于独立调试 React 源码；统一页面请在仓库根目录 npm run build && npm run preview
 ```
 
 构建与质量检查：
@@ -28,7 +28,7 @@ npm test
 npm run build
 ```
 
-> 当前源码包未随附 `node_modules` 或 `package-lock.json`。首次执行 `npm install` 后会生成锁文件，建议提交锁文件并将 CI 的 `npm install` 调整为 `npm ci`。首次语音转录需要从 Hugging Face 下载 Whisper 模型；首次 MP4 烧录需要下载 FFmpeg.wasm core 和默认字体。不存在任何媒体上传到应用服务器的流程。
+> 当前已经提交独立的 `package-lock.json`，生产环境及 CI 使用 `npm ci` 固定依赖。首次语音转录需要从 Hugging Face 下载 Whisper 模型；首次 MP4 烧录需要下载 FFmpeg.wasm core 和默认字体。不存在任何媒体上传到应用服务器的流程。
 
 ## v0.3.0：超大视频自动提取音轨
 
