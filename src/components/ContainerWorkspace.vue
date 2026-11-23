@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   AlertTriangle, Check, CheckCircle2, ChevronDown, FileAudio, FileText,
   FileVideo, Folder, FolderOpen, LoaderCircle, PackageOpen, Play, Subtitles,
@@ -10,6 +10,7 @@ import { scanContainerInWorker, runContainerInWorker } from '../lib/container-cl
 import { chooseFolder, supportsFolderWrite, saveBlob } from '../lib/storage'
 import { baseName, friendlyError, humanBytes, humanTime } from '../lib/format'
 
+const props = defineProps<{ initialFile?: File | null }>()
 const emit = defineEmits<{ (event: 'busy', value: boolean): void }>()
 const fileInput = ref<HTMLInputElement | null>(null)
 const subtitleInput = ref<HTMLInputElement | null>(null)
@@ -185,6 +186,7 @@ async function start() {
 }
 function cancel() { taskController?.abort() }
 
+onMounted(() => { if (props.initialFile && !media.value) void loadFile(props.initialFile) })
 onBeforeUnmount(() => cleanup())
 </script>
 
