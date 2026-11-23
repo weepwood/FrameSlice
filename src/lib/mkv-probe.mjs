@@ -33,8 +33,12 @@ function element(view, pos, parentEnd) {
   const size = vint(view, pos + id.length, false)
   if (!size) return null
   const start = pos + id.length + size.length
-  const end = size.value === Infinity ? parentEnd : start + size.value
-  if (size.value !== Infinity && (end > parentEnd || !Number.isSafeInteger(end))) return null
+  const declaredEnd = size.value === Infinity ? parentEnd : start + size.value
+  if (!Number.isSafeInteger(declaredEnd) || declaredEnd < start) return null
+  // Segment's declared size is typically the FULL 12GB file. Only its
+  // metadata prefix is mapped into this bounded probe.
+  const end = id.value === ids.segment ? Math.min(declaredEnd, parentEnd) : declaredEnd
+  if (end > parentEnd) return null
   return { id: id.value, start, end, next: end }
 }
 
