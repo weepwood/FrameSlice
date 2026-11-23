@@ -32,7 +32,7 @@ jobs:
       - name: 安装字幕工作台依赖（Whisper / FFmpeg / React）
         run: |
           npm install -g npm@11.21.1
-          npm --prefix apps/caption-studio install --ignore-scripts --no-audit --no-fund
+          npm --prefix apps/caption-studio ci --ignore-scripts --no-audit --no-fund
       - name: 扫描生产依赖安全公告
         run: npm audit --omit=dev --audit-level=high
       - name: 单元测试与正式构建
