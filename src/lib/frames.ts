@@ -13,6 +13,13 @@ export interface FramePreview {
   blob?: Blob
 }
 
+/** Serializable preview payload produced by the worker; object URLs belong to the UI. */
+export interface FrameSnapshot {
+  name: string
+  timestamp: number
+  blob: Blob
+}
+
 export interface FramesOptions {
   file: File
   duration: number
@@ -25,7 +32,8 @@ export interface FramesOptions {
   folder: FileSystemDirectoryHandle | null
   signal: AbortSignal
   onProgress: (progress: number, message: string) => void
-  onPreview: (preview: FramePreview) => void
+  onPreview: (preview: FrameSnapshot) => void
+  onSaved?: (filename: string) => void
 }
 
 async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: FrameFormat, quality: number): Promise<Blob> {
@@ -41,7 +49,7 @@ async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: Frame
 }
 
 export async function extractFrames(options: FramesOptions): Promise<number> {
-  const { file, duration, interval, startTime, endTime, format, width, folder, signal, onProgress, onPreview, quality } = options
+  const { file, duration, interval, startTime, endTime, format, width, folder, signal, onProgress, onPreview, onSaved, quality } = options
   checkCanceled(signal)
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(format) ||
       ![0, 1280, 1920, 3840].includes(width) ||
@@ -79,14 +87,17 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
       if (result) {
         const name = `${baseName(file.name)}_${fileTime(timestamp)}.${extension}`
         const blob = await toBlob(result.canvas, format, quality)
-        if (folder) await saveBlob(folder, name, blob, signal)
+        if (folder) {
+          await saveBlob(folder, name, blob, signal)
+          onSaved?.(name)
+        }
         saved++
         // Preview only a bounded subset of the exported pictures.
         if (completed < 12 || completed % Math.max(1, Math.ceil(timestamps.length / 12)) === 0) {
-          onPreview({ name, timestamp, url: URL.createObjectURL(blob), blob: folder ? undefined : blob })
+          onPreview({ name, timestamp, blob })
         } else if (!folder) {
           // A folder-less job is limited to <=30, so expose all download links.
-          onPreview({ name, timestamp, url: URL.createObjectURL(blob), blob })
+          onPreview({ name, timestamp, blob })
         }
       }
       completed++
