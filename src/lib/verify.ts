@@ -65,9 +65,15 @@ function requirePacket(packet: { byteLength: number } | null, track: string): vo
 
 async function fingerprintTrack(sink: EncodedPacketSink, signal: AbortSignal): Promise<PacketDigest> {
   const checksum = new PacketFingerprint()
+  let packets = 0
   for await (const packet of sink.packets()) {
     checkCanceled(signal)
     checksum.add(packet.data)
+    if ((++packets & 255) === 0) {
+      // Yield to the Worker event loop so a deep 12GB verification can be canceled.
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+      checkCanceled(signal)
+    }
   }
   return checksum.digest()
 }
