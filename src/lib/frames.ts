@@ -34,6 +34,7 @@ export interface FramesOptions {
   onProgress: (progress: number, message: string) => void
   onPreview: (preview: FrameSnapshot) => void
   onSaved?: (filename: string) => void
+  onFileStart?: (filename: string) => void
 }
 
 async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: FrameFormat, quality: number): Promise<Blob> {
@@ -49,7 +50,7 @@ async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: Frame
 }
 
 export async function extractFrames(options: FramesOptions): Promise<number> {
-  const { file, duration, interval, startTime, endTime, format, width, folder, signal, onProgress, onPreview, onSaved, quality } = options
+  const { file, duration, interval, startTime, endTime, format, width, folder, signal, onProgress, onPreview, onSaved, onFileStart, quality } = options
   checkCanceled(signal)
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(format) ||
       ![0, 1280, 1920, 3840].includes(width) ||
@@ -88,6 +89,7 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
         const name = `${baseName(file.name)}_${fileTime(timestamp)}.${extension}`
         const blob = await toBlob(result.canvas, format, quality)
         if (folder) {
+          onFileStart?.(name)
           await saveBlob(folder, name, blob, signal)
           onSaved?.(name)
         }
