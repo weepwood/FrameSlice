@@ -157,7 +157,13 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       const filename = `${baseName(file.name)}_part_${String(i + 1).padStart(3, '0')}.mp4`
       options.onFileStart?.(filename)
       const fileHandle = await folder.getFileHandle(filename, { create: true })
-      const writable = await fileHandle.createWritable()
+      let writable: FileSystemWritableFileStream
+      try {
+        writable = await fileHandle.createWritable()
+      } catch (error) {
+        await folder.removeEntry(filename).catch(() => {})
+        throw error
+      }
       const output = new Output({
         format: new Mp4OutputFormat(),
         target: new StreamTarget(writable, { chunked: true, chunkSize: 1024 * 1024 }),
