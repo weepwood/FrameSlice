@@ -134,7 +134,7 @@ try {
     const summary = await page.evaluate(() => ({
       captionContainers: document.querySelectorAll('.caption-react-host').length,
       shadowMounted: Boolean(document.querySelector('.caption-react-host')?.shadowRoot),
-      visibleCaption: getComputedStyle(document.querySelector('.caption-page')!).display,
+      visibleCaption: document.querySelector('.caption-page') ? getComputedStyle(document.querySelector('.caption-page')).display : 'missing',
     }))
     throw new Error('Subtitle island did not mount: ' + JSON.stringify({
       message, summary, errors, networkErrors, url: page.url(),
