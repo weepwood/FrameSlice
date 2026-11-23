@@ -7,13 +7,13 @@ import {
   Upload, X, Zap, AlertTriangle, Monitor, Film, HardDrive, Settings2,
 } from 'lucide-vue-next'
 import { humanBytes, humanTime, plannedFrameCount, friendlyError, baseName } from './lib/format'
-import { inspectVideo } from './lib/media'
 import type { VideoInfo } from './lib/media'
-import { extractFrames } from './lib/frames'
-import type { FramePreview, FrameFormat, FrameWidth } from './lib/frames'
-import { splitVideo } from './lib/split'
+import type { FramePreview, FrameSnapshot, FrameFormat, FrameWidth } from './lib/frames'
 import type { SplitResult } from './lib/split'
 import { chooseFolder, downloadBlob, supportsFolderWrite } from './lib/storage'
+import { inspectWithWorker, runWorkerJob } from './lib/worker-client'
+import type { WorkerPayload } from './lib/worker-client'
+import type { VerificationLevel } from './lib/verify'
 
 type Mode = 'split' | 'frames'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
@@ -34,12 +34,14 @@ const lastJobFolder = ref('')
 const parts = ref<SplitResult[]>([])
 const frames = ref<FramePreview[]>([])
 const finishedFrames = ref(0)
+const jobElapsedMs = ref(0)
 const fileInput = ref<HTMLInputElement | null>(null)
 const confirmation = ref(false)
 const currentAbort = ref<AbortController | null>(null)
 
 const splitStrategy = ref<'size' | 'duration'>('size')
 const splitMinutes = ref(10)
+const verificationLevel = ref<VerificationLevel>('quick')
 const size = ref(4)
 const sizeUnit = ref<'GB' | 'GiB'>('GB')
 const interval = ref(30)
@@ -65,9 +67,12 @@ const fileReadable = computed(() => supportsFolderWrite())
 const progressPercent = computed(() => Math.round(progress.value * 100))
 
 let parseRevision = 0
+let inspectController: AbortController | null = null
 async function loadFile(nextFile?: File | null) {
   if (!nextFile || status.value === 'running') return
   if (nextFile.size === 0) { errorText.value = '无法处理空文件。'; return }
+  inspectController?.abort()
+  inspectController = new AbortController()
   parseRevision += 1
   const revision = parseRevision
   resetOutput()
@@ -78,7 +83,7 @@ async function loadFile(nextFile?: File | null) {
   loading.value = true
   errorText.value = ''
   try {
-    const inspected = await inspectVideo(nextFile)
+    const inspected = await inspectWithWorker(nextFile, inspectController.signal)
     if (revision === parseRevision) {
       info.value = inspected
       frameStart.value = 0
@@ -87,7 +92,10 @@ async function loadFile(nextFile?: File | null) {
   } catch (error) {
     if (revision === parseRevision) errorText.value = `文件信息读取失败：${friendlyError(error)}`
   } finally {
-    if (revision === parseRevision) loading.value = false
+    if (revision === parseRevision) {
+      loading.value = false
+      inspectController = null
+    }
   }
 }
 
@@ -113,6 +121,7 @@ function resetOutput() {
   frames.value.forEach((item) => URL.revokeObjectURL(item.url))
   frames.value = []
   finishedFrames.value = 0
+  jobElapsedMs.value = 0
   status.value = 'idle'
   progress.value = 0
   progressLabel.value = ''
@@ -122,6 +131,8 @@ function resetOutput() {
 function clearFile() {
   if (status.value === 'running') return
   parseRevision++
+  inspectController?.abort()
+  inspectController = null
   resetOutput()
   file.value = null
   info.value = null
@@ -145,7 +156,12 @@ async function pickFolder() {
     if (!(error instanceof DOMException && error.name === 'AbortError')) errorText.value = friendlyError(error)
   }
 }
-function addPreview(preview: FramePreview) {
+function addPreview(snapshot: FrameSnapshot) {
+  const preview: FramePreview = {
+    name: snapshot.name, timestamp: snapshot.timestamp,
+    url: URL.createObjectURL(snapshot.blob),
+    blob: outputFolder.value ? undefined : snapshot.blob,
+  }
   frames.value.push(preview)
   const max = outputFolder.value ? 16 : 30
   while (frames.value.length > max) {
@@ -203,28 +219,30 @@ async function start() {
       : null
     if (jobFolder) lastJobFolder.value = `${selectedFolderName.value}/${jobFolder.name}`
     if (controller.signal.aborted) throw new DOMException('任务已取消', 'AbortError')
-    if (mode.value === 'split') {
-      await splitVideo({
-        file: currentFile, maxBytes: targetBytes.value,
-        maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : undefined,
-        folder: jobFolder!, signal: controller.signal,
-        onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
-        onSegment: (part) => { parts.value.push(part) },
-      })
-    } else {
-      finishedFrames.value = await extractFrames({
-        file: currentFile, duration: currentInfo.duration, interval: interval.value,
-        startTime: frameStart.value, endTime: frameEnd.value,
-        format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
-        folder: jobFolder, signal: controller.signal,
-        onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
-        onPreview: addPreview,
-      })
-    }
+    const payload: WorkerPayload = mode.value === 'split'
+      ? {
+          mode: 'split', file: currentFile, folder: jobFolder,
+          maxBytes: targetBytes.value,
+          maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : undefined,
+          verificationLevel: verificationLevel.value,
+        }
+      : {
+          mode: 'frames', file: currentFile, folder: jobFolder,
+          duration: currentInfo.duration, interval: interval.value,
+          startTime: frameStart.value, endTime: frameEnd.value,
+          format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
+        }
+    const summary = await runWorkerJob(payload, controller.signal, {
+      onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
+      onSegment: part => { parts.value.push(part) },
+      onPreview: addPreview,
+    })
+    jobElapsedMs.value = summary.elapsedMs
+    if (mode.value === 'frames') finishedFrames.value = summary.count
     status.value = 'done'
     progress.value = 1
     progressLabel.value = mode.value === 'split'
-      ? `已封装 ${parts.value.length} 个 MP4 片段，建议抽查播放`
+      ? `已封装并校验 ${parts.value.length} 个 MP4 片段`
       : `已生成 ${finishedFrames.value} 张图片`
   } catch (error) {
     status.value = controller.signal.aborted ? 'canceled' : 'error'
@@ -250,6 +268,7 @@ function warnOnUnload(event: BeforeUnloadEvent) {
 window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
+  inspectController?.abort()
   window.removeEventListener('beforeunload', warnOnUnload)
   currentAbort.value?.abort()
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
