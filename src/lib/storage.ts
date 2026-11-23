@@ -12,7 +12,13 @@ export async function chooseFolder(): Promise<FileSystemDirectoryHandle> {
 export async function saveBlob(folder: FileSystemDirectoryHandle, filename: string, blob: Blob, signal: AbortSignal): Promise<void> {
   checkCanceled(signal)
   const handle = await folder.getFileHandle(filename, { create: true })
-  const writable = await handle.createWritable()
+  let writable: FileSystemWritableFileStream
+  try {
+    writable = await handle.createWritable()
+  } catch (error) {
+    await folder.removeEntry(filename).catch(() => {})
+    throw error
+  }
   try {
     // blob.stream() does not eagerly materialize the complete blob in JS memory.
     const reader = blob.stream().getReader()
