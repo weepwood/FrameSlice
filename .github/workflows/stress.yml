@@ -1,0 +1,45 @@
+name: 12GB 逻辑文件压力测试（按需运行）
+
+on:
+  workflow_dispatch:
+    inputs:
+      gigabytes:
+        description: '逻辑文件大小，单位 GB（1-64）'
+        required: true
+        default: '12'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/stress-virtual.mjs'
+      - 'src/lib/range-probe.mjs'
+      - '.github/workflows/stress.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  virtual-range-stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 全范围逻辑 Blob 分块测试
+        env:
+          STRESS_GB: ${{ inputs.gigabytes || '12' }}
+          STRESS_REPORT_PATH: stress-report.json
+        run: node --expose-gc scripts/stress-virtual.mjs
+      - name: 保存压力测试报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: virtual-range-stress
+          path: stress-report.json
+      - name: 生成 GitHub Actions 摘要
+        run: |
+          echo '## 虚拟大文件压力测试' >> "$GITHUB_STEP_SUMMARY"
+          echo '该测试使用虚拟 Blob，验证超过 2GB/4GB 的分块范围计算和进程内存，不代表真实 12GB 视频成功分割。' >> "$GITHUB_STEP_SUMMARY"
+          echo '~~~json' >> "$GITHUB_STEP_SUMMARY"
+          cat stress-report.json >> "$GITHUB_STEP_SUMMARY"
+          echo '~~~' >> "$GITHUB_STEP_SUMMARY"
