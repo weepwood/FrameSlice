@@ -1,0 +1,86 @@
+/**
+ * Actual Chrome smoke test for the production-built Vite app.
+ * Uses a real origin-private FileSystemDirectoryHandle in place of the
+ * operating-system picker to verify structured cloning into Web Workers.
+ */
+import { chromium } from 'playwright-core'
+import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+
+const chromePath = process.env.CHROME_PATH
+if (!chromePath) throw new Error('CHROME_PATH must reference an installed Chrome binary')
+const origin = process.env.APP_URL ?? 'http://127.0.0.1:4173/FrameSlice/'
+const dir = await mkdtemp(join(tmpdir(), 'frameslice-browser-'))
+const sample = join(dir, 'fixture.mp4')
+const encoded = await readFile(new URL('../tests/fixtures/black-h264-aac.mp4.b64', import.meta.url), 'utf8')
+await writeFile(sample, Buffer.from(encoded.trim(), 'base64'))
+
+const browser = await chromium.launch({ executablePath: chromePath, headless: true, args: ['--no-sandbox'] })
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  // The OPFS handle is a genuine native FileSystemDirectoryHandle which can
+  // be structured-cloned into a Worker, unlike a JavaScript mock object.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: async () => navigator.storage.getDirectory(),
+    })
+  })
+  await page.goto(origin, { waitUntil: 'networkidle' })
+  await page.locator('input[type=file]').setInputFiles(sample)
+  await page.locator('.file-codec').waitFor({ timeout: 30_000 })
+
+  async function awaitResult(label) {
+    await page.waitForFunction(() => {
+      const card = document.querySelector('.status-card')
+      return card?.classList.contains('success') || card?.classList.contains('failure')
+    }, { timeout: 60_000 })
+    if (await page.locator('.status-card.failure').count()) {
+      const detail = await page.locator('.status-card').innerText()
+      throw new Error(label + ' failed: ' + detail)
+    }
+  }
+
+  await page.getByRole('button', { name: /开始分割视频/ }).click()
+  await awaitResult('split Worker')
+  if (await page.locator('.result-list .result-item').count() !== 1) {
+    throw new Error('Split Worker did not export one MP4 segment')
+  }
+  if (!(await page.locator('.result-list').innerText()).includes('MP4 结构已校验')) {
+    throw new Error('Segment verification status missing from UI')
+  }
+
+  await page.locator('button.nav-item').nth(1).click()
+  await page.getByRole('button', { name: /开始提取图片/ }).click()
+  await awaitResult('frame Worker')
+  if (await page.locator('.frame-tile img').count() < 1) {
+    throw new Error('Frame Worker did not return any image previews')
+  }
+  const files = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const result = []
+    for await (const [dirName, child] of root.entries()) {
+      if (child.kind !== 'directory') continue
+      for await (const [fileName, handle] of child.entries()) {
+        if (handle.kind !== 'file') continue
+        const file = await handle.getFile()
+        result.push({ path: dirName + '/' + fileName, bytes: file.size })
+      }
+    }
+    return result
+  })
+  if (!files.some(file => file.path.endsWith('.mp4') && file.bytes > 500)) {
+    throw new Error('No verified MP4 found in OPFS')
+  }
+  if (!files.some(file => file.path.endsWith('.jpg') && file.bytes > 100)) {
+    throw new Error('No JPEG export found in OPFS')
+  }
+  if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', files }, null, 2))
+} finally {
+  await browser.close()
+  await rm(dir, { recursive: true, force: true })
+}
