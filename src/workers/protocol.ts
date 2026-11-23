@@ -2,6 +2,7 @@ import type { SplitResult } from '../lib/split'
 import type { FrameFormat, FrameSnapshot, FrameWidth } from '../lib/frames'
 import type { VerificationLevel } from '../lib/verify'
 import type { VideoInfo } from '../lib/media'
+import type { KeyframeStatistics } from '../lib/keyframe-stats.mjs'
 
 interface WorkerBase {
   kind: 'start'
@@ -28,10 +29,11 @@ export type WorkerStart =
       quality: number
     })
 
-export type WorkerCommand = WorkerStart | { kind: 'cancel'; id: number } | { kind: 'inspect'; id: number; file: File }
+export type WorkerCommand = WorkerStart | { kind: 'cancel'; id: number } | { kind: 'inspect'; id: number; file: File } | { kind: 'analyze'; id: number; file: File }
 
 export type WorkerReply =
   | { kind: 'inspected'; id: number; info: VideoInfo }
+  | { kind: 'analyzed'; id: number; report: KeyframeStatistics }
   | { kind: 'progress'; id: number; fraction: number; label: string }
   | { kind: 'fileStarted'; id: number; filename: string }
   | { kind: 'saved'; id: number; filename: string }
