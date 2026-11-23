@@ -161,11 +161,11 @@ MIT。详见 `LICENSE`。Mediabunny 项目依据 MPL-2.0 发布，其版权和�
 
 ```bash
 npm ci
-npm install --prefix apps/caption-studio --ignore-scripts
+npm ci --prefix apps/caption-studio --ignore-scripts
 # 终端 1：FrameSlice Vue 页面（默认 localhost:5173）
 npm run dev
 # 终端 2：字幕 React 页面（localhost:5174，经 Vue Vite dev proxy 访问）
 npm run dev:caption
 ```
 
-在浏览器打开 `http://localhost:5173/FrameSlice/subtitles/` 进入字幕工具。生产构建：`npm run build` 会依次生成 FrameSlice 主界面和 `dist/subtitles` 的 React 字幕工作台；`npm test` 运行两套测试。整合细节见 `apps/caption-studio/README.md`，署名许可见 `apps/caption-studio/ATTRIBUTION.md`。
+在浏览器打开 `http://localhost:5173/FrameSlice/subtitles/` 进入字幕工具。字幕子项目具有自己的 `package-lock.json`；生产和 CI 分别对 Vue 与 React 应用执行 `npm ci`。生产构建：`npm run build` 会依次生成 FrameSlice 主界面和 `dist/subtitles` 的 React 字幕工作台；`npm test` 运行两套测试。整合细节见 `apps/caption-studio/README.md`，署名许可见 `apps/caption-studio/ATTRIBUTION.md`。
