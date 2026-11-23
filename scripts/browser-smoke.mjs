@@ -177,7 +177,7 @@ try {
   if (!redirectResponse.ok() || !redirectHTML.includes('url=../#captions')) {
     throw new Error('Legacy subtitle URL does not provide the compatibility redirect')
   }
-  await page.goto(initialURL + '#captions', { waitUntil: 'networkidle' })
+  await page.goto(initialURL + '?caption-entry-test=1#captions', { waitUntil: 'networkidle' })
   await page.locator('.caption-react-host .caption-action-toolbar').waitFor({ timeout: 30_000 })
   if (!await page.getByRole('button', { name: /字幕工作台/ }).getAttribute('class')
       .then(value => value?.includes('active'))) {
