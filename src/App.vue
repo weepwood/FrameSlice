@@ -38,16 +38,28 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const confirmation = ref(false)
 const currentAbort = ref<AbortController | null>(null)
 
+const splitStrategy = ref<'size' | 'duration'>('size')
+const splitMinutes = ref(10)
 const size = ref(4)
 const sizeUnit = ref<'GB' | 'GiB'>('GB')
 const interval = ref(30)
+const frameStart = ref(0)
+const frameEnd = ref(0)
 const imageFormat = ref<FrameFormat>('image/jpeg')
 const imageWidth = ref<FrameWidth>(1920)
 const jpegQuality = ref(0.9)
 
 const targetBytes = computed(() => Math.floor(size.value * (sizeUnit.value === 'GiB' ? 1024 ** 3 : 1000 ** 3)))
-const estimatedParts = computed(() => file.value ? Math.max(1, Math.ceil(file.value.size / Math.max(1, targetBytes.value * 0.95))) : 0)
-const estimatedFrames = computed(() => info.value ? plannedFrameCount(info.value.duration, interval.value) : 0)
+const estimatedParts = computed(() => {
+  if (!file.value || !info.value) return 0
+  if (splitStrategy.value === 'duration') {
+    return Number.isFinite(splitMinutes.value) && splitMinutes.value > 0
+      ? Math.max(1, Math.ceil(info.value.duration / (splitMinutes.value * 60)))
+      : 0
+  }
+  return Math.max(1, Math.ceil(file.value.size / Math.max(1, targetBytes.value * 0.95)))
+})
+const estimatedFrames = computed(() => info.value ? plannedFrameCount(info.value.duration, interval.value, frameStart.value, frameEnd.value) : 0)
 const canRun = computed(() => Boolean(file.value && info.value && !loading.value && status.value !== 'running'))
 const fileReadable = computed(() => supportsFolderWrite())
 const progressPercent = computed(() => Math.round(progress.value * 100))
@@ -67,7 +79,11 @@ async function loadFile(nextFile?: File | null) {
   errorText.value = ''
   try {
     const inspected = await inspectVideo(nextFile)
-    if (revision === parseRevision) info.value = inspected
+    if (revision === parseRevision) {
+      info.value = inspected
+      frameStart.value = 0
+      frameEnd.value = inspected.duration
+    }
   } catch (error) {
     if (revision === parseRevision) errorText.value = `文件信息读取失败：${friendlyError(error)}`
   } finally {
@@ -139,11 +155,19 @@ function addPreview(preview: FramePreview) {
 }
 async function start() {
   if (!file.value || !info.value || status.value === 'running') return
-  if (mode.value === 'split' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
+  if (mode.value === 'split' && splitStrategy.value === 'size' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
     errorText.value = '分割大小至少为 32 MB。'; return
   }
-  if (mode.value === 'frames' && (!Number.isFinite(interval.value) || interval.value <= 0)) {
-    errorText.value = '截图间隔必须大于 0 秒。'; return
+  if (mode.value === 'split' && splitStrategy.value === 'duration' &&
+      (!Number.isFinite(splitMinutes.value) || splitMinutes.value < 0.01)) {
+    errorText.value = '分割时长必须有效，且至少为 0.5 秒。'; return
+  }
+  if (mode.value === 'frames' &&
+      (!Number.isFinite(interval.value) || interval.value < 0.1 ||
+       !Number.isFinite(frameStart.value) || !Number.isFinite(frameEnd.value) ||
+       frameStart.value < 0 || frameEnd.value <= frameStart.value ||
+       frameEnd.value > info.value.duration + 0.000001 || estimatedFrames.value === 0)) {
+    errorText.value = '截图区间或间隔无效，间隔至少 0.1 秒，且单次最多 10000 张。'; return
   }
   // The directory picker MUST be opened from this user gesture, before async processing.
   if (!outputFolder.value && supportsFolderWrite()) {
@@ -182,6 +206,7 @@ async function start() {
     if (mode.value === 'split') {
       await splitVideo({
         file: currentFile, maxBytes: targetBytes.value,
+        maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : undefined,
         folder: jobFolder!, signal: controller.signal,
         onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
         onSegment: (part) => { parts.value.push(part) },
@@ -189,6 +214,7 @@ async function start() {
     } else {
       finishedFrames.value = await extractFrames({
         file: currentFile, duration: currentInfo.duration, interval: interval.value,
+        startTime: frameStart.value, endTime: frameEnd.value,
         format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
         folder: jobFolder, signal: controller.signal,
         onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
@@ -215,7 +241,16 @@ function savePreview(preview: FramePreview) {
 }
 function retry() { resetOutput(); errorText.value = '' }
 
+function warnOnUnload(event: BeforeUnloadEvent) {
+  if (status.value === 'running') {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+window.addEventListener('beforeunload', warnOnUnload)
+
 onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', warnOnUnload)
   currentAbort.value?.abort()
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
   for (const preview of frames.value) URL.revokeObjectURL(preview.url)
@@ -282,8 +317,16 @@ onBeforeUnmount(() => {
         <div class="step-head step-two"><span class="step-number">02</span><h2>处理设置</h2><span class="step-description">按需要配置输出</span></div>
         <section class="config-panel" v-if="mode === 'split'">
           <div class="config-row">
+            <div class="setting-copy"><div class="setting-icon"><Scissors :size="19"/></div><div><strong>分割方式</strong><span>按文件容量或视频时长分割</span></div></div>
+            <div class="select-wrap"><select v-model="splitStrategy" :disabled="status === 'running'" aria-label="分割方式"><option value="size">按文件大小</option><option value="duration">按视频时长</option></select><ChevronDown :size="14"/></div>
+          </div>
+          <div v-if="splitStrategy === 'size'" class="config-row">
             <div class="setting-copy"><div class="setting-icon"><Layers2 :size="19"/></div><div><strong>单个文件大小</strong><span>根据关键帧位置自动选择切割点</span></div></div>
             <div class="config-control"><input type="number" v-model.number="size" :disabled="status === 'running'" min="0.032" step="0.1" class="number-input" aria-label="每份目标大小"/><div class="select-wrap"><select v-model="sizeUnit" :disabled="status === 'running'" aria-label="单位"><option value="GB">GB</option><option value="GiB">GiB</option></select><ChevronDown :size="14"/></div></div>
+          </div>
+          <div v-else class="config-row">
+            <div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>每段视频时长</strong><span>以关键帧对齐；超出间隔时将提示无法无损分割</span></div></div>
+            <div class="config-control"><input type="number" v-model.number="splitMinutes" :disabled="status === 'running'" min="0.01" max="100000" step="0.5" class="number-input" aria-label="每段时长（分钟）"/><span class="input-suffix">分钟</span></div>
           </div>
           <div class="config-row">
             <div class="setting-copy"><div class="setting-icon"><Zap :size="19"/></div><div><strong>无损快速分割</strong><span>复制压缩数据，尽可能保持原始画质</span></div></div>
@@ -293,19 +336,21 @@ onBeforeUnmount(() => {
             <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '请指定本地输出目录' }}</span></div></div>
             <button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button>
           </div>
-          <div class="config-footnote"><Info :size="16"/><span>片段大小为上限而非精确值；关键帧间隔和 MP4 封装开销会影响分割点。当前针对单视频轨、最多一条音轨设计。</span></div>
+          <div class="config-footnote"><Info :size="16"/><span>按大小分割保留封装余量；按时长分割在关键帧位置切割，两者都不能保证精确均分。仅支持单视频轨、最多一条音轨。</span></div>
         </section>
 
         <section class="config-panel" v-else>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong><span>从 00:00 开始，每隔指定秒数提取画面</span></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong><span>只处理所选区间，避免无关帧与磁盘开销</span></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong><span>选择导出的图片编码格式</span></div></div><div class="select-wrap"><select v-model="imageFormat" :disabled="status === 'running'" aria-label="图片格式"><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select><ChevronDown :size="14"/></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>输出分辨率</strong><span>保持纵横比；小于设置值的视频不会放大</span></div></div><div class="select-wrap"><select v-model.number="imageWidth" :disabled="status === 'running'" aria-label="最大输出宽度"><option :value="0">原始尺寸</option><option :value="1280">1280 px</option><option :value="1920">1920 px</option><option :value="3840">3840 px</option></select><ChevronDown :size="14"/></div></div>
+          <div v-if="imageFormat !== 'image/png'" class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>图片压缩质量</strong><span>JPEG / WebP 输出质量，越高文件通常越大</span></div></div><div class="range-control"><input type="range" min="0.5" max="1" step="0.05" v-model.number="jpegQuality" :disabled="status === 'running'" aria-label="截图质量"/><span>{{ Math.round(jpegQuality * 100) }}%</span></div></div>
           <div class="config-row last"><div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '未选择目录，最多生成 30 张可下载预览' }}</span></div></div><button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button></div>
           <div class="config-footnote"><Info :size="16"/><span>图片在本地解码并直接写入磁盘；部分 HEVC、AV1 视频取决于浏览器解码能力。</span></div>
         </section>
 
         <section class="execution" v-if="file && info">
-          <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? '关键帧 · 不重新编码' : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">网络传输</span><strong>0 B <Check :size="14" class="no-upload-check"/></strong></div></div>
+          <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">网络传输</span><strong>0 B <Check :size="14" class="no-upload-check"/></strong></div></div>
           <button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>
           <button v-else type="button" class="cancel-button" @click="cancel"><PauseCircle :size="16"/> 取消任务</button>
         </section>
