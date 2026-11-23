@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [vue()],
-  base: process.env.GITHUB_PAGES === 'true' ? '/FrameSlice/' : '/',
+  base: command === 'serve' ? '/' : '/FrameSlice/',
   build: { target: 'es2022' },
-})
+}))
