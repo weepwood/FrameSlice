@@ -30,6 +30,8 @@ export async function saveBlob(folder: FileSystemDirectoryHandle, filename: stri
     await writable.close()
   } catch (error) {
     await writable.abort().catch(() => {})
+    // Each export has a unique job directory. Remove partial/empty output on failure.
+    await folder.removeEntry(filename).catch(() => {})
     throw error
   }
 }
