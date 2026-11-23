@@ -10,7 +10,10 @@ import { scanContainerInWorker, runContainerInWorker } from '../lib/container-cl
 import { chooseFolder, supportsFolderWrite, saveBlob } from '../lib/storage'
 import { baseName, friendlyError, humanBytes, humanTime } from '../lib/format'
 
-const props = defineProps<{ initialFile?: File | null }>()
+const props = defineProps<{
+  initialFile?: File | null
+  handoff?: { file: File; subtitle: File } | null
+}>()
 const emit = defineEmits<{ (event: 'busy', value: boolean): void }>()
 const fileInput = ref<HTMLInputElement | null>(null)
 const subtitleInput = ref<HTMLInputElement | null>(null)
@@ -182,6 +185,17 @@ async function start() {
   }
 }
 function cancel() { taskController?.abort() }
+
+watch(() => props.handoff, async handoff => {
+  if (!handoff || working.value) return
+  await loadFile(handoff.file)
+  if (media.value !== handoff.file || !report.value) return
+  subtitle.value = handoff.subtitle
+  action.value = 'package'
+  format.value = 'mkv'
+  confirmed.value = false
+  statusMessage.value = '已接收字幕工作台的媒体和字幕，请确认轨道后封装。'
+}, { immediate: true })
 
 onMounted(() => { if (props.initialFile && !media.value) void loadFile(props.initialFile) })
 onBeforeUnmount(() => cleanup())
