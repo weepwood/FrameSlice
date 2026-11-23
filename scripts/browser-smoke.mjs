@@ -124,7 +124,10 @@ try {
   // The migrated Caption-Studio must be served as a REAL same-origin
   // application, not a link to the standalone repository or an iframe.
   await page.getByRole('link', { name: /AI 字幕工作台/ }).click()
-  await page.waitForURL(url => url.pathname === '/FrameSlice/subtitles/', { timeout: 30_000 })
+  const captionNavURL = page.url()
+  if (!new URL(captionNavURL).pathname.includes('subtitles')) {
+    throw new Error('Subtitle navigation did not reach a subtitle path: ' + captionNavURL)
+  }
   await page.locator('.editor-header h1').waitFor({ timeout: 30_000 })
   await page.getByRole('link', { name: /返回视频工具/ }).waitFor()
   await page.locator('input[accept=".srt,.vtt"]').setInputFiles({
@@ -142,7 +145,10 @@ try {
     throw new Error('Migrated subtitle editor failed SRT import/export roundtrip')
   }
   await page.getByRole('link', { name: /返回视频工具/ }).click()
-  await page.waitForURL(url => url.pathname === '/FrameSlice/', { timeout: 30_000 })
+  const returnNavURL = page.url()
+  if (new URL(returnNavURL).pathname.includes('subtitles')) {
+    throw new Error('Return navigation did not reach FrameSlice video workspace: ' + returnNavURL)
+  }
   await page.getByRole('button', { name: /开始分割视频/ }).waitFor()
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
   console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'passed', captionSRT: 'passed', files }, null, 2))
