@@ -123,10 +123,15 @@ try {
   }
   // The migrated Caption-Studio must be served as a REAL same-origin
   // application, not a link to the standalone repository or an iframe.
+  const subtitleHref = await page.getByRole('link', { name: /AI 字幕工作台/ }).getAttribute('href')
+  const subtitleURL = new URL(subtitleHref, origin)
+  const subtitleResponse = await page.request.get(subtitleURL.href, { timeout: 15_000 })
+  console.log('Subtitle preflight:', subtitleURL.href, subtitleResponse.status(),
+    (await subtitleResponse.text()).slice(0, 180))
   await page.getByRole('link', { name: /AI 字幕工作台/ }).click()
   const captionNavURL = page.url()
   if (!new URL(captionNavURL).pathname.includes('subtitles')) {
-    throw new Error('Subtitle navigation did not reach a subtitle path: ' + captionNavURL)
+    throw new Error('Subtitle navigation did not reach a subtitle path: ' + captionNavURL + '\\nPage errors: ' + JSON.stringify(errors) + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
   }
   await page.locator('.editor-header h1').waitFor({ timeout: 30_000 })
   await page.getByRole('link', { name: /返回视频工具/ }).waitFor()
