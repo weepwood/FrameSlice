@@ -74,7 +74,7 @@ const estimatedParts = computed(() => {
   return Math.max(1, Math.ceil(file.value.size / Math.max(1, targetBytes.value * 0.95)))
 })
 const estimatedFrames = computed(() => info.value ? plannedFrameCount(info.value.duration, interval.value, frameStart.value, frameEnd.value) : 0)
-const canRun = computed(() => Boolean(file.value && info.value && !loading.value && status.value !== 'running'))
+const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && status.value !== 'running'))
 const fileReadable = computed(() => supportsFolderWrite())
 const progressPercent = computed(() => Math.round(progress.value * 100))
 
