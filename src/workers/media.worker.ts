@@ -3,7 +3,10 @@ import { extractFrames } from '../lib/frames'
 import { inspectVideo } from '../lib/media'
 import type { WorkerCommand, WorkerReply, WorkerStart } from './protocol'
 
-const scope = self as DedicatedWorkerGlobalScope
+const scope = self as unknown as {
+  postMessage: (message: WorkerReply) => void
+  onmessage: ((event: MessageEvent<WorkerCommand>) => void) | null
+}
 let running: { id: number; controller: AbortController } | null = null
 
 function send(message: WorkerReply): void {
