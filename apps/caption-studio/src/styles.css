@@ -209,3 +209,58 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 /* FrameSlice suite navigation. */
 .frame-home-link{border:1px solid #e0e7e9;margin-bottom:14px;color:#4b687b;background:#fff;font-weight:650;display:flex;align-items:center;gap:12px}
 .frame-home-link:hover{background:#eef3f4;color:#304b5b;border-color:#c8d5dc}
+
+/* Unified FrameSlice workbench — embedded subtitle view, green neutral palette.
+   Rendered in a ShadowRoot so original React global styles never leak into Vue. */
+:host{display:block;min-width:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#292d27;font-size:14px;line-height:1.5;font-synthesis:none}
+:host *, :host *::before, :host *::after{box-sizing:border-box}
+.app-shell.embedded{min-height:0;background:transparent;color:#292d27}
+.app-shell.embedded .workspace{min-height:0;display:block}
+.app-shell.embedded .editor-area{max-width:none;padding:0 0 28px;margin:0}
+.app-shell.embedded .content-grid{grid-template-columns:minmax(340px,1fr) minmax(330px,390px);gap:16px}
+.app-shell.embedded .main-column{gap:16px}
+.app-shell.embedded .surface{border:1px solid #e6e9e2;border-radius:12px;box-shadow:0 1px 5px rgba(30,55,33,.025);background:#fff}
+.app-shell.embedded .section-title{border-bottom-color:#ecf0ea}
+.app-shell.embedded .section-title strong{color:#354439}
+.app-shell.embedded .workflow-strip{margin-bottom:19px}
+.app-shell.embedded .workflow-step{border-color:#e4e9e1;background:#fff}
+.app-shell.embedded .workflow-step.complete{background:#f0f5ee;border-color:#dce9d9}
+.app-shell.embedded .workflow-step.current{border-color:#b6cdb5;background:#f6faf4}
+.app-shell.embedded .workflow-step b{color:#405343}
+.app-shell.embedded .btn.primary,
+.app-shell.embedded .play-button{background:#455f49;color:#fff}
+.app-shell.embedded .btn.primary:hover:not(:disabled){background:#344a38}
+.app-shell.embedded .btn.outline{border:1px solid #dce5d9;background:#fff;color:#4e6653}
+.app-shell.embedded .btn.outline:hover:not(:disabled){background:#f2f6f0;border-color:#b7cbb5}
+.app-shell.embedded .chip{color:#6b836f;background:#f2f7f0;border-color:#dfe8db}
+.app-shell.embedded .cue-row.selected{background:#f5faf3;border-color:#96b29c}
+.app-shell.embedded .cue-row.playing{box-shadow:inset 3px 0 0 #6b9470}
+.app-shell.embedded .side-tabs button.active{color:#446b4a}
+.app-shell.embedded .side-tabs button.active::after{background:#62846a}
+.app-shell.embedded .rail-item.selected{background:#edf3eb}
+.app-shell.embedded input[type=range],
+.app-shell.embedded input[type=checkbox]{accent-color:#668a6d}
+.app-shell.embedded button:focus-visible,
+.app-shell.embedded a:focus-visible,
+.app-shell.embedded input:focus-visible,
+.app-shell.embedded select:focus-visible,
+.app-shell.embedded textarea:focus-visible{outline:2px solid #729574;outline-offset:2px}
+.caption-action-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:20px;padding:12px 14px;border:1px solid #e5e9e1;border-radius:12px;background:#fff}
+.caption-action-toolbar .btn{font-size:11px;min-height:34px;padding:7px 10px}
+.caption-project-field{display:flex;align-items:center;gap:9px;min-width:160px}
+.caption-project-field>span{font-size:11px;font-weight:700;color:#829181;white-space:nowrap}
+.caption-project-field input{width:156px;max-width:100%;border:1px solid transparent;background:#f6f8f4;border-radius:7px;padding:8px 9px;color:#3b4e3d;font-size:12px;text-overflow:ellipsis;outline:none}
+.caption-project-field input:hover,.caption-project-field input:focus-visible{border-color:#c9d8c8;background:#fff}
+.caption-action-spacer{flex:1}
+.caption-save-state{display:inline-flex;align-items:center;gap:6px;color:#849482;font-size:10px;white-space:nowrap;margin-right:5px}
+.caption-save-state::before{content:'';display:block;width:6px;height:6px;border-radius:100%;background:#84a48a}
+.app-shell.embedded .editor-header{margin-bottom:0}
+.app-shell.embedded .bottom-meta{color:#829081}
+.app-shell.embedded .video-frame{background:#17221a}
+.app-shell.embedded .empty-media{color:#a5b4a4}
+.app-shell.embedded .empty-icon{background:#293d30;color:#c4dac3;border-color:#47614a}
+.app-shell.embedded .empty-media h2{color:#eff3ec}
+.app-shell.embedded .empty-actions .btn.outline{background:#283b2e;border-color:#4a634f;color:#e6eee4}
+@media(max-width:1240px){.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr)}.caption-action-toolbar{gap:6px}}
+@media(max-width:720px){.caption-action-toolbar{align-items:stretch;gap:7px}.caption-project-field{flex:1 1 100%}.caption-project-field input{flex:1}.caption-action-spacer{display:none}.caption-save-state{margin-right:auto}.caption-action-toolbar .btn{flex:0 1 auto}}
+@media(max-width:480px){.app-shell.embedded .editor-area{padding:0 0 15px}.caption-action-toolbar{padding:10px}.caption-action-toolbar .btn{font-size:10px;padding:6px 8px}.caption-save-state{flex-basis:100%}}
