@@ -125,7 +125,16 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         await output.start()
         const pumpVideo = async () => {
           let first = true
-          for await (const packet of videoSink.packets(seg.start.packet, seg.end?.packet)) {
+          // Preflight uses metadata-only packets to avoid loading gigabytes into memory.
+          // Mediabunny requires a real encoded start packet for a full-data iterator.
+          // The end boundary may remain metadata-only: it is only used as an exclusive marker.
+          const startPacket = await videoSink.getKeyPacket(startTime)
+          if (!startPacket || startPacket.isMetadataOnly || startPacket.type !== 'key' ||
+              (seg.start.packet.sequenceNumber >= 0 && startPacket.sequenceNumber >= 0 &&
+               startPacket.sequenceNumber !== seg.start.packet.sequenceNumber)) {
+            throw new Error('无法从视频中重新定位分割起点的完整关键帧；已停止，避免输出损坏的视频。')
+          }
+          for await (const packet of videoSink.packets(startPacket, seg.end?.packet)) {
             checkCanceled(signal)
             const shifted = new EncodedPacket(
               packet.data, packet.type, packet.timestamp - startTime,
