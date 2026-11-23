@@ -150,4 +150,20 @@ test('MP4 splitting uses a full start packet and produces a playable container',
     }
   }
 
+  const deepFolder = createMemoryDirectory()
+  const deep = await splitVideo({
+    file,
+    maxBytes: 32 * 1024 * 1024,
+    verificationLevel: 'deep',
+    folder: deepFolder,
+    signal: new AbortController().signal,
+    onProgress() {},
+    onSegment() {},
+  })
+  assert.equal(deep.length, 1)
+  assert.equal(deep[0].verification.level, 'deep')
+  assert.equal(deep[0].verification.passed, true)
+  assert.ok(deep[0].verification.videoPackets > 0)
+  assert.ok(deep[0].verification.audioPackets > 0)
+
 })
