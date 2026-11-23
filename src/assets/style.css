@@ -15,3 +15,11 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 
 .output-path{margin-top:12px;font-size:10px;color:#89978a;overflow-wrap:anywhere}
+
+/* Advanced splitting and frame-range controls */
+.range-control{display:flex;align-items:center;justify-content:flex-end;gap:9px;min-width:0;flex-wrap:wrap;color:#879488;font-size:11px}
+.range-control .number-input{width:93px}
+.range-control input[type=range]{width:140px;min-width:100px;accent-color:#6a866d;cursor:pointer}
+.range-control input[type=range]:disabled{cursor:not-allowed;opacity:.5}
+@media(max-width:720px){.range-control{gap:6px}.range-control .number-input{width:75px}}
+@media(max-width:420px){.config-row .range-control{margin-left:39px;justify-content:flex-start}}
