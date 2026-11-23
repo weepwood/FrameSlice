@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
   FileVideo, Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
@@ -29,6 +29,7 @@ const captionVisited = ref(startInCaption)
 const videoTool = ref<'split' | 'container'>('split')
 const containerVisited = ref(false)
 const containerBusy = ref(false)
+const subtitleHandoff = ref<{ file: File; subtitle: File } | null>(null)
 const file = ref<File | null>(null)
 const info = ref<VideoInfo | null>(null)
 const videoUrl = ref('')
@@ -217,6 +218,17 @@ function clearFile() {
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
   videoUrl.value = ''
 }
+function acceptSubtitleHandoff(event: Event) {
+  const data = (event as CustomEvent<{ file: File; subtitle: File }>).detail
+  if (!data || !(data.file instanceof File) || !(data.subtitle instanceof File) ||
+    status.value === 'running' || containerBusy.value) return
+  subtitleHandoff.value = { file: data.file, subtitle: data.subtitle }
+  containerVisited.value = true
+  videoTool.value = 'container'
+  mode.value = 'split'
+}
+onMounted(() => window.addEventListener('frameslice:subtitle-package', acceptSubtitleHandoff))
+
 function changeVideoTool(next: 'split' | 'container') {
   if (containerBusy.value || status.value === 'running' || videoTool.value === next) return
   if (next === 'container') containerVisited.value = true
@@ -466,7 +478,7 @@ onBeforeUnmount(() => {
           <button type="button" :class="{ active: videoTool === 'split' }" :disabled="status === 'running' || containerBusy" @click="changeVideoTool('split')"><Scissors :size="15"/> 无损分割</button>
           <button type="button" :class="{ active: videoTool === 'container' }" :disabled="status === 'running' || containerBusy" @click="changeVideoTool('container')"><PackageOpen :size="15"/> 轨道提取与封装</button>
         </div>
-        <ContainerWorkspace v-if="containerVisited" v-show="mode === 'split' && videoTool === 'container'" :initial-file="file" @busy="containerBusy = $event"/>
+        <ContainerWorkspace v-if="containerVisited" v-show="mode === 'split' && videoTool === 'container'" :initial-file="file" :handoff="subtitleHandoff" @busy="containerBusy = $event"/>
         <div v-show="mode !== 'split' || videoTool === 'split'">
         <div class="step-head"><span class="step-number">01</span><h2>选择视频</h2><span class="step-description">从本地读取，不经过服务器</span></div>
         <input ref="fileInput" type="file" accept="video/*,.mp4,.m4v,.mov,.mkv,.webm" class="visually-hidden" @change="onInputChange" />
