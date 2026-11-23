@@ -82,7 +82,9 @@ test('MP4 splitting uses a full start packet and produces a playable container',
     input.dispose()
   }
 
-  const outfile = join(dir, 'split.mjs')
+  // Keep the temporary bundle under the project root so Node resolves mediabunny from node_modules.
+  const outfile = join(process.cwd(), '.frameslice-split-smoke-' + process.pid + '.mjs')
+  t.after(() => rm(outfile, { force: true }))
   await build({
     entryPoints: ['src/lib/split.ts'],
     bundle: true, platform: 'node', format: 'esm',
