@@ -1,6 +1,7 @@
 import { splitVideo } from '../lib/split'
 import { extractFrames } from '../lib/frames'
 import { inspectVideo } from '../lib/media'
+import { analyzeKeyframes } from '../lib/analyze'
 import type { WorkerCommand, WorkerReply, WorkerStart } from './protocol'
 
 const scope = self as unknown as {
@@ -81,6 +82,22 @@ async function inspect(id: number, file: File, controller: AbortController): Pro
   }
 }
 
+async function analyze(id: number, file: File, controller: AbortController): Promise<void> {
+  try {
+    const report = await analyzeKeyframes(file, controller.signal,
+      (fraction, label) => send({ kind: 'progress', id, fraction, label }))
+    if (!controller.signal.aborted) send({ kind: 'analyzed', id, report })
+  } catch (error) {
+    send({
+      kind: 'error', id,
+      canceled: controller.signal.aborted || error instanceof DOMException && error.name === 'AbortError',
+      message: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    running = null
+  }
+}
+
 scope.onmessage = (event: MessageEvent<WorkerCommand>) => {
   const message = event.data
   if (message.kind === 'cancel') {
@@ -88,9 +105,10 @@ scope.onmessage = (event: MessageEvent<WorkerCommand>) => {
     return
   }
   if (running) return
-  if (message.kind !== 'start' && message.kind !== 'inspect') return
+  if (message.kind !== 'start' && message.kind !== 'inspect' && message.kind !== 'analyze') return
   const controller = new AbortController()
   running = { id: message.id, controller }
   if (message.kind === 'inspect') void inspect(message.id, message.file, controller)
+  else if (message.kind === 'analyze') void analyze(message.id, message.file, controller)
   else void run(message, controller)
 }
