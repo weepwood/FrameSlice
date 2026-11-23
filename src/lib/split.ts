@@ -42,6 +42,18 @@ export interface SplitOptions {
   signal: AbortSignal
   onProgress: (fraction: number, label: string) => void
   onSegment: (result: SplitResult) => void
+  onFileStart?: (filename: string) => void
+}
+
+/**
+ * Give the dedicated worker time to process CANCEL messages.
+ * Without a macrotask yield, a long chain of already-resolved promises can starve onmessage.
+ */
+async function yieldForCancellation(index: number, signal: AbortSignal): Promise<void> {
+  if ((index & 1023) === 0) {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    checkCanceled(signal)
+  }
 }
 
 function groupIndex(groups: Group[], timestamp: number): number {
@@ -96,9 +108,11 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
     const groups: Group[] = []
     report(0.01, '正在扫描关键帧与压缩数据索引…', true)
     let videoBytesScanned = 0
+    let scannedVideoPackets = 0
     // metadataOnly avoids materializing a 12 GB file during preflight.
     for await (const packet of videoSink.packets(undefined, undefined, { metadataOnly: true })) {
       checkCanceled(signal)
+      await yieldForCancellation(++scannedVideoPackets, signal)
       if (!Number.isSafeInteger(packet.byteLength) || packet.byteLength < 0) {
         throw new Error('媒体包的字节大小无效，已停止处理。')
       }
@@ -115,8 +129,10 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
     // Add audio payload sizes to the GOP containing the corresponding presentation time.
     if (audioSink) {
       report(0.07, '正在统计音轨大小…', true)
+      let scannedAudioPackets = 0
       for await (const packet of audioSink.packets(undefined, undefined, { metadataOnly: true })) {
         checkCanceled(signal)
+        await yieldForCancellation(++scannedAudioPackets, signal)
         if (!Number.isSafeInteger(packet.byteLength) || packet.byteLength < 0) {
           throw new Error('音频媒体包的字节大小无效。')
         }
@@ -139,6 +155,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       const startTime = seg.start.time
       const endTime = seg.end?.time ?? duration
       const filename = `${baseName(file.name)}_part_${String(i + 1).padStart(3, '0')}.mp4`
+      options.onFileStart?.(filename)
       const fileHandle = await folder.getFileHandle(filename, { create: true })
       const writable = await fileHandle.createWritable()
       const output = new Output({
@@ -157,6 +174,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         await output.start()
         const pumpVideo = async () => {
           let first = true
+          let videoPacketsProcessed = 0
           // Preflight uses metadata-only packets to avoid loading gigabytes into memory.
           // Mediabunny requires a real encoded start packet for a full-data iterator.
           // The end boundary may remain metadata-only: it is only used as an exclusive marker.
@@ -168,6 +186,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
           }
           for await (const packet of videoSink.packets(startPacket, seg.end?.packet)) {
             checkCanceled(signal)
+            await yieldForCancellation(++videoPacketsProcessed, signal)
             const shifted = new EncodedPacket(
               packet.data, packet.type, packet.timestamp - startTime,
               packet.duration, packet.sequenceNumber, packet.byteLength, packet.sideData,
@@ -183,11 +202,13 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         }
         const pumpAudio = async () => {
           if (!audioSink || !audioSource || !audioConfig) return
+          let audioPacketsProcessed = 0
           const firstPacket = (await audioSink.getPacket(startTime)) ?? (await audioSink.getFirstPacket())
           if (!firstPacket) { audioSource.close(); return }
           let first = true
           for await (const packet of audioSink.packets(firstPacket)) {
             checkCanceled(signal)
+            await yieldForCancellation(++audioPacketsProcessed, signal)
             if (packet.timestamp >= endTime) break
             if (packet.timestamp < startTime) continue
             const shifted = new EncodedPacket(
