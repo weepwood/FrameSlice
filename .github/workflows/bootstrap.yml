@@ -1,0 +1,62 @@
+name: 初始化 FrameSlice 项目源码
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Reassemble and verify source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .bootstrap/part{01..07}.b64 | base64 --decode > /tmp/frameslice-source.tar.xz
+          echo '6cc5e6a5a021568a6f8fd0df3d7f8d4205159112e08127a12bf4d24576d6087f  /tmp/frameslice-source.tar.xz' | sha256sum --check
+          tar -xJf /tmp/frameslice-source.tar.xz -C .
+          test -f package.json
+          test -f src/App.vue
+          test -f src/lib/split.ts
+          test -f src/lib/frames.ts
+          # 一次性传输中间文件不保留在正式源码中。
+          rm -rf .bootstrap
+          # 工作流在此提交中保持单一：正式部署工作流由仓库写入接口单独提交。
+          rm -f .github/workflows/deploy.yml
+      - name: Commit restored source
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '导入 FrameSlice 初版源码与测试'
+          git push origin HEAD:main
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install and lock dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run tests and build
+        run: |
+          npm test
+          npm run build
+      - name: Commit package lock
+        if: success()
+        shell: bash
+        run: |
+          git add package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m '锁定前端依赖版本'
+            git push origin HEAD:main
+          fi
