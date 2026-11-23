@@ -1,6 +1,7 @@
 import type { SplitResult } from './split'
 import type { FrameSnapshot } from './frames'
 import type { VideoInfo } from './media'
+import type { KeyframeStatistics } from './keyframe-stats.mjs'
 import type { WorkerStart, WorkerReply } from '../workers/protocol'
 
 export type WorkerPayload =
@@ -170,5 +171,58 @@ export function inspectWithWorker(file: File, signal: AbortSignal): Promise<Vide
     try { worker.postMessage({ kind: 'inspect', id: 1, file }) }
     catch (error) { settle(() => reject(error instanceof Error ? error : new Error(String(error)))) }
     if (signal.aborted) cancel()
+  })
+}
+
+/** Bounded-memory, on-demand keyframe analysis in a dedicated Worker. */
+export function analyzeWithWorker(
+  file: File,
+  signal: AbortSignal,
+  onProgress: (fraction: number, label: string) => void,
+): Promise<KeyframeStatistics> {
+  if (signal.aborted) return Promise.reject(new DOMException('分析已取消', 'AbortError'))
+  if (typeof Worker === 'undefined') return Promise.reject(new Error('当前浏览器不支持 Web Worker。'))
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('../workers/media.worker.ts', import.meta.url), { type: 'module' })
+    let settled = false
+    function finish(callback: () => void): void {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', cancel)
+      worker.onmessage = null
+      worker.onerror = null
+      worker.onmessageerror = null
+      worker.terminate()
+      callback()
+    }
+    function cancel(): void {
+      finish(() => reject(new DOMException('分析已取消', 'AbortError')))
+    }
+    worker.onmessage = (event: MessageEvent<WorkerReply>) => {
+      const message = event.data
+      if (message.id !== 1 || settled) return
+      switch (message.kind) {
+        case 'progress':
+          onProgress(message.fraction, message.label)
+          break
+        case 'analyzed':
+          finish(() => resolve(message.report))
+          break
+        case 'error':
+          finish(() => reject(message.canceled || signal.aborted
+            ? new DOMException(message.message, 'AbortError')
+            : new Error(message.message)))
+          break
+      }
+    }
+    worker.onerror = event => finish(() => reject(new Error('媒体体检线程运行错误：' + event.message)))
+    worker.onmessageerror = () => finish(() => reject(new Error('媒体体检结果传输失败。')))
+    signal.addEventListener('abort', cancel, { once: true })
+    try {
+      worker.postMessage({ kind: 'analyze', id: 1, file })
+      if (signal.aborted) cancel()
+    } catch (error) {
+      finish(() => reject(error instanceof Error ? error : new Error(String(error))))
+    }
   })
 }
