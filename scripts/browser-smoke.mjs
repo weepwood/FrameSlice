@@ -169,6 +169,18 @@ try {
   if (await caption.locator('.export-grid button').first().isDisabled()) {
     throw new Error('Switching between tools lost the subtitle editor state')
   }
+  // Caption editor to soft subtitle mux: reuse the already loaded media File,
+  // transfer generated SRT in-memory; no redundant SRT export/reimport step.
+  await caption.locator('input[accept^="video/*"]').setInputFiles(sample)
+  await caption.getByRole('button', { name: /封装软字幕/ }).click()
+  await page.locator('.ct-file-note').waitFor({ timeout: 30_000 })
+  if (!((await page.locator('.ct-file-note').innerText()).includes('caption-export.srt')) ||
+      !((await page.locator('.ct-choice.active').innerText()).includes('重新封装')) ||
+      !((await page.locator('select[aria-label="封装目标格式"]').inputValue()) === 'mkv')) {
+    throw new Error('Edited caption handoff failed to preselect source media and MKV soft subtitles')
+  }
+  await page.getByRole('button', { name: /字幕工作台/ }).click()
+  await caption.getByRole('tab', { name: /导出/ }).waitFor()
   // Browser-native container tooling: reuse the video's File from the Vue
   // workbench, then exercise a true FileSystemDirectoryHandle in the worker.
   await page.getByRole('button', { name: /视频分割/ }).click()
@@ -264,7 +276,7 @@ try {
     throw new Error('Direct caption deep link did not activate the unified subtitle tab')
   }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', containerDemux: 'passed', subtitleMux: 'passed', mkvToMp4: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', containerDemux: 'passed', subtitleMux: 'passed', mkvToMp4: 'passed', captionHandoff: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
