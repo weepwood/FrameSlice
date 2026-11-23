@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, isPreview }) => ({
   plugins: [vue()],
-  base: command === 'serve' ? '/' : '/FrameSlice/',
+  // vite preview also uses command='serve'. Keep the production Pages base in preview.
+  base: command === 'serve' && isPreview !== true ? '/' : '/FrameSlice/',
   build: { target: 'es2022' },
 }))
