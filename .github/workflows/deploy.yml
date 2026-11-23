@@ -28,7 +28,9 @@ jobs:
         with:
           node-version: '22'
       - name: 安装依赖
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: 扫描生产依赖安全公告
+        run: npm audit --omit=dev --audit-level=high
       - name: 单元测试与正式构建
         run: |
           npm test
