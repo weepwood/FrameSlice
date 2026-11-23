@@ -20,7 +20,13 @@ const browser = await chromium.launch({ executablePath: chromePath, headless: tr
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
   const errors = []
+  const networkErrors = []
   page.on('pageerror', error => errors.push(error.message))
+  page.on('console', msg => { if (msg.type() === 'error') errors.push('console: ' + msg.text()) })
+  page.on('response', response => {
+    if (response.status() >= 400) networkErrors.push(response.status() + ' ' + response.url())
+  })
+  page.on('requestfailed', request => networkErrors.push('failed: ' + request.url() + ' ' + request.failure()?.errorText))
   // The OPFS handle is a genuine native FileSystemDirectoryHandle which can
   // be structured-cloned into a Worker, unlike a JavaScript mock object.
   await page.addInitScript(() => {
@@ -30,6 +36,13 @@ try {
     })
   })
   await page.goto(origin, { waitUntil: 'networkidle' })
+  if (await page.locator('input[type=file]').count() === 0) {
+    const html = (await page.content()).slice(0, 2000)
+    throw new Error('App did not render file input. URL: ' + page.url() +
+      '\\nTitle: ' + await page.title() + '\\nHTML: ' + html +
+      '\\nPage errors: ' + JSON.stringify(errors) +
+      '\\nNetwork errors: ' + JSON.stringify(networkErrors))
+  }
   await page.locator('input[type=file]').setInputFiles(sample)
   await page.locator('.file-codec').waitFor({ timeout: 30_000 })
 
