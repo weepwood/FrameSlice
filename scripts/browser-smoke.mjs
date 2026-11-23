@@ -46,6 +46,12 @@ try {
   await page.locator('input[type=file]').setInputFiles(sample)
   await page.locator('.file-codec').waitFor({ timeout: 30_000 })
 
+  await page.getByRole('button', { name: '分析视频' }).click()
+  await page.locator('.fs-analysis-metrics').waitFor({ timeout: 30_000 })
+  if (await page.locator('.fs-analysis-chart > span').count() !== 48) {
+    throw new Error('Keyframe analyzer failed to render all bitrate buckets')
+  }
+
   async function awaitResult(label) {
     await page.waitForFunction(() => {
       const card = document.querySelector('.status-card')
@@ -66,11 +72,32 @@ try {
     throw new Error('Segment verification status missing from UI')
   }
 
+  const [manifestDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /导出处理报告 JSON/ }).click(),
+  ])
+  const manifest = JSON.parse(await readFile(await manifestDownload.path(), 'utf8'))
+  if (manifest.schemaVersion !== 1 || manifest.summary.outputCount !== 1 ||
+      !manifest.outputs[0].verification.passed) {
+    throw new Error('Exported split manifest is invalid or missing verification details')
+  }
+
   await page.locator('button.nav-item').nth(1).click()
   await page.getByRole('button', { name: /开始提取图片/ }).click()
   await awaitResult('frame Worker')
   if (await page.locator('.frame-tile img').count() < 1) {
     throw new Error('Frame Worker did not return any image previews')
+  }
+  const [sheetDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /生成分镜拼图/ }).click(),
+  ])
+  if (!sheetDownload.suggestedFilename().endsWith('_storyboard.jpg')) {
+    throw new Error('Unexpected contact-sheet download name')
+  }
+  const jpg = await readFile(await sheetDownload.path())
+  if (jpg.byteLength < 800 || jpg[0] !== 0xff || jpg[1] !== 0xd8) {
+    throw new Error('Contact-sheet JPEG is malformed or empty')
   }
   const files = await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory()
@@ -88,11 +115,14 @@ try {
   if (!files.some(file => file.path.endsWith('.mp4') && file.bytes > 500)) {
     throw new Error('No verified MP4 found in OPFS')
   }
+  if (files.filter(file => file.path.endsWith('/frameslice-report.json')).length !== 2) {
+    throw new Error('Both exported job folders must contain a JSON manifest')
+  }
   if (!files.some(file => file.path.endsWith('.jpg') && file.bytes > 100)) {
     throw new Error('No JPEG export found in OPFS')
   }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
