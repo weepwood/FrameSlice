@@ -169,6 +169,47 @@ try {
   if (await caption.locator('.export-grid button').first().isDisabled()) {
     throw new Error('Switching between tools lost the subtitle editor state')
   }
+  // Browser-native container tooling: reuse the video's File from the Vue
+  // workbench, then exercise a true FileSystemDirectoryHandle in the worker.
+  await page.getByRole('button', { name: /视频分割/ }).click()
+  await page.getByRole('button', { name: /轨道提取与封装/ }).click()
+  const containerPanel = page.locator('.ct-workspace')
+  await containerPanel.locator('.ct-track').first().waitFor({ timeout: 20_000 })
+  if (await containerPanel.locator('.ct-track').count() !== 2) {
+    throw new Error('Container inspector did not identify H.264 video and AAC audio')
+  }
+  await containerPanel.locator('.ct-ack input').check()
+  await containerPanel.getByRole('button', { name: /开始提取所选轨道/ }).click()
+  await page.waitForFunction(() => {
+    const panel = document.querySelector('.ct-workspace')
+    return panel?.querySelectorAll('.ct-output').length === 2 ||
+      panel?.querySelector('.ct-error')
+  }, { timeout: 45_000 })
+  if (await containerPanel.locator('.ct-error').count()) {
+    throw new Error('Container demux failed: ' + await containerPanel.locator('.ct-error').innerText())
+  }
+  if (!(await containerPanel.locator('.ct-result').innerText()).includes('完成 2 个输出')) {
+    throw new Error('Container demux task did not complete')
+  }
+  await containerPanel.locator('.ct-choice').nth(1).click()
+  await containerPanel.locator('input[accept=".srt,.vtt"]').setInputFiles({
+    name: 'mux.srt', mimeType: 'text/plain',
+    buffer: Buffer.from(['1','00:00:00,000 --> 00:00:01,000','嵌入式字幕封装测试',''].join(String.fromCharCode(10)), 'utf8'),
+  })
+  await containerPanel.getByRole('button', { name: /开始无损重新封装/ }).click()
+  await page.waitForFunction(() => {
+    const panel = document.querySelector('.ct-workspace')
+    return panel?.querySelector('.ct-output') || panel?.querySelector('.ct-error')
+  }, { timeout: 45_000 })
+  if (await containerPanel.locator('.ct-error').count()) {
+    throw new Error('Container subtitle mux failed: ' + await containerPanel.locator('.ct-error').innerText())
+  }
+  if (!(await containerPanel.locator('.ct-output').innerText()).includes('字幕轨已写入')) {
+    throw new Error('MKV output does not report verified WebVTT subtitle')
+  }
+  // Returning to the normal split tool must not trigger page navigation.
+  await page.getByRole('button', { name: /无损分割/ }).click()
+  if (!page.url().startsWith(initialURL)) throw new Error('Container subtool changed the page URL')
   // Older bookmarks point to /FrameSlice/subtitles/. Keep them functional,
   // but redirect to the same unified page with its subtitle tab selected.
   const oldURL = new URL('subtitles/', initialURL).href
@@ -184,7 +225,7 @@ try {
     throw new Error('Direct caption deep link did not activate the unified subtitle tab')
   }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', containerDemux: 'passed', subtitleMux: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
