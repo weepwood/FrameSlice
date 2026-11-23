@@ -1,5 +1,6 @@
 import {
   Conversion, EncodedPacketSink, MkvOutputFormat, Mp4OutputFormat,
+  FlacOutputFormat, Mp3OutputFormat, OggOutputFormat,
   Output, StreamTarget, TextSubtitleSource,
 } from 'mediabunny'
 import type { InputTrack, InputVideoTrack, InputAudioTrack, OutputFormat } from 'mediabunny'
@@ -28,7 +29,7 @@ export interface ContainerInspection {
   mkv: MkvProbe | null
   warnings: string[]
 }
-export type ContainerFormat = 'mkv' | 'mp4'
+export type ContainerFormat = 'mkv' | 'mp4' | 'flac' | 'mp3' | 'ogg'
 export type ContainerAction = 'extract' | 'package'
 export interface ContainerOutput {
   filename: string
@@ -113,13 +114,21 @@ export async function inspectContainer(file: File): Promise<ContainerInspection>
 }
 
 function outputFormat(format: ContainerFormat): OutputFormat {
-  return format === 'mp4' ? new Mp4OutputFormat() : new MkvOutputFormat()
+  switch (format) {
+    case 'mkv': return new MkvOutputFormat()
+    case 'mp4': return new Mp4OutputFormat()
+    case 'flac': return new FlacOutputFormat()
+    case 'mp3': return new Mp3OutputFormat()
+    case 'ogg': return new OggOutputFormat()
+  }
 }
 
 function extensionForTrack(codec: string, kind: ContainerKind): { ext: string; format: ContainerFormat } {
   if (kind === 'video') return { ext: 'mkv', format: 'mkv' }
   if (codec === 'aac') return { ext: 'm4a', format: 'mp4' }
-  if (codec === 'flac') return { ext: 'flac', format: 'mkv' } // We keep MKV output for a single stream.
+  if (codec === 'flac') return { ext: 'flac', format: 'flac' }
+  if (codec === 'mp3') return { ext: 'mp3', format: 'mp3' }
+  if (codec === 'opus' || codec === 'vorbis') return { ext: 'ogg', format: 'ogg' }
   return { ext: 'mkv', format: 'mkv' }
 }
 
@@ -259,9 +268,8 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
     subtitle = normalizeSubtitleText(text, options.subtitle.name.split('.').pop() || '')
   }
   const input = openInput(file)
-  let available: InputTrack[]
-  try { available = await input.getTracks() }
-  finally { input.dispose() }
+  try {
+  const available: InputTrack[] = await input.getTracks()
   const selected = available.filter(t => selectedIds.includes(trackId(t)))
   if (selected.length !== selectedIds.length ||
     selected.some(t => t.type !== 'video' && t.type !== 'audio')) {
@@ -285,4 +293,7 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
     onProgress((i + 1) / plan.length, `已完成 ${i + 1} / ${plan.length} 个输出`)
   }
   return results
+  } finally {
+    input.dispose()
+  }
 }
