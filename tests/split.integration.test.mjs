@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -43,21 +42,11 @@ function createMemoryDirectory() {
 test('MP4 splitting uses a full start packet and produces a playable container', { timeout: 60_000 }, async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'frameslice-split-test-'))
   t.after(() => rm(dir, { recursive: true, force: true }))
-  const source = join(dir, 'sample.mp4')
-  try {
-    execFileSync('ffmpeg', [
-      '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
-      '-f', 'lavfi', '-i', 'testsrc2=size=96x64:rate=10',
-      '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=44100',
-      '-t', '3.3', '-c:v', 'libx264', '-preset', 'ultrafast',
-      '-crf', '35', '-g', '10', '-keyint_min', '10', '-sc_threshold', '0',
-      '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '32k',
-      '-movflags', '+faststart', source,
-    ], { timeout: 25_000 })
-  } catch (error) {
-    throw new Error('Unable to generate MP4 integration fixture: ' + String(error))
-  }
-  const file = new File([await readFile(source)], 'sample.mp4', { type: 'video/mp4' })
+  // Tiny H.264/AAC fixture is checked in as Base64 to avoid an FFmpeg dependency.
+  const encoded = await readFile(new URL('./fixtures/black-h264-aac.mp4.b64', import.meta.url), 'utf8')
+  const fixture = Buffer.from(encoded.trim(), 'base64')
+  assert.equal(fixture.byteLength, 2414, 'the fixture must be intact')
+  const file = new File([fixture], 'sample.mp4', { type: 'video/mp4' })
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
   try {
     const video = await input.getPrimaryVideoTrack()
