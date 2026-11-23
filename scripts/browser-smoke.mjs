@@ -154,7 +154,11 @@ try {
   if (new URL(returnNavURL).pathname.includes('subtitles')) {
     throw new Error('Return navigation did not reach FrameSlice video workspace: ' + returnNavURL)
   }
-  await page.getByRole('button', { name: /开始分割视频/ }).waitFor()
+  await page.locator('.page-head h1').waitFor({ timeout: 30_000 })
+  if (!(await page.locator('.page-head h1').innerText()).includes('视频分割') ||
+      (await page.locator('input[type=file]').count()) === 0) {
+    throw new Error('Return navigation did not restore the FrameSlice video workspace')
+  }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
   console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'passed', captionSRT: 'passed', files }, null, 2))
 } finally {
