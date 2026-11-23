@@ -105,4 +105,49 @@ test('MP4 splitting uses a full start packet and produces a playable container',
   } finally {
     resultInput.dispose()
   }
+
+  // Exercise multiple independently playable MP4s, not just a one-part remux.
+  const probe = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
+  let maxSeconds
+  try {
+    const track = await probe.getPrimaryVideoTrack()
+    const sink = new EncodedPacketSink(track)
+    const boundaries = []
+    for await (const packet of sink.packets(undefined, undefined, { metadataOnly: true })) {
+      if (packet.type === 'key') boundaries.push(packet.timestamp)
+    }
+    const duration = await probe.computeDuration()
+    const gaps = boundaries.map((time, index) =>
+      (boundaries[index + 1] ?? duration) - time)
+    maxSeconds = Math.max(0.5, ...gaps) + 0.01
+    assert.ok(duration > maxSeconds, 'fixture should admit more than one time-based segment')
+  } finally {
+    probe.dispose()
+  }
+  const timedFolder = createMemoryDirectory()
+  const timed = await splitVideo({
+    file,
+    maxBytes: 32 * 1024 * 1024,
+    maxSeconds,
+    folder: timedFolder,
+    signal: new AbortController().signal,
+    onProgress() {},
+    onSegment() {},
+  })
+  assert.ok(timed.length >= 2, 'duration mode must create at least two parts')
+  for (const segment of timed) {
+    assert.ok(segment.end - segment.start <= maxSeconds + 0.002)
+    const item = timedFolder.saved.get(segment.filename)
+    assert.ok(item?.closed)
+    const output = new File([item.data], segment.filename, { type: 'video/mp4' })
+    const parsed = new Input({ source: new BlobSource(output), formats: ALL_FORMATS })
+    try {
+      assert.ok(await parsed.getPrimaryVideoTrack(), 'every part must contain video')
+      assert.equal((await parsed.getAudioTracks()).length, 1, 'every part must retain audio')
+      assert.ok((await parsed.computeDuration()) > 0)
+    } finally {
+      parsed.dispose()
+    }
+  }
+
 })
