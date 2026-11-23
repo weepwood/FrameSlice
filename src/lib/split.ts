@@ -8,7 +8,7 @@ import {
   StreamTarget,
 } from 'mediabunny'
 import { baseName, checkCanceled } from './format'
-import { planGroups } from './planning.mjs'
+import { planGroups, planGroupsByDuration } from './planning.mjs'
 import { openInput } from './media'
 
 interface Group {
@@ -33,6 +33,7 @@ export interface SplitResult {
 export interface SplitOptions {
   file: File
   maxBytes: number
+  maxSeconds?: number
   folder: FileSystemDirectoryHandle
   signal: AbortSignal
   onProgress: (fraction: number, label: string) => void
@@ -51,7 +52,7 @@ function groupIndex(groups: Group[], timestamp: number): number {
 }
 
 export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> {
-  const { file, maxBytes, folder, signal, onProgress, onSegment } = options
+  const { file, maxBytes, maxSeconds, folder, signal, onProgress, onSegment } = options
   if (!/\.(mp4|m4v|mov)$/i.test(file.name)) {
     throw new Error('无损分割目前优先支持 MP4 / M4V / MOV 输入；其他容器请先转换为 MP4。')
   }
@@ -65,6 +66,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
     if (videos.length !== 1 || audios.length > 1 || allTracks.length !== videos.length + audios.length) {
       throw new Error('当前无损分割只支持 1 条视频轨道、最多 1 条音频轨道，且不能包含字幕或其他轨道；已停止处理以避免丢失数据。')
     }
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error('视频时长无效，已停止处理。')
     const video = videos[0]
     const audio = await video.getPrimaryPairableAudioTrack()
     if (audios.length && !audio) throw new Error('视频和音频轨道不可配对；为防止丢失音轨，已停止处理。')
@@ -83,7 +85,13 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
     // metadataOnly avoids materializing a 12 GB file during preflight.
     for await (const packet of videoSink.packets(undefined, undefined, { metadataOnly: true })) {
       checkCanceled(signal)
-      if (packet.type === 'key') groups.push({ time: packet.timestamp, packet, bytes: 0 })
+      if (!Number.isSafeInteger(packet.byteLength) || packet.byteLength < 0) {
+        throw new Error('媒体包的字节大小无效，已停止处理。')
+      }
+      if (packet.type === 'key') {
+        if (groups.length >= 250_000) throw new Error('关键帧数量过多，超过资源安全上限。')
+        groups.push({ time: packet.timestamp, packet, bytes: 0 })
+      }
       if (!groups.length) throw new Error('视频开始处没有可用关键帧，无法保证输出片段独立播放。')
       groups[groups.length - 1].bytes += packet.byteLength
     }
@@ -93,10 +101,15 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       onProgress(0.07, '正在统计音轨大小…')
       for await (const packet of audioSink.packets(undefined, undefined, { metadataOnly: true })) {
         checkCanceled(signal)
+        if (!Number.isSafeInteger(packet.byteLength) || packet.byteLength < 0) {
+          throw new Error('音频媒体包的字节大小无效。')
+        }
         groups[groupIndex(groups, packet.timestamp)].bytes += packet.byteLength
       }
     }
-    const packed = planGroups(groups, maxBytes)
+    const packed = maxSeconds === undefined
+      ? planGroups(groups, maxBytes)
+      : planGroupsByDuration(groups, duration, maxSeconds)
     const segments: Segment[] = packed.map((section, index) => {
       const nextStart = packed[index + 1]?.[0] ?? null
       return { start: section[0], end: nextStart,
@@ -171,7 +184,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         await output.finalize()
         finalized = true
         const finalFile = await fileHandle.getFile()
-        if (finalFile.size > maxBytes) {
+        if (maxSeconds === undefined && finalFile.size > maxBytes) {
           await folder.removeEntry(filename).catch(() => {})
           throw new Error(`片段 ${i + 1} 实际大小超过上限（封装开销高于预估），已移除该片段。请减小目标大小后重试。`)
         }
