@@ -121,46 +121,43 @@ try {
   if (!files.some(file => file.path.endsWith('.jpg') && file.bytes > 100)) {
     throw new Error('No JPEG export found in OPFS')
   }
-  // The migrated Caption-Studio must be served as a REAL same-origin
-  // application, not a link to the standalone repository or an iframe.
-  const subtitleHref = await page.getByRole('link', { name: /AI 字幕工作台/ }).getAttribute('href')
-  const subtitleURL = new URL(subtitleHref, origin)
-  const subtitleResponse = await page.request.get(subtitleURL.href, { timeout: 15_000 })
-  console.log('Subtitle preflight:', subtitleURL.href, subtitleResponse.status(),
-    (await subtitleResponse.text()).slice(0, 180))
-  await page.getByRole('link', { name: /AI 字幕工作台/ }).click()
-  const captionNavURL = page.url()
-  if (!new URL(captionNavURL).pathname.includes('subtitles')) {
-    throw new Error('Subtitle navigation did not reach a subtitle path: ' + captionNavURL + '\\nPage errors: ' + JSON.stringify(errors) + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
+  // All three tools live in the same Vue workspace. React lives in a Shadow
+  // DOM island, so test actual editor controls without navigating to /subtitles/.
+  const initialURL = page.url()
+  await page.getByRole('button', { name: /字幕工作台/ }).click()
+  if (page.url() !== initialURL) throw new Error('Subtitle tab unexpectedly navigated away')
+  const caption = page.locator('.caption-react-host')
+  await caption.locator('.caption-action-toolbar').waitFor({ timeout: 30_000 })
+  if (await caption.locator('.nav-rail').count() !== 0 ||
+      await caption.locator('.topbar').count() !== 0) {
+    throw new Error('Embedded subtitle workspace still has a duplicate navbar/topbar')
   }
-  await page.locator('.editor-header h1').waitFor({ timeout: 30_000 })
-  await page.getByRole('link', { name: /返回视频工具/ }).waitFor()
-  await page.locator('input[accept=".srt,.vtt"]').setInputFiles({
+  await caption.getByRole('button', { name: /打开工程/ }).waitFor()
+  await caption.getByRole('button', { name: /导入字幕/ }).waitFor()
+  await caption.locator('input[accept=".srt,.vtt"]').setInputFiles({
     name: 'integration.srt', mimeType: 'text/plain',
-    buffer: Buffer.from(['1', '00:00:01,000 --> 00:00:03,000', 'FrameSlice 字幕合并测试', ''].join(String.fromCharCode(10)), 'utf8'),
+    buffer: Buffer.from(['1','00:00:01,000 --> 00:00:03,000','FrameSlice 字幕合并测试',''].join(String.fromCharCode(10)), 'utf8'),
   })
-  await page.getByRole('tab', { name: /导出/ }).click()
+  await caption.getByRole('tab', { name: /导出/ }).click()
   const [subtitleDownload] = await Promise.all([
     page.waitForEvent('download', { timeout: 30_000 }),
-    page.locator('.export-grid button').first().click(),
+    caption.locator('.export-grid button').first().click(),
   ])
   const subtitleContent = await readFile(await subtitleDownload.path(), 'utf8')
   if (!subtitleContent.includes('FrameSlice 字幕合并测试') ||
       !subtitleContent.includes('00:00:01,000')) {
-    throw new Error('Migrated subtitle editor failed SRT import/export roundtrip')
+    throw new Error('Embedded subtitle workspace failed SRT import/export roundtrip')
   }
-  await page.getByRole('link', { name: /返回视频工具/ }).click()
-  const returnNavURL = page.url()
-  if (new URL(returnNavURL).pathname.includes('subtitles')) {
-    throw new Error('Return navigation did not reach FrameSlice video workspace: ' + returnNavURL)
-  }
-  await page.locator('.page-head h1').waitFor({ timeout: 30_000 })
-  if (!(await page.locator('.page-head h1').innerText()).includes('视频分割') ||
-      (await page.locator('input[type=file]').count()) === 0) {
-    throw new Error('Return navigation did not restore the FrameSlice video workspace')
+  await page.getByRole('button', { name: /视频分割/ }).click()
+  if (page.url() !== initialURL) throw new Error('Video tab unexpectedly navigated away')
+  await page.getByRole('button', { name: /导出处理报告 JSON/ }).waitFor()
+  await page.getByRole('button', { name: /字幕工作台/ }).click()
+  await caption.getByRole('tab', { name: /导出/ }).waitFor()
+  if (await caption.locator('.export-grid button').first().isDisabled()) {
+    throw new Error('Switching between tools lost the subtitle editor state')
   }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'passed', captionSRT: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
