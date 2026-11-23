@@ -451,6 +451,49 @@ onBeforeUnmount(() => {
           <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
+        <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
+          <div class="fs-analysis-header">
+            <div class="fs-analysis-heading">
+              <div class="fs-analysis-icon"><SlidersHorizontal :size="17"/></div>
+              <div><strong>视频体检</strong><span>按需扫描关键帧与码率，不重新编码</span></div>
+            </div>
+            <button v-if="!analyzing" type="button" class="fs-tool-button"
+              :disabled="status === 'running'" @click="runAnalysis">
+              <RotateCcw v-if="mediaAnalysis" :size="14"/><Play v-else :size="14"/>
+              {{ mediaAnalysis ? '重新分析' : '分析视频' }}
+            </button>
+            <button v-else type="button" class="fs-tool-button" @click="cancelAnalysis"><X :size="14"/> 取消分析</button>
+          </div>
+          <div v-if="analyzing" class="fs-analysis-progress" role="status">
+            <div class="fs-analysis-track"><div :style="{ width: Math.round(analysisProgress * 100) + '%' }"></div></div>
+            <span>正在后台分析媒体索引 · {{ Math.round(analysisProgress * 100) }}%</span>
+          </div>
+          <p v-if="analysisError" class="fs-analysis-warning">{{ analysisError }}</p>
+          <template v-if="mediaAnalysis">
+            <div class="fs-analysis-metrics">
+              <div><span>关键帧数量</span><strong>{{ mediaAnalysis.keyframeCount.toLocaleString() }}</strong></div>
+              <div><span>最长 GOP</span><strong>{{ mediaAnalysis.maxGopSeconds.toFixed(2) }} <small>秒</small></strong></div>
+              <div><span>平均视频码率</span><strong>{{ mediaAnalysis.averageVideoMbps.toFixed(2) }} <small>Mbps</small></strong></div>
+              <div><span>最大 GOP 数据量</span><strong>{{ humanBytes(mediaAnalysis.maxGopVideoBytes) }}</strong></div>
+            </div>
+            <div class="fs-analysis-chart-heading"><span>视频码率分布</span><span>48 个时间区间 · 非音轨码率</span></div>
+            <div class="fs-analysis-chart" role="img" aria-label="视频码率随时间变化的柱状图">
+              <span v-for="(rate, index) in mediaAnalysis.bitrateBins" :key="index"
+                :title="'区间 ' + (index + 1) + ' / 48 · ' + rate.toFixed(2) + ' Mbps'"
+                :style="{ height: Math.max(3, rate / maxAnalysisBitrate * 100) + '%' }"></span>
+            </div>
+            <div class="fs-analysis-chart-footer"><span>00:00:00</span><span>{{ humanTime(mediaAnalysis.duration) }}</span></div>
+            <div class="fs-analysis-assessment" :class="{ caution: analysisWarnings.length || !mediaAnalysis.structurallyEligible }">
+              <ShieldCheck v-if="!analysisWarnings.length && mediaAnalysis.structurallyEligible" :size="15"/>
+              <AlertTriangle v-else :size="15"/>
+              <span>{{ analysisWarnings.length ? '发现可能影响无损分割的情况' :
+                mediaAnalysis.structurallyEligible ? '容器与轨道结构满足当前无损分割的基本前提' : '当前文件结构存在分割限制' }}</span>
+            </div>
+            <p v-for="(message, index) in analysisWarnings" :key="index" class="fs-analysis-warning">{{ message }}</p>
+            <p class="fs-analysis-disclaimer">提示：结果根据媒体索引的元数据推算，不保证所有标记的关键帧均可解码；最终以导出后的 MP4 校验为准。</p>
+          </template>
+        </section>
+
         <div class="step-head step-two"><span class="step-number">02</span><h2>处理设置</h2><span class="step-description">按需要配置输出</span></div>
         <section class="config-panel" v-if="mode === 'split'">
           <div class="config-row">
@@ -501,6 +544,17 @@ onBeforeUnmount(() => {
           <div class="step-head"><span class="step-number">03</span><h2>任务结果</h2><span class="step-description">{{ status === 'running' ? '处理中' : status === 'done' ? '处理完毕' : '状态信息' }}</span></div>
           <div class="status-card" :class="{ success: status === 'done', failure: status === 'error' }"><div class="status-card-head"><div class="status-icon"><BadgeCheck v-if="status === 'done'" :size="19"/><AlertTriangle v-else-if="status === 'error'" :size="19"/><CircleHelp v-else-if="status === 'canceled'" :size="19"/><RotateCcw v-else :size="19" class="rotating"/></div><div class="status-details"><strong>{{ status === 'running' ? '正在处理' : status === 'done' ? '任务完成' : status === 'canceled' ? '任务已取消' : '处理失败' }}</strong><span>{{ progressLabel }}</span></div><div class="status-percent">{{ progressPercent }}%</div></div><div class="progress-track"><div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div></div><p v-if="lastJobFolder" class="output-path">保存目录：{{ lastJobFolder }}</p><p v-if="jobElapsedMs > 0" class="output-path">后台处理耗时：{{ (jobElapsedMs / 1000).toFixed(1) }} 秒</p><p v-if="errorText" class="status-error">{{ errorText }}</p><button v-if="status === 'error' || status === 'canceled'" type="button" class="text-button" @click="retry">重新配置任务 <ArrowRight :size="14"/></button></div>
           <div v-if="parts.length" class="result-list"><div v-for="item in parts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div>
+          <div v-if="status === 'done' && (exportReportJson || frames.length)" class="fs-result-tools">
+            <button v-if="exportReportJson" type="button" class="fs-tool-button" @click="downloadManifest">
+              <ArrowDownToLine :size="15"/> 导出处理报告 JSON
+            </button>
+            <button v-if="frames.length" type="button" class="fs-tool-button" :disabled="storyboardBusy"
+              @click="downloadStoryboard">
+              <ImageIcon :size="15"/> {{ storyboardBusy ? '正在生成分镜图…' : '生成分镜拼图（最多 12 张）' }}
+            </button>
+            <span v-if="reportNotice" class="fs-result-note">{{ reportNotice }}</span>
+          </div>
+          <p v-if="storyboardError" class="fs-analysis-warning">{{ storyboardError }}</p>
           <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}</span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
         </section>
 
