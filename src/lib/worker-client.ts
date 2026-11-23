@@ -1,5 +1,6 @@
 import type { SplitResult } from './split'
 import type { FrameSnapshot } from './frames'
+import type { VideoInfo } from './media'
 import type { WorkerStart, WorkerReply } from '../workers/protocol'
 
 export type WorkerPayload =
@@ -87,6 +88,8 @@ export function runWorkerJob(
       if (settled || event.data.id !== id) return
       const message = event.data
       switch (message.kind) {
+        case 'inspected':
+          break
         case 'progress':
           callbacks.onProgress(message.fraction, message.label)
           break
@@ -127,5 +130,36 @@ export function runWorkerJob(
     } catch (error) {
       fail(new Error(`无法启动媒体处理线程：${error instanceof Error ? error.message : String(error)}`))
     }
+  })
+}
+
+/** Media metadata inspection also runs away from the UI thread. */
+export function inspectWithWorker(file: File, signal: AbortSignal): Promise<VideoInfo> {
+  if (signal.aborted) return Promise.reject(new DOMException('读取已取消', 'AbortError'))
+  if (typeof Worker === 'undefined') return Promise.reject(new Error('当前浏览器不支持 Web Worker。'))
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('../workers/media.worker.ts', import.meta.url), { type: 'module' })
+    let settled = false
+    function settle(callback: () => void): void {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', cancel)
+      worker.terminate()
+      callback()
+    }
+    function cancel(): void {
+      settle(() => reject(new DOMException('读取已取消', 'AbortError')))
+    }
+    worker.onmessage = (event: MessageEvent<WorkerReply>) => {
+      if (event.data.id !== 1) return
+      if (event.data.kind === 'inspected') settle(() => resolve(event.data.info))
+      if (event.data.kind === 'error') settle(() => reject(new Error(event.data.message)))
+    }
+    worker.onerror = event => settle(() => reject(new Error('读取媒体信息时处理线程异常：' + event.message)))
+    worker.onmessageerror = () => settle(() => reject(new Error('媒体信息在 Worker 与网页之间传输失败。')))
+    signal.addEventListener('abort', cancel, { once: true })
+    try { worker.postMessage({ kind: 'inspect', id: 1, file }) }
+    catch (error) { settle(() => reject(error instanceof Error ? error : new Error(String(error)))) }
+    if (signal.aborted) cancel()
   })
 }
