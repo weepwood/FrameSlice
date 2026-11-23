@@ -322,7 +322,7 @@ async function start() {
     // Human-readable JSON alongside the media outputs; no original file paths.
     const report = createExportManifest({
       source: currentInfo,
-      mode: mode.value,
+      mode: mode.value === 'split' ? 'split' : 'frames',
       settings: mode.value === 'split'
         ? { strategy: splitStrategy.value, targetBytes: splitStrategy.value === 'size' ? targetBytes.value : null,
             maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : null,
