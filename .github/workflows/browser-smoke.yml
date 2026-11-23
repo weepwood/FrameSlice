@@ -13,6 +13,7 @@ on:
       - 'src/lib/frames.ts'
       - 'src/lib/split.ts'
       - 'src/App.vue'
+      - 'vite.config.ts'
 
 permissions:
   contents: read
