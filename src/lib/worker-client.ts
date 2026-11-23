@@ -151,9 +151,10 @@ export function inspectWithWorker(file: File, signal: AbortSignal): Promise<Vide
       settle(() => reject(new DOMException('读取已取消', 'AbortError')))
     }
     worker.onmessage = (event: MessageEvent<WorkerReply>) => {
-      if (event.data.id !== 1) return
-      if (event.data.kind === 'inspected') settle(() => resolve(event.data.info))
-      if (event.data.kind === 'error') settle(() => reject(new Error(event.data.message)))
+      const message = event.data
+      if (message.id !== 1) return
+      if (message.kind === 'inspected') settle(() => resolve(message.info))
+      if (message.kind === 'error') settle(() => reject(new Error(message.message)))
     }
     worker.onerror = event => settle(() => reject(new Error('读取媒体信息时处理线程异常：' + event.message)))
     worker.onmessageerror = () => settle(() => reject(new Error('媒体信息在 Worker 与网页之间传输失败。')))
