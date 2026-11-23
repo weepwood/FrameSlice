@@ -29,6 +29,13 @@ jobs:
           node-version: '22'
       - name: 安装依赖
         run: npm install --no-audit --no-fund
+      - name: 配置视频回归测试环境
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -n 1
       - name: 单元测试与正式构建
         run: |
           npm test
