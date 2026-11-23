@@ -159,7 +159,7 @@ try {
       (await page.locator('input[type=file]').count()) === 0) {
     throw new Error('Return navigation did not restore the FrameSlice video workspace')
   }
-  if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
+  if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
   console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'passed', captionSRT: 'passed', files }, null, 2))
 } finally {
   await browser.close()
