@@ -54,7 +54,15 @@ export function runWorkerJob(
       if (settled) return
       settled = true
       close()
-      reject(error)
+      // A fatal Worker error may happen before split.ts can clean up its
+      // active writable. Completed and verified files are NOT in this set.
+      const pending = Array.from(incomplete)
+      if (payload.folder && pending.length) {
+        void Promise.allSettled(pending.map(name => payload.folder!.removeEntry(name)))
+          .finally(() => reject(error))
+      } else {
+        reject(error)
+      }
     }
 
     function succeed(result: JobSummary): void {
