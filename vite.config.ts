@@ -7,4 +7,6 @@ export default defineConfig(({ command, isPreview }) => ({
   base: command === 'serve' && isPreview !== true ? '/' : '/FrameSlice/',
   build: { target: 'es2022' },
   server: { proxy: { '/FrameSlice/subtitles': { target: 'http://127.0.0.1:5174', changeOrigin: true, ws: true } } },
+  // Vite preview otherwise inherits server.proxy and forwards built pages to the dev-only port.
+  preview: { proxy: {} },
 }))
