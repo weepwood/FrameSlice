@@ -34,9 +34,6 @@ let taskController: AbortController | null = null
 let revision = 0
 
 const working = computed(() => stage.value === 'running' || stage.value === 'scanning')
-const isMkv = computed(() => /\.(mkv|webm)$/i.test(media.value?.name || ''))
-const selectableTracks = computed(() => report.value?.tracks.filter(t => t.selectable) ?? [])
-const selected = computed(() => selectableTracks.value.filter(t => selectedIds.value.includes(t.id)))
 const canRun = computed(() =>
   !!media.value && !!report.value && !working.value && !!selectedIds.value.length &&
   confirmed.value && supportsFolderWrite() &&
