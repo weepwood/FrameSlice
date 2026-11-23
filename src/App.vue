@@ -419,6 +419,7 @@ function warnOnUnload(event: BeforeUnloadEvent) {
 window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
+  window.removeEventListener('frameslice:subtitle-package', acceptSubtitleHandoff)
   inspectController?.abort()
   analysisController?.abort()
   window.removeEventListener('beforeunload', warnOnUnload)
