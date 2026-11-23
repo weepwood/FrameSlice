@@ -8,6 +8,7 @@ on:
       - '.github/workflows/browser-smoke.yml'
       - 'scripts/browser-smoke.mjs'
       - 'src/**'
+      - 'apps/caption-studio/**'
       - 'vite.config.ts'
 
 permissions:
