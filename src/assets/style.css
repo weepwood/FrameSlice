@@ -58,3 +58,8 @@
 .fs-result-note{color:#789078;font-size:10px;line-height:1.5}
 @media(max-width:720px){.fs-analysis{padding:14px}.fs-analysis-metrics{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:16px}.fs-analysis-chart{gap:2px;height:54px}}
 @media(max-width:420px){.fs-analysis-header{align-items:flex-start;flex-direction:column}.fs-analysis-header>.fs-tool-button{margin-left:46px}}
+
+/* Cross-workspace navigation, same host and repository. */
+.fs-nav-link{display:flex;text-decoration:none;align-items:center;white-space:nowrap}
+.fs-nav-link:hover{background:#f0f2ed;color:#354d3a}
+.fs-nav-link .nav-index{margin-left:auto}

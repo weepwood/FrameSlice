@@ -1,0 +1,32 @@
+{
+  "name": "frameslice-caption-workspace",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first Whisper subtitle editor, based on sudesh1456/whisper-caption-editor (MIT).",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "@huggingface/transformers": "^4.3.0",
+    "mediabunny": "^1.66.2",
+    "lucide-react": "^0.468.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.1",
+    "vitest": "^4.0.0"
+  }
+}

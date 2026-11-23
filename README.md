@@ -143,3 +143,29 @@ src/
 ## 许可证
 
 MIT。详见 `LICENSE`。Mediabunny 项目依据 MPL-2.0 发布，其版权和许可证由原项目保留。
+
+
+## 字幕工作台已整合（Caption-Studio）
+
+现在 FrameSlice 单仓库包含独立的 **AI 字幕工作台**：
+
+- **入口**：[https://weepwood.github.io/FrameSlice/subtitles/](https://weepwood.github.io/FrameSlice/subtitles/)，或从 FrameSlice 左侧「AI 字幕工作台」进入；字幕页有「返回视频工具」导航。两者均从 FrameSlice 的同一次 GitHub Pages 构建发布，不依赖跨站 iframe。
+- **源代码**：`apps/caption-studio/`，从 [weepwood/Caption-Studio](https://github.com/weepwood/Caption-Studio) 迁入，保留 React 19、Whisper Web Worker、Mediabunny 流式音轨转录、波形时间轴、编辑校对、SRT/VTT/JSON 导入导出，以及短视频实验性 FFmpeg.wasm 烧录。
+- **工程保存**：字幕工程保存在浏览器 IndexedDB，不保存媒体文件。原独立站与 FrameSlice Pages 在相同 `https://weepwood.github.io` 域名上，因此仍使用同一个 `caption-studio` 数据库；请避免在两个页面中同时编辑相同工程。
+- **运行时网络**：本地媒体不上传；首次使用 Whisper、FFmpeg.wasm 及相关模型/核心文件时，会从外部资源服务下载权重和运行时文件。大文件转录仍受 WebCodecs 与本机显存/内存限制。
+- **保留原仓库**：此迁移不删除或覆盖 [Caption-Studio](https://github.com/weepwood/Caption-Studio)，便于回滚和对比。
+
+### 本地开发
+
+需要 Node.js 22+、npm 11，并先分别安装两个应用的依赖：
+
+```bash
+npm ci
+npm install --prefix apps/caption-studio --ignore-scripts
+# 终端 1：FrameSlice Vue 页面（默认 localhost:5173）
+npm run dev
+# 终端 2：字幕 React 页面（localhost:5174，经 Vue Vite dev proxy 访问）
+npm run dev:caption
+```
+
+在浏览器打开 `http://localhost:5173/FrameSlice/subtitles/` 进入字幕工具。生产构建：`npm run build` 会依次生成 FrameSlice 主界面和 `dist/subtitles` 的 React 字幕工作台；`npm test` 运行两套测试。整合细节见 `apps/caption-studio/README.md`，署名许可见 `apps/caption-studio/ATTRIBUTION.md`。

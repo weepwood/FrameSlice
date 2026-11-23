@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
-  FileVideo, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
+  FileVideo, Subtitles, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
   LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
   Upload, X, Zap, AlertTriangle, Monitor, Film, HardDrive, Settings2,
 } from 'lucide-vue-next'
@@ -409,6 +409,7 @@ onBeforeUnmount(() => {
         <button type="button" class="nav-item" :class="{ active: mode === 'frames' }" :disabled="status === 'running'" @click="changeMode('frames')">
           <ImageIcon :size="18" stroke-width="1.9"/> <span>定时抽帧</span> <span class="nav-index">02</span>
         </button>
+        <a class="nav-item fs-nav-link" href="/FrameSlice/subtitles/" title="打开本地 AI 字幕工作台"><Subtitles :size="18" stroke-width="1.9"/><span>AI 字幕工作台</span><span class="nav-index">03</span></a>
       </nav>
       <div class="sidebar-bottom">
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
