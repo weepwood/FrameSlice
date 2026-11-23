@@ -169,8 +169,22 @@ try {
   if (await caption.locator('.export-grid button').first().isDisabled()) {
     throw new Error('Switching between tools lost the subtitle editor state')
   }
+  // Older bookmarks point to /FrameSlice/subtitles/. Keep them functional,
+  // but redirect to the same unified page with its subtitle tab selected.
+  const oldURL = new URL('subtitles/', initialURL).href
+  const redirectResponse = await page.request.get(oldURL)
+  const redirectHTML = await redirectResponse.text()
+  if (!redirectResponse.ok() || !redirectHTML.includes('url=../#captions')) {
+    throw new Error('Legacy subtitle URL does not provide the compatibility redirect')
+  }
+  await page.goto(initialURL + '#captions', { waitUntil: 'networkidle' })
+  await page.locator('.caption-react-host .caption-action-toolbar').waitFor({ timeout: 30_000 })
+  if (!await page.getByRole('button', { name: /字幕工作台/ }).getAttribute('class')
+      .then(value => value?.includes('active'))) {
+    throw new Error('Direct caption deep link did not activate the unified subtitle tab')
+  }
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
-  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', files }, null, 2))
+  console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', files }, null, 2))
 } finally {
   await browser.close()
   await rm(dir, { recursive: true, force: true })
