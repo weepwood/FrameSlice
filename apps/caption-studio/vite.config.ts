@@ -6,6 +6,9 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   base: '/FrameSlice/caption/',
   plugins: [react()],
+  // In library mode Vite deliberately leaves process.env.NODE_ENV in some
+  // bundled dependencies. Resolve it for the browser-only React island.
+  define: { 'process.env.NODE_ENV': JSON.stringify('production') },
   build: {
     target: 'es2022',
     outDir: '../../dist/caption',
