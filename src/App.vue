@@ -22,8 +22,9 @@ import CaptionWorkspace from './components/CaptionWorkspace.vue'
 type Mode = 'split' | 'frames' | 'captions'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
 
-const mode = ref<Mode>('split')
-const captionVisited = ref(false)
+const startInCaption = window.location.hash === '#captions'
+const mode = ref<Mode>(startInCaption ? 'captions' : 'split')
+const captionVisited = ref(startInCaption)
 const file = ref<File | null>(null)
 const info = ref<VideoInfo | null>(null)
 const videoUrl = ref('')
@@ -215,6 +216,11 @@ function clearFile() {
 function changeMode(next: Mode) {
   if (status.value === 'running' || next === mode.value) return
   if (next === 'captions') captionVisited.value = true
+  // The #captions fragment is only a compatibility deep link.
+  // Switching tool tabs must stay in the same page without navigation.
+  if (window.location.hash === '#captions') {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  }
   // Switching between video tools resets the prior tool's result, but entering
   // and leaving the subtitle editor must not destroy either workspace's state.
   if (mode.value !== 'captions' && next !== 'captions') {
