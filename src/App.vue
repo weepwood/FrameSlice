@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
-  FileVideo, Subtitles, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
+  FileVideo, Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
   LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
   Upload, X, Zap, AlertTriangle, Monitor, Film, HardDrive, Settings2,
 } from 'lucide-vue-next'
@@ -18,6 +18,7 @@ import type { KeyframeStatistics } from './lib/keyframe-stats.mjs'
 import { createExportManifest } from './lib/manifest.mjs'
 import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
+import ContainerWorkspace from './components/ContainerWorkspace.vue'
 
 type Mode = 'split' | 'frames' | 'captions'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
@@ -25,6 +26,9 @@ type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
 const startInCaption = window.location.hash === '#captions'
 const mode = ref<Mode>(startInCaption ? 'captions' : 'split')
 const captionVisited = ref(startInCaption)
+const videoTool = ref<'split' | 'container'>('split')
+const containerVisited = ref(false)
+const containerBusy = ref(false)
 const file = ref<File | null>(null)
 const info = ref<VideoInfo | null>(null)
 const videoUrl = ref('')
@@ -213,8 +217,13 @@ function clearFile() {
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
   videoUrl.value = ''
 }
+function changeVideoTool(next: 'split' | 'container') {
+  if (containerBusy.value || status.value === 'running' || videoTool.value === next) return
+  if (next === 'container') containerVisited.value = true
+  videoTool.value = next
+}
 function changeMode(next: Mode) {
-  if (status.value === 'running' || next === mode.value) return
+  if (status.value === 'running' || containerBusy.value || next === mode.value) return
   if (next === 'captions') captionVisited.value = true
   // The #captions fragment is only a compatibility deep link.
   // Switching tool tabs must stay in the same page without navigation.
@@ -416,13 +425,13 @@ onBeforeUnmount(() => {
       </div>
       <div class="sidebar-label">工作空间</div>
       <nav class="sidebar-nav" aria-label="工具导航">
-        <button type="button" class="nav-item" :class="{ active: mode === 'split' }" :disabled="status === 'running'" @click="changeMode('split')">
+        <button type="button" class="nav-item" :class="{ active: mode === 'split' }" :disabled="status === 'running' || containerBusy" @click="changeMode('split')">
           <Scissors :size="18" stroke-width="1.9"/> <span>视频分割</span> <span class="nav-index">01</span>
         </button>
-        <button type="button" class="nav-item" :class="{ active: mode === 'frames' }" :disabled="status === 'running'" @click="changeMode('frames')">
+        <button type="button" class="nav-item" :class="{ active: mode === 'frames' }" :disabled="status === 'running' || containerBusy" @click="changeMode('frames')">
           <ImageIcon :size="18" stroke-width="1.9"/> <span>定时抽帧</span> <span class="nav-index">02</span>
         </button>
-        <button type="button" class="nav-item" :class="{ active: mode === 'captions' }" :disabled="status === 'running'" @click="changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
+        <button type="button" class="nav-item" :class="{ active: mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
@@ -433,7 +442,7 @@ onBeforeUnmount(() => {
 
     <main class="workspace">
       <header class="topbar">
-        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ mode === 'split' ? '视频分割' : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
+        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
         <div class="top-actions"><span class="privacy-indicator"><span></span> LOCAL ONLY</span><span class="header-separator"></span><span class="browser-label"><Monitor :size="14"/> Desktop</span></div>
       </header>
 
@@ -449,10 +458,16 @@ onBeforeUnmount(() => {
       <div v-show="mode !== 'captions'" class="content">
         <div class="page-head">
           <div class="eyebrow"><span class="eyebrow-dash"></span> MEDIA WORKSPACE / {{ mode === 'split' ? '01' : '02' }}</div>
-          <h1>{{ mode === 'split' ? '视频分割' : '定时抽帧' }}<span class="heading-period">.</span></h1>
-          <p>{{ mode === 'split' ? '将大型视频拆分成独立可播放的 MP4 文件，无需重新编码。' : '按设定时间间隔提取视频画面，批量导出为高质量图片。' }}</p>
+          <h1>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : '定时抽帧' }}<span class="heading-period">.</span></h1>
+          <p>{{ mode === 'split' ? (videoTool === 'container' ? '识别 MKV 等媒体轨道，提取音轨或无损重新封装，支持附加软字幕。' : '将大型视频拆分成独立可播放的 MP4 文件，无需重新编码。') : '按设定时间间隔提取视频画面，批量导出为高质量图片。' }}</p>
         </div>
 
+        <div v-if="mode === 'split'" class="video-tool-switch" role="group" aria-label="视频工具操作">
+          <button type="button" :class="{ active: videoTool === 'split' }" :disabled="status === 'running' || containerBusy" @click="changeVideoTool('split')"><Scissors :size="15"/> 无损分割</button>
+          <button type="button" :class="{ active: videoTool === 'container' }" :disabled="status === 'running' || containerBusy" @click="changeVideoTool('container')"><PackageOpen :size="15"/> 轨道提取与封装</button>
+        </div>
+        <ContainerWorkspace v-if="containerVisited" v-show="mode === 'split' && videoTool === 'container'" :initial-file="file" @busy="containerBusy = $event"/>
+        <div v-show="mode !== 'split' || videoTool === 'split'">
         <div class="step-head"><span class="step-number">01</span><h2>选择视频</h2><span class="step-description">从本地读取，不经过服务器</span></div>
         <input ref="fileInput" type="file" accept="video/*,.mp4,.m4v,.mov,.mkv,.webm" class="visually-hidden" @change="onInputChange" />
         <section v-if="!file" class="drop-zone" :class="{ dragging }" tabindex="0" role="button" aria-label="选择视频文件" @click="selectFile" @keydown.enter="selectFile" @keydown.space.prevent="selectFile" @dragover="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
@@ -582,6 +597,7 @@ onBeforeUnmount(() => {
         </section>
 
         <div v-if="errorText && status === 'idle'" class="inline-error"><AlertTriangle :size="17"/><span>{{ errorText }}</span><button type="button" @click="errorText = ''" aria-label="关闭"><X :size="16"/></button></div>
+        </div>
         <footer class="footer"><span>FrameSlice — Process locally, keep control.</span><span><LockKeyhole :size="13"/> 文件始终保留在你的设备上</span></footer>
       </div>
     </main>
