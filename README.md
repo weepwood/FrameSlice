@@ -145,27 +145,46 @@ src/
 MIT。详见 `LICENSE`。Mediabunny 项目依据 MPL-2.0 发布，其版权和许可证由原项目保留。
 
 
-## 字幕工作台已整合（Caption-Studio）
+## 统一媒体工作台：视频分割、定时抽帧、字幕工作台
 
-现在 FrameSlice 单仓库包含独立的 **AI 字幕工作台**：
+**统一入口：** [https://weepwood.github.io/FrameSlice/](https://weepwood.github.io/FrameSlice/)。
 
-- **入口**：[https://weepwood.github.io/FrameSlice/subtitles/](https://weepwood.github.io/FrameSlice/subtitles/)，或从 FrameSlice 左侧「AI 字幕工作台」进入；字幕页有「返回视频工具」导航。两者均从 FrameSlice 的同一次 GitHub Pages 构建发布，不依赖跨站 iframe。
-- **源代码**：`apps/caption-studio/`，从 [weepwood/Caption-Studio](https://github.com/weepwood/Caption-Studio) 迁入，保留 React 19、Whisper Web Worker、Mediabunny 流式音轨转录、波形时间轴、编辑校对、SRT/VTT/JSON 导入导出，以及短视频实验性 FFmpeg.wasm 烧录。
-- **工程保存**：字幕工程保存在浏览器 IndexedDB，不保存媒体文件。原独立站与 FrameSlice Pages 在相同 `https://weepwood.github.io` 域名上，因此仍使用同一个 `caption-studio` 数据库；请避免在两个页面中同时编辑相同工程。
-- **运行时网络**：本地媒体不上传；首次使用 Whisper、FFmpeg.wasm 及相关模型/核心文件时，会从外部资源服务下载权重和运行时文件。大文件转录仍受 WebCodecs 与本机显存/内存限制。
-- **保留原仓库**：此迁移不删除或覆盖 [Caption-Studio](https://github.com/weepwood/Caption-Studio)，便于回滚和对比。
+三个功能并列显示在 FrameSlice 主页面的左侧导航：`视频分割`、`定时抽帧`、`字幕工作台`。点击只切换工作区，不跳转新页面，不使用 iframe，切换后会保留已挂载字幕编辑器的状态及先前视频处理结果。
 
-### 本地开发
+### 字幕编辑器布局与能力
 
-需要 Node.js 22+、npm 11，并先分别安装两个应用的依赖：
+- **工程与字幕操作归位**：字幕工作区顶部工具栏包括「打开媒体」「导入字幕」「打开工程」「导出工程」「新建」。它们**不再占用左侧全局导航**，React 原来的顶栏和二级侧栏在嵌入模式下不会渲染。
+- **统一视觉**：字幕 UI 采用 FrameSlice 的灰绿主题、低对比边框、卡片间距和响应式布局；Shadow DOM 隔离字幕应用的 React 全局样式，避免干扰 Vue 侧栏及视频工具。
+- **按需启动**：首次点击字幕选项才动态导入 React 打包模块、加载隔离后的样式；首次加载后切换其他工具不会卸载字幕模块。
+- **保留功能**：原有 Whisper Web Worker、流式音轨转录、波形时间轴、字幕校对、SRT/VTT/JSON 工程导出和实验性的短视频字幕烧录。
+- **工程保存**：使用浏览器 IndexedDB，仅保存字幕和工程元数据，不默认保存视频文件。原仓库仍保留，不会被删除或覆盖。
+- **联网边界**：源媒体在本地处理；第一次转录时需联网下载 Whisper 模型及 WASM 资源，首次烧录需下载 FFmpeg Core 等运行时。真实推理/烧录性能依赖设备与浏览器。
+
+### 代码组织
+
+```text
+src/App.vue                            Vue 统一壳与三功能导航
+src/components/CaptionWorkspace.vue   React 工作区动态挂载及样式隔离
+apps/caption-studio/src/App.tsx        React 字幕编辑器（embedded 模式）
+apps/caption-studio/src/embed.tsx      React 挂载/卸载 API
+apps/caption-studio/vite.config.ts     生成可嵌入的 ES 模块与 CSS
+dist/caption/                          构建产物（非源码）
+```
+
+### 安装与运行
+
+要求 Node.js 22+、npm 11：
 
 ```bash
 npm ci
 npm ci --prefix apps/caption-studio --ignore-scripts
-# 终端 1：FrameSlice Vue 页面（默认 localhost:5173）
-npm run dev
-# 终端 2：字幕 React 页面（localhost:5174，经 Vue Vite dev proxy 访问）
-npm run dev:caption
+npm test
+npm run build
+npm run preview
 ```
 
-在浏览器打开 `http://localhost:5173/FrameSlice/subtitles/` 进入字幕工具。字幕子项目具有自己的 `package-lock.json`；生产和 CI 分别对 Vue 与 React 应用执行 `npm ci`。生产构建：`npm run build` 会依次生成 FrameSlice 主界面和 `dist/subtitles` 的 React 字幕工作台；`npm test` 运行两套测试。整合细节见 `apps/caption-studio/README.md`，署名许可见 `apps/caption-studio/ATTRIBUTION.md`。
+使用 `npm run preview` 在同一页面验证全部三个功能。日常仅调试 Vue 页可以运行 `npm run dev`；字幕子应用在此集成版本中按库形式打包，因此开发时需要重新执行 `npm run build` 并通过 preview 验证一体化效果，原先的独立子站代理不再作为集成入口。
+
+通过 GitHub Actions 每次在主分支更新时重新构建并发布两个技术栈的产物；React 字幕编辑器构建到 `dist/caption/`，由 Vue 页面按需从相同来源加载。执行 `npm test` 会覆盖双方单元测试，独立 Chrome E2E 检查同页切换、字幕 SRT 导入导出、视频任务状态保留及 UI 导航。
+
+字幕子项目的来源、限制和许可证见 [apps/caption-studio/README.md](apps/caption-studio/README.md) 与 [ATTRIBUTION.md](apps/caption-studio/ATTRIBUTION.md)。
