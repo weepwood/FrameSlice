@@ -127,7 +127,20 @@ try {
   await page.getByRole('button', { name: /字幕工作台/ }).click()
   if (page.url() !== initialURL) throw new Error('Subtitle tab unexpectedly navigated away')
   const caption = page.locator('.caption-react-host')
-  await caption.locator('.caption-action-toolbar').waitFor({ timeout: 30_000 })
+  try {
+    await caption.locator('.caption-action-toolbar').waitFor({ timeout: 12_000 })
+  } catch (error) {
+    const message = await page.locator('.caption-embed-feedback').allTextContents()
+    const summary = await page.evaluate(() => ({
+      captionContainers: document.querySelectorAll('.caption-react-host').length,
+      shadowMounted: Boolean(document.querySelector('.caption-react-host')?.shadowRoot),
+      visibleCaption: getComputedStyle(document.querySelector('.caption-page')!).display,
+    }))
+    throw new Error('Subtitle island did not mount: ' + JSON.stringify({
+      message, summary, errors, networkErrors, url: page.url(),
+      originalError: String(error),
+    }))
+  }
   if (await caption.locator('.nav-rail').count() !== 0 ||
       await caption.locator('.topbar').count() !== 0) {
     throw new Error('Embedded subtitle workspace still has a duplicate navbar/topbar')
