@@ -124,12 +124,12 @@ try {
   // The migrated Caption-Studio must be served as a REAL same-origin
   // application, not a link to the standalone repository or an iframe.
   await page.getByRole('link', { name: /AI 字幕工作台/ }).click()
-  await page.waitForURL(/\\/FrameSlice\\/subtitles\\/?$/, { timeout: 30_000 })
+  await page.waitForURL(url => url.pathname === '/FrameSlice/subtitles/', { timeout: 30_000 })
   await page.locator('.editor-header h1').waitFor({ timeout: 30_000 })
   await page.getByRole('link', { name: /返回视频工具/ }).waitFor()
   await page.locator('input[accept=".srt,.vtt"]').setInputFiles({
     name: 'integration.srt', mimeType: 'text/plain',
-    buffer: Buffer.from('1\\n00:00:01,000 --> 00:00:03,000\\nFrameSlice 字幕合并测试\\n', 'utf8'),
+    buffer: Buffer.from(['1', '00:00:01,000 --> 00:00:03,000', 'FrameSlice 字幕合并测试', ''].join(String.fromCharCode(10)), 'utf8'),
   })
   await page.getByRole('tab', { name: /导出/ }).click()
   const [subtitleDownload] = await Promise.all([
@@ -142,7 +142,7 @@ try {
     throw new Error('Migrated subtitle editor failed SRT import/export roundtrip')
   }
   await page.getByRole('link', { name: /返回视频工具/ }).click()
-  await page.waitForURL(/\\/FrameSlice\\/?$/, { timeout: 30_000 })
+  await page.waitForURL(url => url.pathname === '/FrameSlice/', { timeout: 30_000 })
   await page.getByRole('button', { name: /开始分割视频/ }).waitFor()
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; '))
   console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'passed', captionSRT: 'passed', files }, null, 2))
