@@ -1,3 +1,5 @@
+import { safeStem, computeFrameCount, createFrameTimes } from './validation.mjs'
+
 export function humanBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return '—'
   if (bytes < 1000) return `${Math.round(bytes)} B`
@@ -16,7 +18,7 @@ export function humanTime(seconds: number): string {
 }
 
 export function baseName(name: string): string {
-  return name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9\u4e00-\u9fa5._-]/g, '_').slice(0, 110) || 'video'
+  return safeStem(name)
 }
 
 export function fileTime(seconds: number): string {
@@ -29,15 +31,12 @@ export function fileTime(seconds: number): string {
   return humanTime(safeWhole).replace(/:/g, '-') + suffix
 }
 
-export function plannedFrameCount(duration: number, interval: number): number {
-  if (!Number.isFinite(duration) || !Number.isFinite(interval) || duration <= 0 || interval <= 0) return 0
-  return Math.ceil((duration - 1e-7) / interval)
+export function plannedFrameCount(duration: number, interval: number, start = 0, end = duration): number {
+  try { return computeFrameCount(duration, interval, start, end) } catch { return 0 }
 }
 
-export function frameTimes(duration: number, interval: number): number[] {
-  const total = plannedFrameCount(duration, interval)
-  if (total > 100_000) throw new Error('截图数量超过安全上限，请增大间隔。')
-  return Array.from({ length: total }, (_, i) => i * interval)
+export function frameTimes(duration: number, interval: number, start = 0, end = duration): number[] {
+  return createFrameTimes(duration, interval, start, end)
 }
 
 export function checkCanceled(signal: AbortSignal): void {
