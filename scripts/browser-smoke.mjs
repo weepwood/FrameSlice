@@ -190,6 +190,7 @@ try {
   if (await containerPanel.locator('.ct-track').count() !== 2) {
     throw new Error('Container inspector did not identify H.264 video and AAC audio')
   }
+  await containerPanel.locator('.ct-choice').first().click()
   await containerPanel.locator('.ct-ack input').check()
   await containerPanel.getByRole('button', { name: /开始提取所选轨道/ }).click()
   await page.waitForFunction(() => {
