@@ -109,3 +109,7 @@
 - Radix Select 在实际嵌入式 Shadow DOM 中出现 document.activeElement 焦点识别错误（CI 45439883461、Mac Edge 本地复现），改用 Base UI 1.9.0，保留键盘选择与 Escape 测试，不能降级为鼠标测试。
 
 - PR #16 Base UI 1.9.0 / Reka UI 2.11.0 实际 Chrome 功能通过；CI 45440899864 / artifact 14943621179 的16张固定视口及交互截图已审核，锁定新 approval，旧 PR13 清单归档于 visual-baseline/history/ui-pr13-00f8fd6.json。待2%门禁与短样本复验通过后合并，部署后归档独立资产。
+
+- PR #16 已合并（025637d），Chrome 45445591891 通过，16 图差异均为 0。画廊继续复用 Reka Dialog 与 ToggleGroup，仅展示已有有界预览，不增加媒体缓存或绕过外部目录保护；真实短样本验证大图解码、布局切换、Escape 与焦点恢复。
+
+- PR #16 生产部署 45457507947 成功，实际线上 SHA 025637d，Release 独立基线资产已核实。PR #17 常规功能通过，45457879669 / 14950528942 候选经审核，12张零差异，仅任务中心4张预期变化；旧PR16清单归档，批准新基线。Mac Edge 实际四帧连续导航回归通过；待新2%门禁及性能复验，不重复12GB专项。
