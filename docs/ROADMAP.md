@@ -155,3 +155,5 @@
 - 新增本地存储诊断的应用级清除按钮，重载前确认、启动前清理已知应用数据，保留输出文件；短样本 Chrome 增加跨标签页拒绝和清理边界回归。
 
 - PR #15 已通过 Chrome 与复杂编码并合并（6f55acc）；UI 组件库深化首轮统一 Vue Reka Checkbox、Collapsible、ToggleGroup，保留共享 token，后续按实际收益替换字幕端手写控件。新 UI 基线需要正常视觉审查。
+
+- #16 第一轮 Vue 组件迁移构建及 Chrome 功能通过，旧视觉基线差异失败。继续在同一 PR 引入 Radix React Select、Tabs、Checkbox，生成真实锁文件并审核；不运行 12GB。
