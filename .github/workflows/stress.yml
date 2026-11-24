@@ -7,12 +7,6 @@ on:
         description: '逻辑文件大小，单位 GB（1-64）'
         required: true
         default: '12'
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/stress-virtual.mjs'
-      - 'src/lib/range-probe.mjs'
-      - '.github/workflows/stress.yml'
 
 permissions:
   contents: read
