@@ -669,6 +669,7 @@ onBeforeUnmount(() => {
           <p v-if="planError" class="fs-analysis-warning">{{planError}}</p>
           <p v-if="visiblePlan.length">{{visiblePlan.length}} 个片段 · 下列为媒体包估算，不含实际容器封装开销。</p>
           <div v-for="(part,i) in visiblePlan.slice(0,50)" :key="i" class="fs-job-row"><strong>片段 {{i+1}} · {{humanTime(part.start)}} – {{humanTime(part.end)}}</strong><small>{{humanBytes(part.estimatedBytes)}} · 视频 {{part.videoPackets}} 包 / 音频 {{part.audioPackets}} 包</small></div>
+          <p v-if="visiblePlan[0]?.excludedPreroll" class="fs-analysis-warning">首段不复制 {{visiblePlan[0].excludedPreroll.packets}} 个 AAC 前置包（完全位于视频开始之前），将写入报告。</p>
           <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
         </section>
         <section class="execution" v-if="file && info">

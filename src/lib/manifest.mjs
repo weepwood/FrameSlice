@@ -29,6 +29,7 @@ export function createExportManifest({
       bytes: part.size,
       startSeconds: part.start,
       endSeconds: part.end,
+      ...(part.excludedPreroll?{excludedPreroll:{...part.excludedPreroll,reason:'AAC 前置包完全位于首个视频边界之前，未复制'}}:{}),
       verification: {
         level: part.verification.level,
         passed: true,

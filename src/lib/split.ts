@@ -9,7 +9,7 @@ import {
 } from 'mediabunny'
 import { baseName, checkCanceled } from './format'
 import { planGroups, planGroupsByDuration } from './planning.mjs'
-import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder } from './coverage.mjs'
+import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder, isLeadingAacPreroll } from './coverage.mjs'
 import type { PacketCoverage } from './coverage.mjs'
 import { openInput } from './media'
 import { PacketFingerprint, verifySegment, includePacketTime } from './verify'
@@ -31,7 +31,7 @@ interface Segment {
   audio: PacketCoverage
 }
 
-export interface SplitPlanEntry { start:number; end:number; estimatedBytes:number; videoPackets:number; audioPackets:number }
+export interface SplitPlanEntry { start:number; end:number; estimatedBytes:number; videoPackets:number; audioPackets:number; excludedPreroll?:PacketCoverage }
 
 export interface SplitResult {
   filename: string
@@ -39,6 +39,7 @@ export interface SplitResult {
   start: number
   end: number
   verification: VerificationReport
+  excludedPreroll?:PacketCoverage
 }
 
 export interface SplitOptions {
@@ -137,6 +138,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       report(Math.min(0.07, 0.01 + 0.06 * videoBytesScanned / Math.max(1, file.size)), '正在扫描关键帧与压缩数据索引…')
     }
     assertGopOrder(groups,duration)
+    const excludedPreroll=emptyCoverage()
     // Add audio payload sizes to the GOP containing the corresponding presentation time.
     if (audioSink) {
       report(0.07, '正在统计音轨大小…', true)
@@ -146,6 +148,9 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         await yieldForCancellation(++scannedAudioPackets, signal)
         if (!Number.isSafeInteger(packet.byteLength) || packet.byteLength < 0) {
           throw new Error('音频媒体包的字节大小无效。')
+        }
+        if(excludedPreroll.packets===0&&isLeadingAacPreroll(audioCodec,packet,groups[0].time)){
+          addCoverage(excludedPreroll,packet);continue
         }
         if (!Number.isFinite(packet.timestamp) || packet.timestamp < groups[0].time || packet.timestamp >= duration) {
           throw Error('音轨包含分割边界外的媒体包；为避免静默丢失，请先无损重新封装或使用兼容源文件。')
@@ -164,7 +169,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         estimatedBytes: section.reduce((sum, g) => sum + g.bytes, 0),
         video: sumCoverage(section.map(g=>g.video)), audio:sumCoverage(section.map(g=>g.audio)) }
     })
-    options.onPlan?.(segments.map(s=>({start:s.start.time,end:s.end?.time??duration,estimatedBytes:s.estimatedBytes,videoPackets:s.video.packets,audioPackets:s.audio.packets})))
+    options.onPlan?.(segments.map((s,i)=>({start:s.start.time,end:s.end?.time??duration,estimatedBytes:s.estimatedBytes,videoPackets:s.video.packets,audioPackets:s.audio.packets,...(i===0&&excludedPreroll.packets?{excludedPreroll}: {})})))
     if (options.planOnly) return []
     if (!folder) throw Error('必须选择输出目录。')
     report(0.12, `已找到 ${segments.length} 个片段；开始无损封装…`, true)
@@ -291,7 +296,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
           expectedAudio: sourceAudioFingerprint?.digest(),
         })
         checkCanceled(signal)
-        const result: SplitResult = { filename, size: finalFile.size, start: startTime, end: endTime, verification }
+        const result: SplitResult = { filename, size: finalFile.size, start: startTime, end: endTime, verification, ...(i===0&&excludedPreroll.packets?{excludedPreroll}:{}) }
         results.push(result)
         committed = true
         onSegment(result)

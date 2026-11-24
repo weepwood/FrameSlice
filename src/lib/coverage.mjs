@@ -9,6 +9,13 @@ export function sumCoverage(items){return items.reduce((a,b)=>({packets:a.packet
 export function assertCoverage(expected,actual,label){
  if(expected.packets!==actual.packets||expected.bytes!==actual.bytes)throw Error('源媒体覆盖率校验失败：'+label+'，预期 '+expected.packets+' 包 / '+expected.bytes+' 字节，实际 '+actual.packets+' 包 / '+actual.bytes+' 字节')
 }
+/** Only one complete AAC pre-roll packet ending at the first video boundary is tolerated.
+ * The skipped bytes are explicitly reported; other out-of-range audio is rejected.
+ */
+export function isLeadingAacPreroll(codec,packet,start){
+ const eps=0.00001
+ return codec==='aac'&&Number.isFinite(packet.timestamp)&&Number.isFinite(packet.duration)&&packet.duration>0&&packet.duration<=.1&&packet.timestamp<start&&packet.timestamp+packet.duration<=start+eps&&start-packet.timestamp<=packet.duration+eps
+}
 export function assertGopOrder(groups,duration){
  if(!groups.length||!Number.isFinite(duration)||duration<=0)throw Error('没有可用的关键帧组')
  for(let i=0;i<groups.length;i++){
