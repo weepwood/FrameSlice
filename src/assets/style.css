@@ -202,3 +202,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(
 /* Remaining white strip in dark frame settings: native form and inline config surfaces. */
 .fs-workbench :is(.config-footnote,.config-panel input:not([type=range]):not([type=checkbox]),.config-panel select,.number-input,.select-wrap){background:var(--fs-input);color:var(--fs-text);border-color:var(--fs-border)}
 .fs-workbench .config-footnote{background:var(--fs-surface);color:var(--fs-muted)}
+
+.fs-reka-workbench{display:flex!important;min-height:100vh;height:auto!important;overflow:visible!important;align-items:stretch}
+.fs-reka-workbench>.sidebar{overflow:auto!important;min-width:0;flex-shrink:0}
+.fs-reka-workbench>.workspace,.fs-reka-workbench>.right-panel{overflow:visible!important;min-width:0}
+.fs-reka-handle{flex:0 0 6px;background:transparent;cursor:col-resize;outline:0;touch-action:none;position:relative;z-index:10}
+.fs-reka-handle:after{content:'';position:absolute;inset:0 2px;background:var(--fs-border)}
+.fs-reka-handle:hover:after,.fs-reka-handle:focus-visible:after,.fs-reka-handle[data-state=drag]:after{inset:0;background:var(--fs-focus)}
+@media(max-width:1140px){.fs-reka-workbench{display:grid!important;grid-template-columns:205px minmax(0,1fr)!important}.fs-reka-workbench>.fs-reka-handle{display:none!important}.fs-reka-workbench>.sidebar,.fs-reka-workbench>.workspace{flex:none!important;min-width:0!important;max-width:none!important;width:auto!important;overflow:visible!important}}
+@media(max-width:800px){.fs-reka-workbench{display:block!important}.fs-reka-workbench>.sidebar{height:auto!important;min-height:0!important;position:static!important}}

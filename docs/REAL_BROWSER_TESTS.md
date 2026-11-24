@@ -26,3 +26,6 @@ Pages 产物使用 github-pages-${GITHUB_RUN_ATTEMPT}，避免同一运行的重
 - 第二轮 45402914819：持久化 profile 的实际配额仍约 10 GiB，预检再次失败，吞吐正确为 null。第三轮允许测试脚本显式设置 STRESS_OPFS_QUOTA_BYTES=15000000000，通过 CDP Storage.overrideQuotaForOrigin 仅针对 localhost 的隔离 profile；检查真实可用磁盘、记录默认/实际配额及 overrideActive。不是生产功能或默认配额验收，仍用真实 OPFS 读写，不虚拟化文件。
 
 - 第三轮 45403386427：CDP quota 15,000,000,000 B，overrideActive=true，物理可用 77,885,366,272 B，navigator.storage.estimate 仍为 10,737,420,024 B。预检误使用网页估计值停止，未处理。受控测试以 CDP 已确认配额为预检依据，同时保留原网页估计值，最终必须以真实文件写入及校验为准。
+
+## 第四轮通过（2026-11-24）
+CI 45403900533 / artifact 14925370006，63e05c0。12,948,073,305 B 实际 H.264，四个输出共 12,947,966,762 B，处理 85,486 ms（144.44756987 MiB/s），进程树 RSS 峰值采样 1,672,740,864 B，主 JS 堆 4,537,348 B。15GB 显式 CDP 配额；重复编码无音轨、快速验证，不代表普通配额、多轨、深度验证及纯 IO 吞吐。
