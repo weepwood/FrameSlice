@@ -34,7 +34,10 @@ try{
   if(!report.quotaOverride.overrideActive)throw Error('测试配额未生效')
  }
  report.storage=await page.evaluate(()=>navigator.storage.estimate())
- if(report.storage.quota-report.storage.usage<source.size*1.05||report.physicalFreeBytes<source.size*1.1)throw Error('OPFS 可用配额或实际磁盘不足')
+ // Chromium may deliberately round or cap the web-exposed estimate; an explicit CDP override is separately verified.
+ const effective=report.quotaOverride?.overrideActive?report.quotaOverride:report.storage
+ report.effectiveQuotaBytes=effective.quota;report.effectiveAvailableBytes=effective.quota-effective.usage
+ if(report.effectiveAvailableBytes<source.size*1.05||report.physicalFreeBytes<source.size*1.1)throw Error('OPFS 可用配额或实际磁盘不足')
  await cdp.send('Performance.enable')
  const sample=async()=>{if(sampling)return;sampling=true;try{const {metrics}=await cdp.send('Performance.getMetrics');const get=name=>metrics.find(m=>m.name===name)?.value??null;report.samples.push({elapsedMs:Date.now()-started,mainJsHeapBytes:get('JSHeapUsedSize'),taskDuration:get('TaskDuration'),...await processMetrics()})}catch{}finally{sampling=false}}
  interval=setInterval(()=>void sample(),5000)
