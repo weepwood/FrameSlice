@@ -1,7 +1,7 @@
 name: 真实复杂编码与字幕兼容专项
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/v071-compatibility-quality]
     paths: ['src/lib/**','scripts/media-compat-real.mjs','.github/workflows/media-compat.yml']
   workflow_dispatch:
 permissions:

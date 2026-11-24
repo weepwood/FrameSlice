@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: [main]
+    branches: [main, feat/v071-compatibility-quality]
 
 permissions:
   contents: read
