@@ -1,0 +1,58 @@
+name: 真实 Whisper 与字幕烧录专项验证
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/caption-studio/src/workers/transcribe.worker.ts'
+      - 'apps/caption-studio/src/lib/burn.ts'
+      - 'scripts/browser-ai-real.mjs'
+      - '.github/workflows/ai-real.yml'
+      - 'index.html'
+permissions:
+  contents: read
+concurrency:
+  group: frameslice-ai-real-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: 安装依赖与真实语音样本生成工具
+        run: |
+          npm ci --no-audit --no-fund
+          npm install -g npm@11.21.1
+          npm --prefix apps/caption-studio ci --ignore-scripts --no-audit --no-fund
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright-core@1.55.0
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
+      - name: 构建与生成短视频
+        run: |
+          npm run build
+          espeak-ng -v en-us -s 125 -w /tmp/frameslice-voice.wav 'Hello world. This is a test of Frame Slice subtitles. Hello world.'
+          ffmpeg -y -f lavfi -i color=c=black:s=640x360:r=24 -i /tmp/frameslice-voice.wav -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest /tmp/frameslice-speech.mp4
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/frameslice-vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/FrameSlice/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: 真实识别、模型缓存及烧录解码验证
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: node scripts/browser-ai-real.mjs /tmp/frameslice-speech.mp4 /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf browser-ai-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-ai-report
+          path: browser-ai-report.json
+          if-no-files-found: warn

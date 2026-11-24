@@ -104,7 +104,7 @@ const estimatedParts = computed(() => {
   return Math.max(1, Math.ceil(file.value.size / Math.max(1, targetBytes.value * 0.95)))
 })
 const estimatedFrames = computed(() => info.value ? plannedFrameCount(info.value.duration, interval.value, frameStart.value, frameEnd.value) : 0)
-const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && status.value !== 'running'))
+const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && !planning.value && status.value !== 'running'))
 const fileReadable = computed(() => supportsFolderWrite())
 const progressPercent = computed(() => Math.round(progress.value * 100))
 
@@ -235,6 +235,7 @@ function resetOutput() {
 function clearFile() {
   if (status.value === 'running') return
   parseRevision++
+  planAbort?.abort();splitPlan.value=[];planKey.value='';planError.value=''
   inspectController?.abort()
   inspectController = null
   clearAnalysis()
@@ -328,7 +329,7 @@ async function relinkRetry(event:Event){
   }catch(e){retryNotice.value=friendlyError(e)}
 }
 async function start() {
-  if (!file.value || !info.value || status.value === 'running') return
+  if (!file.value || !info.value || planning.value || status.value === 'running') return
   if (mode.value === 'split' && splitStrategy.value === 'size' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
     errorText.value = '分割大小至少为 32 MB。'; return
   }

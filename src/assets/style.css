@@ -166,7 +166,7 @@
 /* Semantic workbench surfaces and shared native control contract. */
 :root{background:var(--fs-bg);color:var(--fs-text);--ink:var(--fs-text);--muted:var(--fs-muted);--line:var(--fs-border);--panel:var(--fs-surface);--accent:var(--fs-accent);--accent-soft:var(--fs-selected)}
 .sidebar,.right-panel,.topbar,.caption-active .workspace{background:var(--fs-bg);border-color:var(--fs-border)}
-:where(.config-panel,.fs-analysis,.ct-card,.ct-file-card,.ct-result,.status-card,.result-item,.caption-embed-feedback,.file-card,.drop-zone,.execution-summary,.video-tool-switch,.local-notice){background:var(--fs-surface);border-color:var(--fs-border);color:var(--fs-text)}
+:is(.config-panel,.fs-analysis,.ct-card,.ct-file-card,.ct-result,.status-card,.result-item,.caption-embed-feedback,.file-card,.drop-zone,.execution-summary,.video-tool-switch,.local-notice){background:var(--fs-surface);border-color:var(--fs-border);color:var(--fs-text)}
 .nav-item,.page-head p,.step-description,.breadcrumbs,.sidebar-link,.right-panel p,.config-footnote,.fs-analysis-disclaimer{color:var(--fs-muted)}
 .nav-item.active,.nav-item:hover:not(:disabled),.ct-track.selected,.ct-choice.active,.video-tool-switch button.active{background:var(--fs-selected);color:var(--fs-text);border-color:var(--fs-border)}
 .primary-button,.ct-primary{background:var(--fs-accent);color:var(--fs-on-accent)}
@@ -174,3 +174,10 @@
 button:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(--fs-focus)}
 .fs-theme-select{display:flex;align-items:center;justify-content:space-between;margin:8px 5px;color:var(--fs-muted);font-size:11px}.fs-theme-select select{border:1px solid var(--fs-border);padding:6px;font:inherit}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Additional workbench text and form tokens, preserving media preview contrast. */
+.setting-copy strong,.step-head h2,.fs-analysis-metrics strong,.ct-track-detail strong,.ct-section-heading strong,.ct-option-row strong,.ct-file-label strong,.ct-choice strong,.ct-top-title strong,.breadcrumbs strong,.result-file-name strong,.status-details strong,.execution-summary strong{color:var(--fs-text)}
+.setting-copy span,.fs-analysis-metrics span,.fs-analysis-metrics small,.ct-track-detail small,.ct-choice span,.ct-option-row small,.ct-file-label span,.result-file-name span,.status-details span,.summary-label,.ct-muted,.ct-footer,.ct-ack{color:var(--fs-muted)}
+.fs-analysis-warning,.ct-hint{color:var(--fs-warning)}
+.ct-error,.status-error{color:var(--fs-danger)}
+.ct-track:not(:disabled):hover,.ct-empty:hover,.ct-choice.active,.secondary-button:hover:not(:disabled){background:var(--fs-selected);color:var(--fs-text)}
