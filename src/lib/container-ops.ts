@@ -272,7 +272,7 @@ async function exportOne(
 export async function executeContainerTask(options: ContainerOptions): Promise<ContainerOutput[]> {
   const { file, selectedIds, action, format, signal, onProgress, onOutput } = options
   if (!options.folder) throw Error('必须选择本地输出目录。')
-  if(action==='merge'){const result=await mergeVideoOnly(options.mergeFiles??[],options.folder,signal,onProgress,options.onFileStart);const out:ContainerOutput={...result,trackIds:['video'],verified:true,subtitleTrackAdded:false};onOutput(out);return [out]}
+  if(action==='merge'){const result=await mergeVideoOnly(options.mergeFiles??[],options.folder,signal,onProgress,options.onFileStart);const out:ContainerOutput={...result,trackIds:result.trackIds,verified:true,subtitleTrackAdded:false};onOutput(out);return [out]}
   if(action==='trim'){if(!options.range)throw Error('缺少截取区间');const results=await splitVideo({file,folder:options.folder,maxBytes:Number.MAX_SAFE_INTEGER,range:options.range,verificationLevel:'deep',signal,onProgress,onFileStart:options.onFileStart,onSegment:()=>{}});return results.map(part=>{const out:ContainerOutput={filename:part.filename,bytes:part.size,trackIds:['原音视频轨'],verified:true,subtitleTrackAdded:false};onOutput(out);return out})}
   if (!Array.isArray(selectedIds) || selectedIds.length === 0 || selectedIds.length > 64 ||
       new Set(selectedIds).size !== selectedIds.length) throw Error('请选择有效的媒体轨道。')

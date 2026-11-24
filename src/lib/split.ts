@@ -12,6 +12,7 @@ import { planGroups, planGroupsByDuration,planManualGroups,selectGopRange } from
 import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder, isLeadingAacPreroll } from './coverage.mjs'
 import type { ResumeJournal } from '../core/resume'
 import type { PacketCoverage } from './coverage.mjs'
+import {assertAvOnly} from './mp4-track-guard'
 import { openInput } from './media'
 import { PacketFingerprint, verifySegment, includePacketTime } from './verify'
 import type { VerificationLevel, VerificationReport, TrackTimeline } from './verify'
@@ -106,6 +107,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
     if (videos.length !== 1 || audios.length > 1 || allTracks.length !== videos.length + audios.length) {
       throw new Error('当前无损分割只支持 1 条视频轨道、最多 1 条音频轨道，且不能包含字幕或其他轨道；已停止处理以避免丢失数据。')
     }
+    await assertAvOnly(file,videos.length,audios.length)
     if (!Number.isFinite(duration) || duration <= 0) throw new Error('视频时长无效，已停止处理。')
     const video = videos[0]
     const audio = await video.getPrimaryPairableAudioTrack()
