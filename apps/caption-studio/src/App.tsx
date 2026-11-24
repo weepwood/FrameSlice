@@ -316,7 +316,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         <div className="content-grid">
           <div className="main-column">
             <section className="video-panel surface">
-              <div className="section-title"><div><strong>视频预览</strong><span className="subtle">PREVIEW</span></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
+              <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
                 {mediaURL?<>
                   <video ref={video} src={mediaURL} playsInline onTimeUpdate={e=>{
@@ -328,12 +328,12 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                    }} onLoadedMetadata={e=>{if(Number.isFinite(e.currentTarget.duration))setDuration(e.currentTarget.duration);e.currentTarget.playbackRate=playbackRate}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onClick={play}/>
                   {activeCue&&<div className={`caption-overlay ${style.position}`}><span style={{color:style.textColor,backgroundColor:colorAlpha(style.boxColor,style.boxOpacity),fontSize:`clamp(14px,${(style.fontSize/1080*100).toFixed(2)}cqh,${style.fontSize}px)`,fontWeight:style.bold?700:400}}>{activeCue.text}</span></div>}
                   {!isVideo&&<div className="audio-backdrop"><Activity size={50} strokeWidth={1.1}/><p>音频预览</p></div>}
-                </>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>从这里开始</h2><p>拖入 MP4、WebM、MP3 或 WAV，或直接导入已有字幕文件。</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>仅体验编辑器：加载示例字幕</button>}</div>}
+                </>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>拖入 MP4、WebM、MP3 或 WAV，或直接导入已有字幕文件。</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>仅体验编辑器：加载示例字幕</button>}</div>}
               </div>
               <div className="playback-controls">
                 <button className="play-button" onClick={play} disabled={!file} aria-label={playing?'暂停':'播放'}>{playing?<Pause size={17} fill="currentColor"/>:<Play size={17} fill="currentColor"/>}</button>
-                <button className="icon-btn" title="后退 5 秒" onClick={()=>seek(time-5)}><SkipBack size={17}/></button>
-                <button className="icon-btn" title="前进 5 秒" onClick={()=>seek(time+5)}><SkipForward size={17}/></button>
+                <button className="icon-btn" aria-label="后退 5 秒" title="后退 5 秒" onClick={()=>seek(time-5)}><SkipBack size={17}/></button>
+                <button className="icon-btn" aria-label="前进 5 秒" title="前进 5 秒" onClick={()=>seek(time+5)}><SkipForward size={17}/></button>
                 <span className="playback-time">{shortTime(time)} <span>/ {shortTime(effectiveDuration)}</span></span>
                 <input type="range" min={0} max={effectiveDuration||1} step={.01} value={Math.min(time,effectiveDuration)} aria-label="跳转播放位置" onChange={e=>seek(Number(e.target.value))}/>
                 <button className={`icon-btn loop-button ${loopSelected?'active':''}`} disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
@@ -341,6 +341,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               </div>
               <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
             </section>
+            <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={setSelectedId} onUpdate={updateCue}/>
             <section className="transcribe-panel surface">
               <div className="section-title"><div><strong>语音转录</strong><span className="subtle">Whisper · 本地运行</span></div><span className="chip"><Activity size={13}/> 本地模型</span></div>
               <div className="settings-grid">
@@ -406,7 +407,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             </div>}
           </aside>
         </div>
-        <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={setSelectedId} onUpdate={updateCue}/>
+        
         <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${cues.findIndex(c=>c.id===selectedId)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
       </main>
     </div>

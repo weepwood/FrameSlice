@@ -151,3 +151,60 @@
   .fs-workbench .file-preview {width:65px;height:52px}
 }
 @media(prefers-reduced-motion:reduce) {.fs-workbench * {scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Second pass: actual 390px and 1440px screenshot review. */
+.fs-workbench .fs-media-library .fs-analysis-header {flex-direction:row;align-items:center;justify-content:space-between;padding:0 3px}
+.fs-workbench .fs-media-library.is-empty .fs-analysis-header {min-height:28px}
+.fs-workbench .fs-media-library.is-empty {overflow:visible}
+.fs-workbench .fs-inspector {padding-inline:14px}
+.fs-settings-target .fs-output-settings {padding:14px 0;border-bottom:1px solid var(--fs-border)}
+.fs-settings-target .step-two {margin:0 0 9px}
+.fs-settings-target .config-panel {border:0;background:transparent;overflow:visible}
+.fs-settings-target .config-row {margin:0;padding:10px 0;min-height:0;flex-direction:column;align-items:stretch;gap:7px}
+.fs-settings-target .config-row .setting-icon {display:none}
+.fs-settings-target .config-row .setting-copy span {font-size:11px}
+.fs-settings-target .config-row .config-control,.fs-settings-target .config-row .range-control {justify-content:flex-start;flex-wrap:wrap}
+.fs-settings-target .config-row .config-control .number-input {max-width:100%}
+.fs-settings-target .config-row .fs-select-trigger {width:100%;min-width:0;white-space:normal}
+.fs-settings-target .config-row .config-control .fs-select-trigger {width:auto}
+.fs-settings-target .config-footnote {padding:8px 0;background:transparent;border-top:1px solid var(--fs-border)}
+.fs-settings-target .config-footnote span {font-size:11px}
+.fs-settings-target .config-row .select-wrap select {width:100%;min-width:0}
+.fs-settings-target .config-row .range-control .number-input {width:70px}
+.fs-settings-target .config-row label {overflow-wrap:anywhere}
+.fs-settings-target .config-row label input[type=range] {max-width:100%}
+.fs-settings-target .config-row label input[type=number] {max-width:100%;width:88px}
+.fs-preview-panel {margin:16px 0;background:var(--fs-surface);border:1px solid var(--fs-border);border-radius:var(--fs-radius);overflow:hidden}
+.fs-preview-header {height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px}
+.fs-preview-header h2 {font-size:13px;font-weight:650}
+.fs-preview-header span,.fs-preview-hint {color:var(--fs-muted);font-size:12px;font-variant-numeric:tabular-nums}
+.fs-preview-panel video {display:block;width:100%;aspect-ratio:16/9;max-height:clamp(180px,39vh,390px);background:var(--fs-preview);object-fit:contain}
+.fs-preview-hint {padding:9px 12px;line-height:1.5}
+.fs-workbench .fs-timeline {padding:12px}
+.fs-timeline-tools {gap:5px}
+.fs-timeline-tools output {color:var(--fs-muted);min-width:28px;font-variant-numeric:tabular-nums}
+.fs-timeline-tools label {display:flex;align-items:center;min-width:0}
+.fs-timeline-tools input {width:88px}
+.fs-timeline-tools .secondary-button {min-height:30px;padding:5px 7px}
+.fs-timeline-ruler {height:23px;position:relative;overflow:hidden;color:var(--fs-muted);font-size:10px;font-variant-numeric:tabular-nums}
+.fs-timeline-ruler span {position:absolute;top:2px;transform:translateX(-50%);white-space:nowrap}
+.fs-timeline-ruler span:first-child {transform:none}
+.fs-timeline-ruler span:after {content:"";display:block;height:5px;width:1px;background:var(--fs-muted);margin:2px auto 0}
+.fs-workbench .fs-timeline-track {height:76px;border-radius:3px;cursor:crosshair}
+.fs-timeline-track .fs-timeline-key {background:#a9bbd3;opacity:.8}
+.fs-timeline-track .fs-timeline-cut {background:#ef8e5b}
+.fs-timeline-track .fs-timeline-range {background:#6d9eef55;border-inline:1px solid #a5c4ff}
+.fs-timeline-slider {display:flex;align-items:center;gap:8px;font-size:11px;color:var(--fs-muted);margin-top:5px}
+.fs-timeline-slider input {flex:1;min-width:0}
+.fs-timeline-legend {display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--fs-muted);margin-top:8px}
+.fs-timeline-legend span {display:flex;align-items:center;gap:5px}
+.fs-timeline-legend i {width:8px;height:8px;display:inline-block;border-radius:1px}
+.legend-key {background:#a9bbd3}.legend-play {background:#d79a42}.legend-cut {background:#ef8e5b}.legend-range {background:#6d9eef}
+@media(max-width:800px) {
+ .fs-workbench .fs-media-library.is-empty {margin:4px 0;padding-top:3px}
+ .fs-workbench .sidebar-bottom .fs-theme-select {font-size:12px}
+ .fs-workbench .fs-preview-panel video {max-height:240px}
+ .fs-workbench .topbar .privacy-indicator {font-size:11px}
+ .fs-workbench .fs-timeline-tools input {width:76px}
+ .fs-workbench .fs-timeline-legend {gap:8px}
+}

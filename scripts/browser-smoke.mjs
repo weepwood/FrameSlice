@@ -4,7 +4,7 @@
  * operating-system picker to verify structured cloning into Web Workers.
  */
 import { chromium } from 'playwright-core'
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { readFile, mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -52,6 +52,15 @@ try {
   if (await inspector.count()) throw Error('Inspector should be hidden')
   await page.getByRole('button', { name: '显示检查器' }).click()
   await inspector.getByText('当前输出', { exact: true }).waitFor()
+  await inspector.getByRole('region',{name:'输出设置'}).waitFor()
+  await page.getByRole('button',{name:'隐藏检查器'}).click()
+  await page.locator('.workspace').getByRole('region',{name:'输出设置'}).waitFor()
+  await page.getByRole('button',{name:'显示检查器'}).click()
+  await inspector.getByRole('region',{name:'输出设置'}).waitFor()
+  await page.locator('.fs-preview-panel video').waitFor()
+  await page.getByRole('slider',{name:'时间轴缩放'}).fill('2')
+  await page.getByRole('button',{name:'定位到播放位置'}).click()
+  await page.getByRole('slider',{name:'时间轴缩放'}).fill('1')
 
   await page.getByRole('button', { name: '分析视频' }).click()
   await page.locator('.fs-analysis-metrics').waitFor({ timeout: 30_000 })
@@ -74,7 +83,10 @@ try {
   await page.getByText(/1 个片段 · 下列为媒体包估算/).waitFor({timeout:30000})
   await page.getByRole('combobox',{name:'主题'}).selectOption('dark')
   if(await page.locator('html').getAttribute('data-fs-theme')!=='dark')throw Error('theme switch failed')
+  await mkdir('visual-regression',{recursive:true})
+  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-split-dark.png',animations:'disabled'})
   await page.getByRole('combobox',{name:'主题'}).selectOption('light')
+  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-split-light.png',animations:'disabled'})
   await page.getByRole('button', { name: /开始分割视频/ }).click()
   await awaitResult('split Worker')
   if (await page.locator('.result-list .result-item').count() !== 1) {

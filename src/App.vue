@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
   Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
@@ -110,13 +110,17 @@ const candidateCount=ref(3),minSharpness=ref(0),sceneThreshold=ref(.24)
 const thumbCache=new Map<string,FramePreview[]>()
 const filteredCount=ref(0)
 const showJobs=ref(false),jobsVisited=ref(false)
+const settingsTarget=ref<HTMLElement|null>(null)
+const settingsInInspector=computed(()=>Boolean(settingsTarget.value&&wideLayout.value&&inspectorOpen.value&&!showJobs.value&&mode.value!=='captions'&&!(mode.value==='split'&&videoTool.value==='container')))
+const previewVideo=ref<HTMLVideoElement|null>(null)
+watch([mode,showJobs,videoTool,status],()=>{if(showJobs.value||mode.value==='captions'||(mode.value==='split'&&videoTool.value==='container')||status.value==='running')previewVideo.value?.pause()})
 const timelineTime=ref(0)
 const timelineThumbnails=ref<FramePreview[]>([])
 const timelineLoading=ref(false)
 let timelineAbort:AbortController|null=null
 function clearTimeline(){timelineAbort?.abort();for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
 async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){for(const t of rows)URL.revokeObjectURL(t.url);if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
-function seekTimeline(time:number){timelineTime.value=time;const video=document.querySelector<HTMLVideoElement>('.file-card video');if(video&&Number.isFinite(time))video.currentTime=time}
+function seekTimeline(time:number){if(!Number.isFinite(time))return;const next=Math.max(0,Math.min(info.value?.duration??0,time));timelineTime.value=next;const video=previewVideo.value;if(video&&video.readyState>=1){try{video.currentTime=next}catch{/* unsupported browser preview; processing remains available */}}}
 function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
@@ -628,7 +632,6 @@ onBeforeUnmount(() => {
         </section>
         <section v-else class="file-card">
           <div class="file-preview">
-            <video v-if="videoUrl" :src="videoUrl" muted playsinline preload="metadata"></video>
             <Film :size="23" class="file-preview-icon"/>
           </div>
           <div class="file-meta">
@@ -639,6 +642,7 @@ onBeforeUnmount(() => {
           <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
+        <section v-if="file&&info" class="fs-preview-panel" aria-label="视频预览"><div class="fs-preview-header"><h2>视频预览</h2><span>{{humanTime(timelineTime)}} / {{humanTime(info.duration)}}</span></div><video ref="previewVideo" :key="videoUrl" :src="videoUrl" controls playsinline preload="metadata" aria-label="源视频播放器" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="seekTimeline(timelineTime)"/><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>
         <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">
@@ -683,7 +687,7 @@ onBeforeUnmount(() => {
           </template>
         </section>
 
-        <div class="step-head step-two"><h2>输出设置</h2></div>
+        <Teleport :to="settingsTarget || 'body'" :disabled="!settingsInInspector"><section class="fs-output-settings" aria-label="输出设置"><div class="step-head step-two"><h2>输出设置</h2></div>
         <section class="config-panel" v-if="mode === 'split'">
           <div class="config-row">
             <div class="setting-copy"><div class="setting-icon"><Scissors :size="19"/></div><div><strong>分割方式</strong><span>按文件容量或视频时长分割</span></div></div>
@@ -726,6 +730,7 @@ onBeforeUnmount(() => {
           <div class="config-footnote"><Info :size="16"/><span>图片在本地解码并直接写入磁盘；部分 HEVC、AV1 视频取决于浏览器解码能力。</span></div>
         </section>
 
+        </section></Teleport>
         <section v-if="file && info && mode==='split'" class="fs-analysis">
           <div class="fs-analysis-header"><strong>GOP 分割规划预览</strong><button v-if="!planning" class="secondary-button" type="button" :disabled="status==='running'" @click="previewSplitPlan">预览分割计划</button><button v-else type="button" class="secondary-button" @click="planAbort?.abort()">取消规划</button></div>
           <p v-if="planError" class="fs-analysis-warning">{{planError}}</p>
@@ -796,6 +801,7 @@ onBeforeUnmount(() => {
           </dl>
           <p v-if="mode==='frames'&&frameStrategy!=='interval'" class="fs-inspector-empty">实际抽帧数量取决于所选策略与过滤结果。</p>
         </section>
+        <div ref="settingsTarget" class="fs-settings-target"></div>
         <section class="fs-inspector-section">
           <h3>任务状态</h3>
           <p class="fs-inspector-state"><span :class="['fs-state-dot',status]"/>{{status==='running'?'正在处理':status==='done'?'已完成':status==='error'?'处理失败':status==='canceled'?'已取消':loading?'读取媒体':info?'等待开始':'等待导入'}}</p>

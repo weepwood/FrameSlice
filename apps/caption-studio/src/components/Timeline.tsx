@@ -38,7 +38,7 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
         const to=Math.max(from+1,Math.ceil(b/Math.max(duration,0.01)*peaks.length));
         let peak=0;
         for(let i=Math.max(0,from);i<Math.min(to,peaks.length);i++)peak=Math.max(peak,peaks[i]);
-        if(!peaks.length)peak=.03;
+        if(!peaks.length)continue;
         const h=Math.max(1,peak*(height*.42));
         ctx.fillRect(x,center-h,1.5,2*h);
       }
@@ -48,7 +48,7 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
     const scheme=matchMedia('(prefers-color-scheme: dark)');scheme.addEventListener('change',paint);paint();return()=>{ro.disconnect();theme.disconnect();scheme.removeEventListener('change',paint)};
   },[peaks,visible,start,duration]);
   const ticks=useMemo(()=>{
-    const step=visible<=30?5:visible<=90?10:visible<=240?30:60;
+    const step=visible<=5?1:visible<=15?2:visible<=30?5:visible<=90?10:visible<=240?30:60;
     const values:number[]=[];
     for(let v=Math.ceil(start/step)*step;v<start+visible;v+=step)values.push(v);
     return values;
@@ -80,23 +80,23 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
         <button className="icon-btn" aria-label="缩小时间轴" onClick={()=>setSpan(Math.min(600,span*2))}><Minus size={15}/></button>
         <span className="zoom-label">{visible >=60?`${Math.round(visible/60)} min`:`${visible}s`}</span>
         <button className="icon-btn" aria-label="放大时间轴" onClick={()=>setSpan(Math.max(10,span/2))}><Plus size={15}/></button>
-        <button className="icon-btn" title="定位到播放位置" onClick={()=>setViewStart(Math.max(0,time-visible*.3))}><StepForward size={15}/></button>
+        <button className="icon-btn" aria-label="定位到播放位置" title="定位到播放位置" onClick={()=>setViewStart(Math.max(0,time-visible*.3))}><StepForward size={15}/></button>
       </div>
     </div>
     <div className="timeline-ruler">
       {ticks.map(t=><span key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
     </div>
     <div ref={track} className="timeline-track" onPointerMove={move} onPointerUp={endDrag} onPointerCancel={()=>setDrag(null)} onClick={e=>{if(!(e.target as HTMLElement).closest('.cue-bar'))onSeek(point(e))}}>
-      <canvas ref={canvas} className="waveform" aria-label="声音波形"/>
+      <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">尚未生成音频波形</span>}
       <div className="cue-track">
         {displayCues.map(c=>{
           const s=drag?.id===c.id&&drag.side==='start'?drag.value:c.start;
           const end=drag?.id===c.id&&drag.side==='end'?drag.value:c.end;
           const left=Math.max(0,(s-start)/visible*100),right=Math.min(100,(end-start)/visible*100);
           return <div key={c.id} className={`cue-bar ${selectedId===c.id?'selected':''}`} style={{left:`${left}%`,width:`${Math.max(.25,right-left)}%`}} onClick={e=>{e.stopPropagation();onSelect(c.id);onSeek(c.start)}} title={c.text}>
-            <span className="resize-handle left" role="slider" aria-label="调整字幕起点" tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'start')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{start:Math.min(c.end-.08,Math.max(0,c.start+(e.key==='ArrowRight'?.1:-.1)))})}}}/>
+            <span className="resize-handle left" role="slider" aria-label="调整字幕起点" aria-valuemin={0} aria-valuemax={Math.max(0,c.end-.08)} aria-valuenow={s} aria-valuetext={shortTime(s)} tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'start')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{start:Math.min(c.end-.08,Math.max(0,c.start+(e.key==='ArrowRight'?.1:-.1)))})}}}/>
             <span className="cue-bar-label">{c.text}</span>
-            <span className="resize-handle right" role="slider" aria-label="调整字幕终点" tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'end')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{end:Math.max(c.start+.08,c.end+(e.key==='ArrowRight'?.1:-.1))})}}}/>
+            <span className="resize-handle right" role="slider" aria-label="调整字幕终点" aria-valuemin={c.start+.08} aria-valuemax={Math.max(c.start+.08,duration,c.end)} aria-valuenow={end} aria-valuetext={shortTime(end)} tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'end')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{end:Math.min(Math.max(duration,c.end,c.start+.08),Math.max(c.start+.08,c.end+(e.key==='ArrowRight'?.1:-.1)))})}}}/>
           </div>;
         })}
       </div>
