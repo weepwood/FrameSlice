@@ -109,8 +109,8 @@ export async function inspectContainer(file: File): Promise<ContainerInspection>
             id: `mkv:${t.number}`, kind: 'subtitle', codec: t.codecId,
             codecLabel: t.codecId || '未知轨道',
             language: t.language, name: t.name,
-            detail: t.codecId==='S_TEXT/UTF8'&&t.kind==='subtitle'?'内嵌 UTF-8 文本：可独立提取 VTT，暂不复制封装':'其他字幕或轨道：当前不支持',
-            selectable: t.kind==='subtitle'&&t.codecId==='S_TEXT/UTF8',
+            detail: t.kind==='subtitle'&&t.codecId==='S_TEXT/ASS'?'ASS 文本及样式：可提取 ASS，不含附件字体':t.codecId==='S_TEXT/UTF8'&&t.kind==='subtitle'?'内嵌 UTF-8 文本：可独立提取 VTT，暂不复制封装':'其他字幕或轨道：当前不支持',
+            selectable: t.kind==='subtitle'&&['S_TEXT/UTF8','S_TEXT/ASS'].includes(t.codecId),
           })
         }
         if (unsupported.length) warnings.push('检测到当前无法复制的内嵌字幕或其他轨道；处理前必须确认不保留。')
@@ -316,7 +316,7 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
     }))
     : [{ selected, filename: `${base}_packaged.${format}`, format, subtitles }]
   const results: ContainerOutput[] = []
-  for(const id of textIds){checkCanceled(signal);const track=Number(id.slice(4)),text=await extractMkvText(file,track,signal),filename=base+'_subtitle_'+track+'.vtt',blob=new Blob([text.webvtt],{type:'text/vtt'});options.onFileStart(filename);try{await saveBlob(options.folder,filename,blob,signal);const saved=await (await options.folder.getFileHandle(filename)).getFile();if(await saved.text()!==text.webvtt)throw Error('字幕回读校验失败');checkCanceled(signal)}catch(e){await options.folder.removeEntry(filename).catch(()=>{});throw e}const result:ContainerOutput={filename,bytes:blob.size,trackIds:[id],verified:true,subtitleTrackAdded:false};results.push(result);onOutput(result)}
+  for(const id of textIds){checkCanceled(signal);const track=Number(id.slice(4)),meta=await probeMatroska(file),ass=meta.tracks.find(t=>t.number===track)?.codecId==='S_TEXT/ASS',text=await extractMkvText(file,track,signal,ass?'ass':'vtt'),filename=base+'_subtitle_'+track+(ass?'.ass':'.vtt'),blob=new Blob([text.webvtt],{type:ass?'text/plain':'text/vtt'});options.onFileStart(filename);try{await saveBlob(options.folder,filename,blob,signal);const saved=await (await options.folder.getFileHandle(filename)).getFile();if(await saved.text()!==text.webvtt)throw Error('字幕回读校验失败');checkCanceled(signal)}catch(e){await options.folder.removeEntry(filename).catch(()=>{});throw e}const result:ContainerOutput={filename,bytes:blob.size,trackIds:[id],verified:true,subtitleTrackAdded:false};results.push(result);onOutput(result)}
   for (let i = 0; i < plan.length; i++) {
     checkCanceled(signal)
     const item = plan[i]
