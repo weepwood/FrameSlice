@@ -138,7 +138,7 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
         pos++
         if(pos%stride===0){if(best)await emit(best.blob,best.time,index,best.q);else options.onMissed?.(timestamps[index]);best=undefined;onProgress(pos/candidates.length,'正在分析智能抽帧 '+Math.ceil(pos/stride)+' / '+timestamps.length)}
       }
-      if(pos%stride&&best){await emit(best.blob,best.time,Math.floor(pos/stride),best.q);pos+=stride-pos%stride}
+      if(pos%stride){if(best)await emit(best.blob,best.time,Math.floor(pos/stride),best.q);else options.onMissed?.(timestamps[Math.floor(pos/stride)]);pos+=stride-pos%stride}
       for(const t of timestamps.slice(Math.floor(pos/stride)))options.onMissed?.(t)
       onProgress(1,'智能抽帧完成');return saved
     }

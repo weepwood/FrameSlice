@@ -89,7 +89,7 @@ const manualCuts=ref<number[]>([])
 const frameStrategy=ref<FrameStrategy>('interval')
 const deduplicate=ref(false)
 const filteredCount=ref(0)
-const showJobs=ref(false)
+const showJobs=ref(false),jobsVisited=ref(false)
 const timelineTime=ref(0)
 const timelineThumbnails=ref<FramePreview[]>([])
 const timelineLoading=ref(false)
@@ -97,7 +97,7 @@ let timelineAbort:AbortController|null=null
 function clearTimeline(){timelineAbort?.abort();for(const t of timelineThumbnails.value)URL.revokeObjectURL(t.url);timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
 async function loadTimeline(){if(!file.value||!info.value||timelineLoading.value)return;const source=file.value,duration=info.value.duration,ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;for(const t of timelineThumbnails.value)URL.revokeObjectURL(t.url);timelineThumbnails.value=[];try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,duration/12),startTime:0,endTime:duration,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source)timelineThumbnails.value.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)})}}))}catch(e){if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
 function seekTimeline(time:number){timelineTime.value=time;const video=document.querySelector<HTMLVideoElement>('.file-card video');if(video&&Number.isFinite(time))video.currentTime=time}
-function addManualCut(time:number){const keys=mediaAnalysis.value?.keyframeSamples.filter(t=>t>0&&t<(info.value?.duration??0))??[];if(!keys.length){errorText.value='请先分析视频以取得关键帧边界';return}const key=keys.reduce((a,b)=>Math.abs(a-time)<=Math.abs(b-time)?a:b);manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
+function addManualCut(time:number){const keys=mediaAnalysis.value?.keyframeSamples.filter(t=>t>0&&t<(info.value?.duration??0))??[];if(!keys.length){errorText.value='请先分析视频以取得关键帧边界';return}const key=keys.reduce((a,b)=>Math.abs(a-time)<=Math.abs(b-time)?a:b);if(Math.abs(key-time)>Math.max(.5,mediaAnalysis.value?.maxGopSeconds??.5)){errorText.value='当前位置附近没有已索引的关键帧样本';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
 const size = ref(4)
@@ -317,7 +317,7 @@ function addPreview(snapshot: FrameSnapshot) {
     blob: outputFolder.value ? undefined : snapshot.blob,
   }
   frames.value.push(preview)
-  const max = outputFolder.value ? 16 : 30
+  const max = outputFolder.value||resumeSession.value ? 16 : 30
   while (frames.value.length > max) {
     const old = frames.value.shift()
     if (old) URL.revokeObjectURL(old.url)
@@ -530,7 +530,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'caption-active': mode === 'captions' }">
+  <div class="app-shell" :class="{ 'caption-active': mode === 'captions'&&!showJobs, 'jobs-active':showJobs }">
     <aside class="sidebar">
       <div class="identity">
         <div class="mark"><span></span><span></span><span></span></div>
@@ -538,14 +538,14 @@ onBeforeUnmount(() => {
       </div>
       <div class="sidebar-label">工作空间</div>
       <nav class="sidebar-nav" aria-label="工具导航">
-        <button type="button" class="nav-item" :class="{ active: mode === 'split' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('split')">
+        <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'split' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('split')">
           <Scissors :size="18" stroke-width="1.9"/> <span>视频分割</span> <span class="nav-index">01</span>
         </button>
-        <button type="button" class="nav-item" :class="{ active: mode === 'frames' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('frames')">
+        <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'frames' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('frames')">
           <ImageIcon :size="18" stroke-width="1.9"/> <span>定时抽帧</span> <span class="nav-index">02</span>
         </button>
-        <button type="button" class="nav-item" :class="{ active: mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
-        <button type="button" class="nav-item" :class="{active:showJobs}" @click="showJobs=true"><Layers2 :size="18"/><span>任务中心</span><span class="nav-index">04</span></button>
+        <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
+        <button type="button" class="nav-item" :class="{active:showJobs}" @click="showJobs=true;jobsVisited=true"><Layers2 :size="18"/><span>任务中心</span><span class="nav-index">04</span></button>
       </nav>
       <details class="fs-job-history">
         <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>
@@ -555,7 +555,7 @@ onBeforeUnmount(() => {
           <small>{{ job.asset.name }}</small>
           <progress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" max="1" />
           <small v-if="job.checkpoint">已写入 {{ job.checkpoint.count }} 项</small>
-          <button v-if="job.retry && ['failed','canceled','interrupted','partial'].includes(job.status)" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
+          <button v-if="job.retry && (job.retry.resumeId || ['failed','canceled','interrupted','partial'].includes(job.status))" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
         </div>
         <p v-if="retryNotice" role="status">{{retryNotice}}</p>
         <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
@@ -570,11 +570,11 @@ onBeforeUnmount(() => {
 
     <main class="workspace">
       <header class="topbar">
-        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
+        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ showJobs?'任务中心':mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
         <div class="top-actions"><span class="privacy-indicator"><span></span> LOCAL ONLY</span><span class="header-separator"></span><span class="browser-label"><Monitor :size="14"/> Desktop</span></div>
       </header>
 
-      <JobCenter v-if="showJobs" :jobs="recentJobs" :labels="jobLabels" :states="jobStates" @retry="job=>{showJobs=false;requestRetry(job)}" @clear="workspace.clearHistory()"/>
+      <JobCenter v-if="jobsVisited" v-show="showJobs" :jobs="recentJobs" :labels="jobLabels" :states="jobStates" @retry="job=>{showJobs=false;requestRetry(job)}" @clear="workspace.clearHistory()"/>
       <div v-if="captionVisited" v-show="!showJobs && mode === 'captions'" class="caption-page">
         <div class="page-head">
           <div class="eyebrow"><span class="eyebrow-dash"></span> MEDIA WORKSPACE / 03</div>
@@ -685,7 +685,7 @@ onBeforeUnmount(() => {
             <div class="select-wrap"><select v-model="verificationLevel" :disabled="status === 'running'" aria-label="视频输出校验等级"><option value="quick">快速校验（推荐）</option><option value="deep">逐包深度校验</option></select><ChevronDown :size="14"/></div>
           </div>
           <div class="config-row last">
-            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '请指定本地输出目录' }}</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || '请指定本地输出目录' }}</span></div></div>
             <button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button>
           </div>
           <div class="config-footnote"><Info :size="16"/><span>按大小分割保留封装余量；按时长分割在关键帧位置切割，两者都不能保证精确均分。仅支持单视频轨、最多一条音轨。</span></div>
@@ -711,7 +711,7 @@ onBeforeUnmount(() => {
           <p v-if="visiblePlan[0]?.excludedPreroll" class="fs-analysis-warning">首段不复制 {{visiblePlan[0].excludedPreroll.packets}} 个 AAC 前置包（完全位于视频开始之前），将写入报告。</p>
           <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
         </section>
-        <section v-if="file && info" class="fs-analysis"><label><input type="checkbox" v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession"/> 启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</label><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
+        <section v-if="file && info" class="fs-analysis"><label><input type="checkbox" v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))"/> 启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</label><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
         <section class="execution" v-if="file && info">
           <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">网络传输</span><strong>0 B <Check :size="14" class="no-upload-check"/></strong></div></div>
           <button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>

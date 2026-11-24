@@ -95,7 +95,7 @@ export class WorkspaceRuntime {
       let lastUpdate = 0, lastSave = 0, partialLabel = ''
       const finish = (status: JobStatus, error?: unknown) => {
         job.status=status;job.endedAt=Date.now();job.label=status==='partial'?partialLabel:status==='completed'?'已完成':status==='canceled'?'已取消':'处理失败'
-        if(status==='completed')job.progress=1
+        if(status==='completed'||status==='partial')job.progress=1
         if(error!==undefined)job.error=classify(error)
         signal.removeEventListener('abort',onAbort);this.publish(true)
       }

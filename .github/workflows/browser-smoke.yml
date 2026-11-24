@@ -54,4 +54,6 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
           APP_URL: http://127.0.0.1:4173/FrameSlice/
-        run: node scripts/browser-smoke.mjs
+        run: |
+          node scripts/browser-smoke.mjs
+          node scripts/browser-resume.mjs
