@@ -73,6 +73,7 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
       id,
       canceled: controller.signal.aborted || error instanceof DOMException && error.name === 'AbortError',
       message: error instanceof Error ? error.message : String(error),
+      errorName:error instanceof Error?error.name:undefined,
     })
   } finally {
     running = null
@@ -87,6 +88,7 @@ async function inspect(id: number, file: File, controller: AbortController): Pro
     send({
       kind: 'error', id, canceled: controller.signal.aborted,
       message: error instanceof Error ? error.message : String(error),
+      errorName:error instanceof Error?error.name:undefined,
     })
   } finally {
     running = null
@@ -103,6 +105,7 @@ async function analyze(id: number, file: File, controller: AbortController): Pro
       kind: 'error', id,
       canceled: controller.signal.aborted || error instanceof DOMException && error.name === 'AbortError',
       message: error instanceof Error ? error.message : String(error),
+      errorName:error instanceof Error?error.name:undefined,
     })
   } finally {
     running = null

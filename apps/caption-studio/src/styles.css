@@ -280,3 +280,9 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .side-tabs button.active{color:var(--fs-accent,#455f49)}
 .app-shell.embedded .side-tabs button.active::after{background:var(--fs-accent,#455f49)}
 .app-shell.embedded .empty-actions .btn.outline{background:#283b2e;border-color:#4a634f;color:#e6eee4}
+
+.app-shell.embedded :is(.workflow-strip,.timeline-ruler,.timeline-track,.cue-footer,.cue-number,.shift-controls button,.btn.danger-ghost){background:var(--fs-surface,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(.workflow-step>span,.cue-number,.timeline-track){background:var(--fs-selected,#e8ede6)}
+.app-shell.embedded .workflow-step+.workflow-step:before{background:var(--fs-border,#e4e9e1)}
+.app-shell.embedded .workflow-step:disabled{opacity:.65;background:var(--fs-surface,#fff)}
+.app-shell.embedded .cue-row.playing:not(.selected){background:var(--fs-selected,#e8ede6)}

@@ -25,7 +25,7 @@ export function loadResumeSession(id:string){return read<ResumeSession>('session
 export async function authorizeResumeFolder(folder:FileSystemDirectoryHandle):Promise<void>{
  const h=folder as FileSystemDirectoryHandle & {queryPermission?:(o:{mode:'readwrite'})=>Promise<PermissionState>;requestPermission?:(o:{mode:'readwrite'})=>Promise<PermissionState>}
  if(!h.queryPermission||await h.queryPermission({mode:'readwrite'})==='granted')return
- if(!h.requestPermission||await h.requestPermission({mode:'readwrite'})!=='granted')throw Error('原输出目录授权已失效')
+ if(!h.requestPermission||await h.requestPermission({mode:'readwrite'})!=='granted')throw new DOMException('原输出目录授权已失效，请重新授权','NotAllowedError')
 }
 export class ResumeJournal {
  constructor(private session:ResumeSession,private signal:AbortSignal){}

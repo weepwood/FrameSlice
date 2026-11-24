@@ -51,4 +51,4 @@ export type WorkerReply =
   | { kind: 'segment'; id: number; result: SplitResult }
   | { kind: 'preview'; id: number; snapshot: FrameSnapshot }
   | { kind: 'complete'; id: number; count: number; elapsedMs: number }
-  | { kind: 'error'; id: number; message: string; canceled: boolean }
+  | { kind: 'error'; id: number; message: string; canceled: boolean; errorName?:string }

@@ -10,8 +10,8 @@ export class JobJournal {
    const req=this.factory.open('frameslice-workspace',1)
    req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('journal'))req.result.createObjectStore('journal')}
    req.onsuccess=()=>{req.result.onversionchange=()=>{req.result.close();this.db=undefined};resolve(req.result)}
-   req.onerror=()=>reject(req.error)
-   req.onblocked=()=>reject(Error('任务历史数据库升级被其他标签页阻塞'))
+   req.onerror=()=>{this.db=undefined;reject(req.error)}
+   req.onblocked=()=>{this.db=undefined;reject(Error('任务历史数据库升级被其他标签页阻塞'))}
   })
   return this.db
  }

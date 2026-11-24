@@ -167,3 +167,23 @@ test('MP4 splitting uses a full start packet and produces a playable container',
   assert.ok(deep[0].verification.audioPackets > 0)
 
 })
+
+ test('cancel after a verified segment and injected quota failure preserve committed files', {timeout:60000}, async t=>{
+ const file=new File([Buffer.from((await readFile(new URL('./fixtures/black-h264-aac.mp4.b64',import.meta.url),'utf8')).trim(),'base64')],'sample.mp4',{type:'video/mp4'})
+ const outfile=join(process.cwd(),'.frameslice-fault-'+process.pid+'.mjs');t.after(()=>rm(outfile,{force:true}))
+ await build({entryPoints:['src/lib/split.ts'],bundle:true,platform:'node',format:'esm',packages:'external',outfile})
+ const {splitVideo}=await import(pathToFileURL(outfile).href),folder=createMemoryDirectory(),controller=new AbortController()
+ const probe=new Input({source:new BlobSource(file),formats:ALL_FORMATS})
+ let duration,keys=[]
+ try{duration=await probe.computeDuration();for await(const p of new EncodedPacketSink(await probe.getPrimaryVideoTrack()).packets(undefined,undefined,{metadataOnly:true}))if(p.type==='key')keys.push(p.timestamp)}finally{probe.dispose()}
+ assert.ok(keys.length>=2)
+ const base={file,maxBytes:32*1024*1024,manualCuts:[keys[1]],verificationLevel:'deep',onProgress(){}}
+ const committed=[]
+ await assert.rejects(splitVideo({...base,folder,signal:controller.signal,onSegment(part){committed.push(part.filename);controller.abort()}}),{name:'AbortError'})
+ assert.equal(committed.length,1);assert.deepEqual([...folder.saved.keys()],committed);assert.ok(folder.saved.get(committed[0]).closed)
+ const quota=createMemoryDirectory(),get=quota.getFileHandle.bind(quota);let opened=0
+ quota.getFileHandle=async name=>{const handle=await get(name);if(++opened===2)handle.createWritable=async()=>{throw new DOMException('simulated disk quota','QuotaExceededError')};return handle}
+ const complete=[]
+ await assert.rejects(splitVideo({...base,folder:quota,signal:new AbortController().signal,onSegment(part){complete.push(part.filename)}}),{name:'QuotaExceededError'})
+ assert.equal(complete.length,1);assert.deepEqual([...quota.saved.keys()],complete)
+})

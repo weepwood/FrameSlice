@@ -32,7 +32,6 @@ export class WorkspaceRuntime {
   private listeners = new Set<(jobs: MediaJob[]) => void>()
   private queue: Array<{execute:()=>void;priority:JobPriority;queuedAt:number}> = []
   private running = false
-  private journalRevision=0
   private journalTimestamp=0
   private journal?:JobJournal
   private owner=crypto.randomUUID()
@@ -42,12 +41,14 @@ export class WorkspaceRuntime {
   private channel?:BroadcastChannel
   private async refreshHistory(){
     const snap=await this.journal?.read();if(!snap)return
+    if(snap.updatedAt<this.journalTimestamp)return
+    this.journalTimestamp=snap.updatedAt
     const alive=new Set((typeof navigator!=='undefined'&&navigator.locks?await navigator.locks.query():{held:[]}).held?.map(l=>l.name)??[])
     const remote=(snap.jobs as MediaJob[]).filter(j=>j&&typeof j.id==='string'&&typeof j.asset?.name==='string').map(j=>active(j.status)&&!this.owned.has(j.id)&&(!j.owner||!alive.has('frameslice-runtime-'+j.owner))?{...j,status:'interrupted' as const,label:'任务所在标签页已关闭',endedAt:Date.now()}:j)
     // Local live jobs keep their original object identity and are never replaced by a remote copy.
     const local=[...this.owned.values()].filter(j=>active(j.status)||this.sent.get(j.id)!==JSON.stringify(j))
     const prior=remote.filter(j=>!this.owned.has(j.id)||!local.some(x=>x.id===j.id))
-    this.jobs=mergeHistory(prior,local,this.removed);this.publish()
+    this.jobs=mergeHistory(prior,local,this.removed);this.pruneOwned();this.publish()
   }
   constructor(private storage?: StoragePort, journal?:JobJournal) {
     this.journal=journal
@@ -84,13 +85,15 @@ export class WorkspaceRuntime {
   }
   hasActive(): boolean { return [...this.owned.values()].some(job => active(job.status)) }
   clearHistory(): void {const deleted=this.jobs.filter(j=>!active(j.status)).map(j=>j.id);this.removed.push(...deleted);for(const id of deleted){this.owned.delete(id);this.sent.delete(id)}this.jobs=this.jobs.filter(j=>active(j.status));this.publish(true)}
+  private pruneOwned():void {const kept=new Set(this.jobs.map(j=>j.id));for(const [id,j] of this.owned)if(!active(j.status)&&!kept.has(id)){this.owned.delete(id);this.sent.delete(id)}}
   private persist(): void {
-    this.journalRevision++;this.journalTimestamp=Math.max(Date.now(),this.journalTimestamp+1)
+    this.journalTimestamp=Math.max(Date.now(),this.journalTimestamp+1)
     const jobs=this.snapshot(),updates=jobs.filter(j=>this.owned.has(j.id)&&this.sent.get(j.id)!==JSON.stringify(this.owned.get(j.id))),deleted=this.removed.splice(0)
     // Keep synchronous localStorage fallback for immediate reload and older clients.
     try {const latest=JSON.parse(this.storage?.getItem(HISTORY_KEY)??'[]') as MediaJob[];const merged=mergeHistory(latest,updates,deleted);this.storage?.setItem(HISTORY_KEY,JSON.stringify(merged));this.storage?.setItem(HISTORY_KEY+'.timestamp',String(this.journalTimestamp)) } catch { /* no media bytes or handles persisted */ }
     for(const j of updates)this.sent.set(j.id,JSON.stringify(this.owned.get(j.id)))
-    if(this.journal)void this.journal.write({updatedAt:this.journalTimestamp,jobs:updates},deleted).then(()=>this.channel?.postMessage('changed')).catch(()=>{for(const j of updates)this.sent.delete(j.id)})
+    if(this.journal)void this.journal.write({updatedAt:this.journalTimestamp,jobs:updates},deleted).then(()=>this.channel?.postMessage('changed')).catch(()=>{for(const j of updates)this.sent.delete(j.id);this.removed.push(...deleted)})
+    this.pruneOwned()
   }
   private publish(persist = false): void {
     if (persist) this.persist()

@@ -198,3 +198,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(
 .status-percent,.frame-caption span,.result-size{color:var(--fs-text)}
 .progress-track{background:var(--fs-selected)}
 @media(max-width:720px){.fs-workbench .sidebar-nav{flex-wrap:wrap}.fs-workbench .sidebar-bottom{display:flex;flex-wrap:wrap}.fs-workbench .sidebar-bottom .fs-job-history{display:none}.fs-workbench .sidebar-bottom .fs-theme-select{width:100%}}
+
+/* Remaining white strip in dark frame settings: native form and inline config surfaces. */
+.fs-workbench :is(.config-footnote,.config-panel input:not([type=range]):not([type=checkbox]),.config-panel select,.number-input,.select-wrap){background:var(--fs-input);color:var(--fs-text);border-color:var(--fs-border)}
+.fs-workbench .config-footnote{background:var(--fs-surface);color:var(--fs-muted)}
