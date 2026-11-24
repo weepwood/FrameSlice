@@ -5,4 +5,5 @@
 - 中文 Git commit；独立分支、PR，按风险分级测试，CI 未通过不得合并或发布。
 - 安装：`npm ci` 与 `npm ci --prefix apps/caption-studio --ignore-scripts`；测试 `npm test`，构建 `npm run build`。
 - 真实 12GB 浏览器测试不能用逻辑 Blob 或 Node 压测冒充；记录测试样本、平台、浏览器、实际写入及校验结果。
+- 统一任务核心使用 [docs/JOB_CORE.md](docs/JOB_CORE.md)；各媒体 Worker 必须经过统一调度，不能并行启动高负载操作。
 - 当前进度与后续优先级见 [docs/ROADMAP.md](docs/ROADMAP.md)。每次交接更新真实状态，明确未验收项。

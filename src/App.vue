@@ -19,6 +19,8 @@ import { createExportManifest } from './lib/manifest.mjs'
 import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
+import { workspace } from './core/workspace'
+import type { MediaJob } from './core/workspace'
 
 type Mode = 'split' | 'frames' | 'captions'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
@@ -29,6 +31,10 @@ const captionVisited = ref(startInCaption)
 const videoTool = ref<'split' | 'container'>('split')
 const containerVisited = ref(false)
 const containerBusy = ref(false)
+const recentJobs = ref<MediaJob[]>([])
+const unsubscribeJobs = workspace.subscribe(jobs => { recentJobs.value = jobs })
+const jobLabels: Record<string, string> = {inspect:'媒体读取',analyze:'视频体检',split:'无损分割',frames:'定时抽帧','container-scan':'轨道读取','extract-tracks':'轨道提取',remux:'重新封装',waveform:'波形',transcribe:'语音转录',burn:'字幕烧录'}
+const jobStates: Record<string,string> = {queued:'等待中',running:'运行中',canceling:'取消中',completed:'已完成',failed:'失败',canceled:'已取消',interrupted:'已中断'}
 const subtitleHandoff = ref<{ file: File; subtitle: File } | null>(null)
 const file = ref<File | null>(null)
 const info = ref<VideoInfo | null>(null)
@@ -105,7 +111,9 @@ async function loadFile(nextFile?: File | null) {
   loading.value = true
   errorText.value = ''
   try {
-    const inspected = await inspectWithWorker(nextFile, inspectController.signal)
+    const signal = inspectController.signal
+    const inspected = workspace.cached<VideoInfo>(nextFile, 'video-info') ?? await workspace.run('inspect', nextFile, signal, () => inspectWithWorker(nextFile, signal))
+    workspace.cache(nextFile, 'video-info', inspected)
     if (revision === parseRevision) {
       info.value = inspected
       frameStart.value = 0
@@ -138,9 +146,10 @@ async function runAnalysis() {
   analysisError.value = ''
   analysisProgress.value = 0
   try {
-    const report = await analyzeWithWorker(targetFile, controller.signal, fraction => {
-      analysisProgress.value = Math.max(0, Math.min(1, fraction))
-    })
+    const report = workspace.cached<KeyframeStatistics>(targetFile, 'gop') ?? await workspace.run('analyze', targetFile, controller.signal, ctx => analyzeWithWorker(targetFile, controller.signal, fraction => {
+      analysisProgress.value = Math.max(0, Math.min(1, fraction)); ctx.progress(fraction)
+    }))
+    workspace.cache(targetFile, 'gop', report)
     if (!controller.signal.aborted && file.value === targetFile) mediaAnalysis.value = report
   } catch (error) {
     if (!controller.signal.aborted && file.value === targetFile) {
@@ -338,12 +347,12 @@ async function start() {
           startTime: frameStart.value, endTime: frameEnd.value,
           format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
         }
-    const summary = await runWorkerJob(payload, controller.signal, {
-      onProgress: (value, text) => { progress.value = value; progressLabel.value = text },
-      onSegment: part => { parts.value.push(part) },
+    const summary = await workspace.run(payload.mode, currentFile, controller.signal, ctx => runWorkerJob(payload, controller.signal, {
+      onProgress: (value, text) => { progress.value = value; progressLabel.value = text; ctx.progress(value, text) },
+      onSegment: part => { parts.value.push(part); ctx.checkpoint(part.filename) },
       onPreview: addPreview,
-      onSaved: name => { savedFrameNames.value.push(name) },
-    })
+      onSaved: name => { savedFrameNames.value.push(name); ctx.checkpoint(name) },
+    }))
     jobElapsedMs.value = summary.elapsedMs
     if (mode.value === 'frames') finishedFrames.value = summary.count
     // Human-readable JSON alongside the media outputs; no original file paths.
@@ -411,7 +420,7 @@ async function downloadStoryboard() {
 function retry() { resetOutput(); errorText.value = '' }
 
 function warnOnUnload(event: BeforeUnloadEvent) {
-  if (status.value === 'running') {
+  if (status.value === 'running' || containerBusy.value || workspace.hasActive()) {
     event.preventDefault()
     event.returnValue = ''
   }
@@ -419,6 +428,7 @@ function warnOnUnload(event: BeforeUnloadEvent) {
 window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
+  unsubscribeJobs()
   window.removeEventListener('frameslice:subtitle-package', acceptSubtitleHandoff)
   inspectController?.abort()
   analysisController?.abort()
@@ -446,6 +456,17 @@ onBeforeUnmount(() => {
         </button>
         <button type="button" class="nav-item" :class="{ active: mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
       </nav>
+      <details class="fs-job-history">
+        <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>
+        <div v-if="!recentJobs.length" class="fs-job-empty">暂无任务</div>
+        <div v-for="job in recentJobs.slice(0, 8)" :key="job.id" class="fs-job-row" :title="job.error?.message || job.asset.name">
+          <strong>{{ jobLabels[job.type] }} · {{ jobStates[job.status] }}</strong>
+          <small>{{ job.asset.name }}</small>
+          <progress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" max="1" />
+          <small v-if="job.checkpoint">已写入 {{ job.checkpoint.count }} 项</small>
+        </div>
+        <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
+      </details>
       <div class="sidebar-bottom">
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
@@ -617,3 +638,13 @@ onBeforeUnmount(() => {
     <aside v-show="mode !== 'captions'" class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
   </div>
 </template>
+
+<style scoped>
+.fs-job-history{margin:12px 12px 0;font-size:11px;min-height:0;max-height:36vh;overflow:auto;color:inherit}
+.fs-job-history summary{cursor:pointer;font-weight:600;padding:8px 4px;display:flex;justify-content:space-between;gap:4px}
+.fs-job-history summary span,.fs-job-row small,.fs-job-empty{opacity:.7;font-weight:400}
+.fs-job-row{display:flex;flex-direction:column;gap:4px;padding:8px 4px;border-bottom:1px solid rgba(128,128,128,.16)}
+.fs-job-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-job-row progress{width:100%;height:4px;accent-color:#729e82}
+.fs-job-clear{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;padding:8px 4px;text-decoration:underline}
+</style>
