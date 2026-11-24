@@ -60,7 +60,7 @@ try{
  await page.locator('.fs-timeline-thumbs img').first().waitFor({timeout:30000})
  await page.getByRole('slider',{name:'时间轴缩放'}).fill('2')
  await page.getByRole('button',{name:'任务中心'}).click()
- await page.locator('.fs-job-center').getByRole('textbox',{name:'搜索任务'}).fill('fixture')
+ await page.locator('.fs-job-center').getByRole('searchbox',{name:'搜索任务'}).fill('fixture')
  await page.locator('.fs-center-job').first().waitFor()
  await themeOption(page,'dark')
  const bg=await page.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--fs-bg').trim())
