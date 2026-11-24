@@ -8,7 +8,7 @@ import {
 } from 'lucide-vue-next'
 import { humanBytes, humanTime, plannedFrameCount, friendlyError, baseName } from './lib/format'
 import type { VideoInfo } from './lib/media'
-import type { FramePreview, FrameSnapshot, FrameFormat, FrameWidth } from './lib/frames'
+import type { FramePreview, FrameSnapshot, FrameFormat, FrameWidth, FrameStrategy } from './lib/frames'
 import type { SplitResult, SplitPlanEntry } from './lib/split'
 import { chooseFolder, downloadBlob, supportsFolderWrite, saveBlob } from './lib/storage'
 import { inspectWithWorker, runWorkerJob, analyzeWithWorker } from './lib/worker-client'
@@ -19,8 +19,12 @@ import { createExportManifest } from './lib/manifest.mjs'
 import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
+import MediaTimeline from './components/MediaTimeline.vue'
+import JobCenter from './components/JobCenter.vue'
 import { workspace } from './core/workspace'
 import type { MediaJob, RetryParameters } from './core/workspace'
+import { createResumeSession,loadResumeSession,authorizeResumeFolder } from './core/resume'
+import type { ResumeSession } from './core/resume'
 import { sampleFingerprint } from './core/source-identity'
 
 type Mode = 'split' | 'frames' | 'captions'
@@ -35,13 +39,15 @@ const containerBusy = ref(false)
 const recentJobs = ref<MediaJob[]>([])
 const retryTarget=ref<MediaJob|null>(null)
 const retryNotice=ref('')
+const resumeEnabled=ref(false)
+const resumeSession=ref<ResumeSession|null>(null)
 const theme=ref<'system'|'light'|'dark'>('system')
 try{const saved=localStorage.getItem('frameslice.theme');if(saved==='light'||saved==='dark')theme.value=saved}catch{}
 function applyTheme(){document.documentElement.dataset.fsTheme=theme.value;try{localStorage.setItem('frameslice.theme',theme.value)}catch{}}
 applyTheme()
 const unsubscribeJobs = workspace.subscribe(jobs => { recentJobs.value = jobs })
 const jobLabels: Record<string, string> = {inspect:'媒体读取',analyze:'视频体检',split:'无损分割',frames:'定时抽帧','container-scan':'轨道读取','extract-tracks':'轨道提取',remux:'重新封装',waveform:'波形',transcribe:'语音转录',burn:'字幕烧录'}
-const jobStates: Record<string,string> = {queued:'等待中',running:'运行中',canceling:'取消中',completed:'已完成',failed:'失败',canceled:'已取消',interrupted:'已中断'}
+const jobStates: Record<string,string> = {queued:'等待中',running:'运行中',canceling:'取消中',completed:'已完成',partial:'部分完成',failed:'失败',canceled:'已取消',interrupted:'已中断'}
 const subtitleHandoff = ref<{ file: File; subtitle: File } | null>(null)
 const file = ref<File | null>(null)
 const info = ref<VideoInfo | null>(null)
@@ -79,6 +85,19 @@ const confirmation = ref(false)
 const currentAbort = ref<AbortController | null>(null)
 
 const splitStrategy = ref<'size' | 'duration'>('size')
+const manualCuts=ref<number[]>([])
+const frameStrategy=ref<FrameStrategy>('interval')
+const deduplicate=ref(false)
+const filteredCount=ref(0)
+const showJobs=ref(false),jobsVisited=ref(false)
+const timelineTime=ref(0)
+const timelineThumbnails=ref<FramePreview[]>([])
+const timelineLoading=ref(false)
+let timelineAbort:AbortController|null=null
+function clearTimeline(){timelineAbort?.abort();for(const t of timelineThumbnails.value)URL.revokeObjectURL(t.url);timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
+async function loadTimeline(){if(!file.value||!info.value||timelineLoading.value)return;const source=file.value,duration=info.value.duration,ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;for(const t of timelineThumbnails.value)URL.revokeObjectURL(t.url);timelineThumbnails.value=[];try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,duration/12),startTime:0,endTime:duration,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source)timelineThumbnails.value.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)})}}))}catch(e){if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
+function seekTimeline(time:number){timelineTime.value=time;const video=document.querySelector<HTMLVideoElement>('.file-card video');if(video&&Number.isFinite(time))video.currentTime=time}
+function addManualCut(time:number){const keys=mediaAnalysis.value?.keyframeSamples.filter(t=>t>0&&t<(info.value?.duration??0))??[];if(!keys.length){errorText.value='请先分析视频以取得关键帧边界';return}const key=keys.reduce((a,b)=>Math.abs(a-time)<=Math.abs(b-time)?a:b);if(Math.abs(key-time)>Math.max(.5,mediaAnalysis.value?.maxGopSeconds??.5)){errorText.value='当前位置附近没有已索引的关键帧样本';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
 const size = ref(4)
@@ -91,10 +110,11 @@ const imageWidth = ref<FrameWidth>(1920)
 const jpegQuality = ref(0.9)
 
 const targetBytes = computed(() => Math.floor(size.value * (sizeUnit.value === 'GiB' ? 1024 ** 3 : 1000 ** 3)))
-const currentPlanKey=computed(()=>JSON.stringify([file.value?.name,file.value?.size,file.value?.lastModified,splitStrategy.value,targetBytes.value,splitMinutes.value]))
+const currentPlanKey=computed(()=>JSON.stringify([file.value?.name,file.value?.size,file.value?.lastModified,splitStrategy.value,targetBytes.value,splitMinutes.value,manualCuts.value]))
 const visiblePlan=computed(()=>planKey.value===currentPlanKey.value?splitPlan.value:[])
 const estimatedParts = computed(() => {
   if(visiblePlan.value.length)return visiblePlan.value.length
+  if(manualCuts.value.length)return manualCuts.value.length+1
   if (!file.value || !info.value) return 0
   if (splitStrategy.value === 'duration') {
     return Number.isFinite(splitMinutes.value) && splitMinutes.value > 0
@@ -119,6 +139,7 @@ async function loadFile(nextFile?: File | null) {
   clearAnalysis()
   inspectController = new AbortController()
   parseRevision += 1
+  clearTimeline();resumeSession.value=null
   const revision = parseRevision
   resetOutput()
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
@@ -219,7 +240,7 @@ function resetOutput() {
   frames.value.forEach((item) => URL.revokeObjectURL(item.url))
   frames.value = []
   finishedFrames.value = 0
-  missedFrames.value=[]
+  missedFrames.value=[];filteredCount.value=0
   jobElapsedMs.value = 0
   exportReportJson.value = ''
   reportNotice.value = ''
@@ -234,6 +255,7 @@ function resetOutput() {
 }
 function clearFile() {
   if (status.value === 'running') return
+  clearTimeline();resumeSession.value=null
   parseRevision++
   planAbort?.abort();splitPlan.value=[];planKey.value='';planError.value=''
   inspectController?.abort()
@@ -295,7 +317,7 @@ function addPreview(snapshot: FrameSnapshot) {
     blob: outputFolder.value ? undefined : snapshot.blob,
   }
   frames.value.push(preview)
-  const max = outputFolder.value ? 16 : 30
+  const max = outputFolder.value||resumeSession.value ? 16 : 30
   while (frames.value.length > max) {
     const old = frames.value.shift()
     if (old) URL.revokeObjectURL(old.url)
@@ -304,12 +326,12 @@ function addPreview(snapshot: FrameSnapshot) {
 async function previewSplitPlan(){
   if(!file.value||!info.value||planning.value||status.value==='running')return
   const target=file.value,key=currentPlanKey.value,controller=new AbortController();planAbort=controller;planning.value=true;planError.value=''
-  try{await workspace.run('analyze',target,controller.signal,ctx=>runWorkerJob({mode:'split',file:target,folder:null,planOnly:true,maxBytes:targetBytes.value,maxSeconds:splitStrategy.value==='duration'?splitMinutes.value*60:undefined,verificationLevel:verificationLevel.value},controller.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:()=>{},onPlan:entries=>{if(!controller.signal.aborted&&file.value===target&&key===currentPlanKey.value){splitPlan.value=entries;planKey.value=key}}}))}
+  try{await workspace.run('analyze',target,controller.signal,ctx=>runWorkerJob({mode:'split',file:target,folder:null,planOnly:true,maxBytes:targetBytes.value,manualCuts:manualCuts.value.length?[...manualCuts.value]:undefined,maxSeconds:splitStrategy.value==='duration'?splitMinutes.value*60:undefined,verificationLevel:verificationLevel.value},controller.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:()=>{},onPlan:entries=>{if(!controller.signal.aborted&&file.value===target&&key===currentPlanKey.value){splitPlan.value=entries;planKey.value=key}}}))}
   catch(e){if(!controller.signal.aborted)planError.value=friendlyError(e)}finally{if(planAbort===controller){planning.value=false;planAbort=null}}
 }
 function requestRetry(job:MediaJob){
   if(status.value==='running'||containerBusy.value||!job.retry)return
-  retryTarget.value=job;retryNotice.value='请选择原始视频以重新关联。'
+  resumeSession.value=null;retryTarget.value=job;retryNotice.value='请选择原始视频以重新关联。'
   const input=document.createElement('input');input.type='file';input.accept='video/*,.mp4,.mov,.mkv,.webm';input.onchange=e=>void relinkRetry(e);input.click()
 }
 async function relinkRetry(event:Event){
@@ -322,10 +344,12 @@ async function relinkRetry(event:Event){
     await loadFile(selected)
     if(file.value!==selected||!info.value)throw Error('源媒体读取失败')
     if(params.mode==='split'){
-      splitStrategy.value=params.maxSeconds===undefined?'size':'duration';sizeUnit.value='GB';size.value=params.maxBytes/1e9;splitMinutes.value=(params.maxSeconds??600)/60;verificationLevel.value=params.verificationLevel
-    }else{interval.value=params.interval;frameStart.value=params.startTime;frameEnd.value=params.endTime;imageFormat.value=params.format;imageWidth.value=params.width;jpegQuality.value=params.quality}
+      splitStrategy.value=params.maxSeconds===undefined?'size':'duration';sizeUnit.value='GB';size.value=params.maxBytes/1e9;splitMinutes.value=(params.maxSeconds??600)/60;verificationLevel.value=params.verificationLevel;manualCuts.value=params.manualCuts??[]
+    }else{interval.value=params.interval;frameStart.value=params.startTime;frameEnd.value=params.endTime;imageFormat.value=params.format;imageWidth.value=params.width;jpegQuality.value=params.quality;frameStrategy.value=params.strategy??'interval';deduplicate.value=!!params.deduplicate}
     outputFolder.value=null;selectedFolderName.value=''
-    retryNotice.value='已恢复参数。请重新授权目录并手动开始；将写入独立新目录，不覆盖或跳过旧文件。'
+    resumeSession.value=target.retry.resumeId?await loadResumeSession(target.retry.resumeId)??null:null
+    resumeEnabled.value=!!resumeSession.value
+    retryNotice.value=resumeSession.value?'已恢复参数与原目录引用，点击开始后验证完整源文件和历史输出。':'已恢复参数；请选择新目录重新处理。'
   }catch(e){retryNotice.value=friendlyError(e)}
 }
 async function start() {
@@ -345,13 +369,15 @@ async function start() {
     errorText.value = '截图区间或间隔无效，间隔至少 0.1 秒，且单次最多 10000 张。'; return
   }
   // The directory picker MUST be opened from this user gesture, before async processing.
-  if (!outputFolder.value && supportsFolderWrite()) {
+  if(mode.value==='frames'&&(frameStrategy.value!=='interval'||deduplicate.value)&&(resumeEnabled.value||resumeSession.value)){errorText.value='智能抽帧暂不支持断点续作，请关闭续作或使用定时抽帧';return}
+  if(resumeSession.value){try{await authorizeResumeFolder(resumeSession.value.folder)}catch(e){errorText.value=friendlyError(e);return}}
+  if (!resumeSession.value && !outputFolder.value && supportsFolderWrite()) {
     try { await pickFolder() } catch { /* picker manages its own error */ }
   }
-  if (mode.value === 'split' && !outputFolder.value) {
+  if (mode.value === 'split' && !outputFolder.value && !resumeSession.value) {
     errorText.value = '大视频分割必须先选择输出文件夹。请使用桌面 Chrome / Edge。'; return
   }
-  if (mode.value === 'frames' && !outputFolder.value && estimatedFrames.value > 30) {
+  if (mode.value === 'frames' && !outputFolder.value && !resumeSession.value && estimatedFrames.value > 30) {
     errorText.value = '此浏览器不支持直接保存文件夹，单次最多生成 30 张可单独下载的图片。'; return
   }
   if (mode.value === 'split' && info.value.videoTracks !== 1) {
@@ -372,19 +398,21 @@ async function start() {
   progressLabel.value = '准备处理…'
   try {
     // Every task receives its own subfolder so an earlier export is never overwritten.
-    const jobFolder = outputFolder.value
+    const jobFolder = resumeSession.value?.folder ?? (outputFolder.value
       ? await outputFolder.value.getDirectoryHandle(
           `${baseName(currentFile.name)}_${mode.value}_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`,
           { create: true },
         )
-      : null
+      : null)
+    if(resumeEnabled.value && jobFolder && !resumeSession.value)resumeSession.value=await createResumeSession(jobFolder)
     if (jobFolder) lastJobFolder.value = `${selectedFolderName.value}/${jobFolder.name}`
     if (controller.signal.aborted) throw new DOMException('任务已取消', 'AbortError')
     const payload: WorkerPayload = mode.value === 'split'
       ? {
           mode: 'split', file: currentFile, folder: jobFolder,
           maxBytes: targetBytes.value,
-          maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : undefined,
+          maxSeconds: splitStrategy.value === 'duration'&&!manualCuts.value.length ? splitMinutes.value * 60 : undefined,
+          manualCuts:manualCuts.value.length?[...manualCuts.value]:undefined,
           verificationLevel: verificationLevel.value,
         }
       : {
@@ -392,8 +420,11 @@ async function start() {
           duration: currentInfo.duration, interval: interval.value,
           startTime: frameStart.value, endTime: frameEnd.value,
           format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
+          strategy:frameStrategy.value,deduplicate:deduplicate.value,
         }
-    const retryParameters:RetryParameters=payload.mode==='split'?{mode:'split',maxBytes:payload.maxBytes,maxSeconds:payload.maxSeconds,verificationLevel:payload.verificationLevel}:{mode:'frames',interval:payload.interval,startTime:payload.startTime,endTime:payload.endTime,format:payload.format,width:payload.width,quality:payload.quality}
+    const retryParameters:RetryParameters=payload.mode==='split'?{mode:'split',maxBytes:payload.maxBytes,maxSeconds:payload.maxSeconds,manualCuts:payload.manualCuts,verificationLevel:payload.verificationLevel}:{mode:'frames',interval:payload.interval,startTime:payload.startTime,endTime:payload.endTime,format:payload.format,width:payload.width,quality:payload.quality,strategy:payload.strategy,deduplicate:payload.deduplicate}
+    const resumeId=resumeSession.value?.id
+    if(resumeId)payload.resumeId=resumeId
     const fingerprint=await sampleFingerprint(currentFile)
     const summary = await workspace.run(payload.mode, currentFile, controller.signal, async ctx => {
       const result=await runWorkerJob(payload, controller.signal, {
@@ -402,11 +433,12 @@ async function start() {
       onPreview: addPreview,
       onSaved: name => { savedFrameNames.value.push(name); ctx.checkpoint(name) },
       onMissed: time=>missedFrames.value.push(time),
+      onFiltered:()=>filteredCount.value++,
       onPlan: entries=>{splitPlan.value=entries;planKey.value=currentPlanKey.value},
       })
-      if(missedFrames.value.length)ctx.progress(1,'存在遗漏帧，已重试')
+      if(missedFrames.value.length)ctx.partial('存在遗漏帧，已重试')
       return result
-    },{fingerprint,parameters:retryParameters})
+    },{fingerprint,parameters:retryParameters,resumeId})
     jobElapsedMs.value = summary.elapsedMs
     if (mode.value === 'frames') finishedFrames.value = summary.count
     // Human-readable JSON alongside the media outputs; no original file paths.
@@ -416,10 +448,10 @@ async function start() {
       settings: mode.value === 'split'
         ? { strategy: splitStrategy.value, targetBytes: splitStrategy.value === 'size' ? targetBytes.value : null,
             maxSeconds: splitStrategy.value === 'duration' ? splitMinutes.value * 60 : null,
-            verificationLevel: verificationLevel.value }
+            verificationLevel: verificationLevel.value,manualCuts:manualCuts.value }
         : { intervalSeconds: interval.value, startSeconds: frameStart.value,
             endSeconds: frameEnd.value, format: imageFormat.value,
-            width: imageWidth.value, quality: jpegQuality.value },
+            width: imageWidth.value, quality: jpegQuality.value,strategy:frameStrategy.value,deduplicate:deduplicate.value,filteredCount:filteredCount.value },
       parts: parts.value,
       images: jobFolder ? savedFrameNames.value : frames.value.map(item => item.name),
       completedFrames: finishedFrames.value,
@@ -437,6 +469,7 @@ async function start() {
       }
     }
     status.value = 'done'
+    if(!missedFrames.value.length)resumeSession.value=null
     progress.value = 1
     progressLabel.value = mode.value === 'split'
       ? `已封装并校验 ${parts.value.length} 个 MP4 片段`
@@ -483,6 +516,7 @@ function warnOnUnload(event: BeforeUnloadEvent) {
 window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
+  clearTimeline()
   unsubscribeJobs()
   window.removeEventListener('frameslice:subtitle-package', acceptSubtitleHandoff)
   inspectController?.abort()
@@ -496,7 +530,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'caption-active': mode === 'captions' }">
+  <div class="app-shell" :class="{ 'caption-active': mode === 'captions'&&!showJobs, 'jobs-active':showJobs }">
     <aside class="sidebar">
       <div class="identity">
         <div class="mark"><span></span><span></span><span></span></div>
@@ -504,13 +538,14 @@ onBeforeUnmount(() => {
       </div>
       <div class="sidebar-label">工作空间</div>
       <nav class="sidebar-nav" aria-label="工具导航">
-        <button type="button" class="nav-item" :class="{ active: mode === 'split' }" :disabled="status === 'running' || containerBusy" @click="changeMode('split')">
+        <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'split' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('split')">
           <Scissors :size="18" stroke-width="1.9"/> <span>视频分割</span> <span class="nav-index">01</span>
         </button>
-        <button type="button" class="nav-item" :class="{ active: mode === 'frames' }" :disabled="status === 'running' || containerBusy" @click="changeMode('frames')">
+        <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'frames' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('frames')">
           <ImageIcon :size="18" stroke-width="1.9"/> <span>定时抽帧</span> <span class="nav-index">02</span>
         </button>
-        <button type="button" class="nav-item" :class="{ active: mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
+        <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
+        <button type="button" class="nav-item" :class="{active:showJobs}" @click="showJobs=true;jobsVisited=true"><Layers2 :size="18"/><span>任务中心</span><span class="nav-index">04</span></button>
       </nav>
       <details class="fs-job-history">
         <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>
@@ -520,7 +555,7 @@ onBeforeUnmount(() => {
           <small>{{ job.asset.name }}</small>
           <progress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" max="1" />
           <small v-if="job.checkpoint">已写入 {{ job.checkpoint.count }} 项</small>
-          <button v-if="job.retry && ['failed','canceled','interrupted'].includes(job.status)" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
+          <button v-if="job.retry && (job.retry.resumeId || ['failed','canceled','interrupted','partial'].includes(job.status))" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
         </div>
         <p v-if="retryNotice" role="status">{{retryNotice}}</p>
         <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
@@ -535,11 +570,12 @@ onBeforeUnmount(() => {
 
     <main class="workspace">
       <header class="topbar">
-        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
+        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ showJobs?'任务中心':mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
         <div class="top-actions"><span class="privacy-indicator"><span></span> LOCAL ONLY</span><span class="header-separator"></span><span class="browser-label"><Monitor :size="14"/> Desktop</span></div>
       </header>
 
-      <div v-if="captionVisited" v-show="mode === 'captions'" class="caption-page">
+      <JobCenter v-if="jobsVisited" v-show="showJobs" :jobs="recentJobs" :labels="jobLabels" :states="jobStates" @retry="job=>{showJobs=false;requestRetry(job)}" @clear="workspace.clearHistory()"/>
+      <div v-if="captionVisited" v-show="!showJobs && mode === 'captions'" class="caption-page">
         <div class="page-head">
           <div class="eyebrow"><span class="eyebrow-dash"></span> MEDIA WORKSPACE / 03</div>
           <h1>字幕工作台<span class="heading-period">.</span></h1>
@@ -548,7 +584,7 @@ onBeforeUnmount(() => {
         <CaptionWorkspace />
       </div>
 
-      <div v-show="mode !== 'captions'" class="content">
+      <div v-show="!showJobs && mode !== 'captions'" class="content">
         <div class="page-head">
           <div class="eyebrow"><span class="eyebrow-dash"></span> MEDIA WORKSPACE / {{ mode === 'split' ? '01' : '02' }}</div>
           <h1>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : '定时抽帧' }}<span class="heading-period">.</span></h1>
@@ -582,6 +618,7 @@ onBeforeUnmount(() => {
           <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
+        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mediaAnalysis?.keyframeSamples??[]" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">
             <div class="fs-analysis-heading">
@@ -648,13 +685,15 @@ onBeforeUnmount(() => {
             <div class="select-wrap"><select v-model="verificationLevel" :disabled="status === 'running'" aria-label="视频输出校验等级"><option value="quick">快速校验（推荐）</option><option value="deep">逐包深度校验</option></select><ChevronDown :size="14"/></div>
           </div>
           <div class="config-row last">
-            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '请指定本地输出目录' }}</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || '请指定本地输出目录' }}</span></div></div>
             <button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button>
           </div>
           <div class="config-footnote"><Info :size="16"/><span>按大小分割保留封装余量；按时长分割在关键帧位置切割，两者都不能保证精确均分。仅支持单视频轨、最多一条音轨。</span></div>
         </section>
 
         <section class="config-panel" v-else>
+          <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong><span>最清晰：每窗口三候选；场景检测：采样直方图；关键帧：编码索引</span></div></div><div class="select-wrap"><select v-model="frameStrategy" :disabled="status==='running'" aria-label="抽帧策略"><option value="interval">定时抽帧</option><option value="sharpest">最清晰帧</option><option value="scene">场景变化</option><option value="keyframes">关键帧</option></select></div></div>
+          <div class="config-row"><label><input v-model="deduplicate" type="checkbox" :disabled="status==='running'"/> 过滤最近 64 张近似重复画面</label></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong><span>从 00:00 开始，每隔指定秒数提取画面</span></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong><span>只处理所选区间，避免无关帧与磁盘开销</span></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong><span>选择导出的图片编码格式</span></div></div><div class="select-wrap"><select v-model="imageFormat" :disabled="status === 'running'" aria-label="图片格式"><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select><ChevronDown :size="14"/></div></div>
@@ -672,6 +711,7 @@ onBeforeUnmount(() => {
           <p v-if="visiblePlan[0]?.excludedPreroll" class="fs-analysis-warning">首段不复制 {{visiblePlan[0].excludedPreroll.packets}} 个 AAC 前置包（完全位于视频开始之前），将写入报告。</p>
           <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
         </section>
+        <section v-if="file && info" class="fs-analysis"><label><input type="checkbox" v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))"/> 启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</label><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
         <section class="execution" v-if="file && info">
           <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">网络传输</span><strong>0 B <Check :size="14" class="no-upload-check"/></strong></div></div>
           <button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>
@@ -693,6 +733,7 @@ onBeforeUnmount(() => {
             </button>
             <span v-if="reportNotice" class="fs-result-note">{{ reportNotice }}</span>
           </div>
+          <p v-if="filteredCount" class="fs-analysis-disclaimer">已主动过滤 {{filteredCount}} 张相似或无明显场景变化的候选画面，不计为遗漏。</p>
           <p v-if="missedFrames.length" class="fs-analysis-warning">有 {{missedFrames.length}} 个时间点重试后仍无画面，详见 JSON 报告：{{missedFrames.slice(0,10).map(t=>t.toFixed(3)+'s').join('、')}}</p>
           <p v-if="storyboardError" class="fs-analysis-warning">{{ storyboardError }}</p>
           <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}</span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
@@ -703,7 +744,7 @@ onBeforeUnmount(() => {
         <footer class="footer"><span>FrameSlice — Process locally, keep control.</span><span><LockKeyhole :size="13"/> 文件始终保留在你的设备上</span></footer>
       </div>
     </main>
-    <aside v-show="mode !== 'captions'" class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
+    <aside v-show="!showJobs && mode !== 'captions'" class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
   </div>
 </template>
 

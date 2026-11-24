@@ -8,8 +8,9 @@ import {
   StreamTarget,
 } from 'mediabunny'
 import { baseName, checkCanceled } from './format'
-import { planGroups, planGroupsByDuration } from './planning.mjs'
+import { planGroups, planGroupsByDuration,planManualGroups } from './planning.mjs'
 import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder, isLeadingAacPreroll } from './coverage.mjs'
+import type { ResumeJournal } from '../core/resume'
 import type { PacketCoverage } from './coverage.mjs'
 import { openInput } from './media'
 import { PacketFingerprint, verifySegment, includePacketTime } from './verify'
@@ -49,6 +50,8 @@ export interface SplitOptions {
   verificationLevel?: VerificationLevel
   folder: FileSystemDirectoryHandle | null
   planOnly?: boolean
+  resume?:ResumeJournal
+  manualCuts?:number[]
   onPlan?: (entries: SplitPlanEntry[]) => void
   signal: AbortSignal
   onProgress: (fraction: number, label: string) => void
@@ -160,7 +163,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         group.bytes += packet.byteLength
       }
     }
-    const packed = maxSeconds === undefined
+    const packed = options.manualCuts?.length ? planManualGroups(groups,options.manualCuts) : maxSeconds === undefined
       ? planGroups(groups, maxBytes)
       : planGroupsByDuration(groups, duration, maxSeconds)
     const segments: Segment[] = packed.map((section, index) => {
@@ -169,6 +172,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         estimatedBytes: section.reduce((sum, g) => sum + g.bytes, 0),
         video: sumCoverage(section.map(g=>g.video)), audio:sumCoverage(section.map(g=>g.audio)) }
     })
+    if(options.manualCuts?.length&&segments.some(s=>s.estimatedBytes>maxBytes*.95))throw Error('手动片段预计超过文件大小限制，请增加切割点或提高上限')
     options.onPlan?.(segments.map((s,i)=>({start:s.start.time,end:s.end?.time??duration,estimatedBytes:s.estimatedBytes,videoPackets:s.video.packets,audioPackets:s.audio.packets,...(i===0&&excludedPreroll.packets?{excludedPreroll}: {})})))
     if (options.planOnly) return []
     if (!folder) throw Error('必须选择输出目录。')
@@ -180,6 +184,12 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       const startTime = seg.start.time
       const endTime = seg.end?.time ?? duration
       const filename = `${baseName(file.name)}_part_${String(i + 1).padStart(3, '0')}.mp4`
+      const previous=await options.resume?.previous(filename)
+      if(previous){
+        const part=previous.part
+        if(!part||part.start!==startTime||part.end!==endTime||part.verification.level!==verificationLevel||!part.verification.passed||part.verification.videoPackets!==seg.video.packets||part.verification.audioPackets!==(audio?seg.audio.packets:null))throw Error('历史片段与当前规划不一致：'+filename)
+        results.push(part);onSegment(part);report(.12+.88*(i+1)/segments.length,'已验证并跳过历史片段 '+filename,true);continue
+      }
       options.onFileStart?.(filename)
       const fileHandle = await folder.getFileHandle(filename, { create: true })
       let writable: FileSystemWritableFileStream
@@ -297,6 +307,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         })
         checkCanceled(signal)
         const result: SplitResult = { filename, size: finalFile.size, start: startTime, end: endTime, verification, ...(i===0&&excludedPreroll.packets?{excludedPreroll}:{}) }
+        await options.resume?.commit(filename,result)
         results.push(result)
         committed = true
         onSegment(result)

@@ -1,18 +1,18 @@
 import { JobJournal } from './job-journal'
 /** Framework-neutral shared runtime. Separate Vue/React bundles use the same per-page instance. */
 export type JobType = 'inspect' | 'analyze' | 'split' | 'frames' | 'container-scan' | 'extract-tracks' | 'remux' | 'waveform' | 'transcribe' | 'burn'
-export type JobStatus = 'queued' | 'running' | 'canceling' | 'completed' | 'failed' | 'canceled' | 'interrupted'
+export type JobStatus = 'queued' | 'running' | 'canceling' | 'completed' | 'partial' | 'failed' | 'canceled' | 'interrupted'
 export interface JobError { code: 'aborted' | 'permission' | 'quota' | 'unsupported' | 'engine'; message: string }
 export interface MediaAsset { id: string; name: string; bytes: number; lastModified: number; mime: string }
-export type RetryParameters = {mode:'split';maxBytes:number;maxSeconds?:number;verificationLevel:'quick'|'deep'} | {mode:'frames';interval:number;startTime:number;endTime:number;format:'image/jpeg'|'image/png'|'image/webp';width:0|1280|1920|3840;quality:number}
-export interface RetrySpec { fingerprint:string; parameters:RetryParameters }
+export type RetryParameters = {mode:'split';maxBytes:number;maxSeconds?:number;manualCuts?:number[];verificationLevel:'quick'|'deep'} | {mode:'frames';interval:number;startTime:number;endTime:number;format:'image/jpeg'|'image/png'|'image/webp';width:0|1280|1920|3840;quality:number;strategy?:'interval'|'keyframes'|'sharpest'|'scene';deduplicate?:boolean}
+export interface RetrySpec { fingerprint:string; parameters:RetryParameters; resumeId?:string }
 export interface MediaJob {
   id: string; type: JobType; asset: MediaAsset; status: JobStatus; progress: number; label: string
   createdAt: number; startedAt?: number; endedAt?: number; error?: JobError
   checkpoint?: { count: number; lastOutput: string; updatedAt: number }
   retry?: RetrySpec
 }
-export interface JobContext { progress(value: number, label?: string): void; checkpoint(output: string): void }
+export interface JobContext { progress(value: number, label?: string): void; checkpoint(output: string): void; partial(label:string):void }
 const active = (status: JobStatus) => status === 'queued' || status === 'running' || status === 'canceling'
 const abortError = () => new DOMException('任务已取消', 'AbortError')
 function classify(error: unknown): JobError {
@@ -64,7 +64,7 @@ export class WorkspaceRuntime {
     if (!map) { map = new Map(); this.metadata.set(file,map) }
     map.set(key,value)
   }
-  snapshot(): MediaJob[] { return this.jobs.map(job => ({...job, asset:{...job.asset}, error:job.error&&{...job.error}, checkpoint:job.checkpoint&&{...job.checkpoint},retry:job.retry&&{fingerprint:job.retry.fingerprint,parameters:{...job.retry.parameters}}})) }
+  snapshot(): MediaJob[] { return this.jobs.map(job => ({...job, asset:{...job.asset}, error:job.error&&{...job.error}, checkpoint:job.checkpoint&&{...job.checkpoint},retry:job.retry&&{fingerprint:job.retry.fingerprint,resumeId:job.retry.resumeId,parameters:{...job.retry.parameters}}})) }
   subscribe(fn: (jobs: MediaJob[]) => void): () => void {
     this.listeners.add(fn); fn(this.snapshot())
     return () => { this.listeners.delete(fn) }
@@ -92,10 +92,10 @@ export class WorkspaceRuntime {
     this.jobs.unshift(job)
     this.jobs = [...this.jobs.filter(j => active(j.status)), ...this.jobs.filter(j => !active(j.status)).slice(0,100)]
     return new Promise<T>((resolve,reject) => {
-      let lastUpdate = 0, lastSave = 0
+      let lastUpdate = 0, lastSave = 0, partialLabel = ''
       const finish = (status: JobStatus, error?: unknown) => {
-        job.status=status;job.endedAt=Date.now();job.label=status==='completed'?'已完成':status==='canceled'?'已取消':'处理失败'
-        if(status==='completed')job.progress=1
+        job.status=status;job.endedAt=Date.now();job.label=status==='partial'?partialLabel:status==='completed'?'已完成':status==='canceled'?'已取消':'处理失败'
+        if(status==='completed'||status==='partial')job.progress=1
         if(error!==undefined)job.error=classify(error)
         signal.removeEventListener('abort',onAbort);this.publish(true)
       }
@@ -110,6 +110,7 @@ export class WorkspaceRuntime {
           job.progress=Math.max(job.progress,Math.max(0,Math.min(1,value)));if(label)job.label=label
           if(Date.now()-lastUpdate>=150){lastUpdate=Date.now();this.publish()}
         },
+        partial:label=>{partialLabel=label},
         checkpoint: output => {
           if(job.status!=='running'&&job.status!=='canceling')return
           job.checkpoint={count:(job.checkpoint?.count??0)+1,lastOutput:output.slice(0,512),updatedAt:Date.now()}
@@ -123,7 +124,7 @@ export class WorkspaceRuntime {
           try {
             const value=await work(ctx)
             if(signal.aborted)throw abortError()
-            finish('completed');resolve(value)
+            finish(partialLabel?'partial':'completed');resolve(value)
           } catch(error) {
             const canceled=signal.aborted||(error instanceof Error&&error.name==='AbortError')
             finish(canceled?'canceled':'failed',canceled?abortError():error);reject(canceled?abortError():error)

@@ -56,3 +56,13 @@ export function planGroupsByDuration(groups, duration, maxSeconds) {
   }
   return result
 }
+
+/** Manual cuts must be exact indexed GOP boundaries. No silent snapping in the engine. */
+export function planManualGroups(groups,cuts){
+ if(!groups.length||!Array.isArray(cuts)||cuts.length>10000)throw Error('无效手动切割点')
+ const indexes=new Map(groups.map((g,i)=>[g.time,i]))
+ const requested=[...new Set(cuts)].sort((a,b)=>a-b)
+ const result=[];let start=0
+ for(const cut of requested){const i=indexes.get(cut);if(!Number.isFinite(cut)||i===undefined||i<=start)throw Error('手动切割点不是有效关键帧边界');result.push(groups.slice(start,i));start=i}
+ result.push(groups.slice(start));return result
+}

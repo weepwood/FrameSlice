@@ -1,3 +1,4 @@
+import { ResumeJournal } from '../core/resume'
 import { splitVideo } from '../lib/split'
 import { extractFrames } from '../lib/frames'
 import { inspectVideo } from '../lib/media'
@@ -19,6 +20,8 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
   const begin = performance.now()
   try {
     let count = 0
+    const {kind:_,id:__,file:___,folder:____,resumeId, ...config}=message
+    const resume=resumeId&&folder?await ResumeJournal.prepare(resumeId,folder,file,JSON.stringify([file.name,config]),controller.signal,n=>send({kind:'progress',id,fraction:0,label:'正在校验完整源文件 '+Math.round(n*100)+'%'})):undefined
     if (message.mode === 'split') {
       if (!folder && !message.planOnly) throw new Error('视频分割必须有授权的本地输出目录。')
       const results = await splitVideo({
@@ -26,6 +29,8 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         folder,
         maxBytes: message.maxBytes,
         planOnly: message.planOnly,
+        manualCuts:message.manualCuts,
+        resume,
         onPlan: entries=>send({kind:'plan',id,entries}),
         maxSeconds: message.maxSeconds,
         verificationLevel: message.verificationLevel,
@@ -43,12 +48,15 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         file,
         folder,
         duration: message.duration,
+        resume,
         interval: message.interval,
         startTime: message.startTime,
         endTime: message.endTime,
         format: message.format,
         width: message.width,
         quality: message.quality,
+        strategy:message.strategy,deduplicate:message.deduplicate,
+        onFiltered:(timestamp,reason)=>send({kind:'filtered',id,timestamp,reason}),
         signal: controller.signal,
         onFileStart: filename => send({ kind: 'fileStarted', id, filename }),
         onSaved: filename => send({ kind: 'saved', id, filename }),
@@ -113,5 +121,11 @@ scope.onmessage = (event: MessageEvent<WorkerCommand>) => {
   running = { id: message.id, controller }
   if (message.kind === 'inspect') void inspect(message.id, message.file, controller)
   else if (message.kind === 'analyze') void analyze(message.id, message.file, controller)
-  else void run(message, controller)
+  else if(message.resumeId){
+    if(!navigator.locks){send({kind:'error',id:message.id,message:'浏览器不支持续作互斥锁',canceled:false});running=null;return}
+    void navigator.locks.request('frameslice-resume-'+message.resumeId,{ifAvailable:true},async lock=>{
+      if(!lock){send({kind:'error',id:message.id,message:'该续作任务正在另一个标签页运行',canceled:false});running=null;return}
+      await run(message,controller)
+    }).catch(error=>{send({kind:'error',id:message.id,message:String(error),canceled:false});running=null})
+  }else void run(message, controller)
 }

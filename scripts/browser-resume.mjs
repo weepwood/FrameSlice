@@ -1,0 +1,48 @@
+import {chromium} from 'playwright-core'
+import {readFile,mkdtemp,writeFile,rm} from 'node:fs/promises'
+import {join} from 'node:path'
+import {tmpdir} from 'node:os'
+const dir=await mkdtemp(join(tmpdir(),'frameslice-resume-')),file=join(dir,'fixture.mp4')
+await writeFile(file,Buffer.from((await readFile(new URL('../tests/fixtures/black-h264-aac.mp4.b64',import.meta.url),'utf8')).trim(),'base64'))
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']})
+try{
+ const page=await browser.newPage({acceptDownloads:true,viewport:{width:1440,height:900}})
+ await page.addInitScript(()=>Object.defineProperty(window,'showDirectoryPicker',{configurable:true,value:()=>navigator.storage.getDirectory()}))
+ await page.goto(process.env.APP_URL??'http://127.0.0.1:4173/FrameSlice/')
+ await page.locator('input[type=file]').first().setInputFiles(file)
+ await page.locator('.file-codec').waitFor()
+ await page.getByRole('button',{name:'定时抽帧'}).click()
+ await page.getByRole('spinbutton',{name:'抽帧间隔秒数'}).fill('0.5')
+ await page.getByLabel(/启用断点续作/).check()
+ await page.getByRole('button',{name:/开始提取图片/}).click()
+ async function done(){await page.locator('.status-card.success,.status-card.failure').waitFor({timeout:60000});if(await page.locator('.status-card.failure').count())throw Error(await page.locator('.status-card.failure').innerText())}
+ await done()
+ const before=await page.evaluate(async()=>{const root=await navigator.storage.getDirectory();const items=[];for await(const [dir,h] of root.entries())if(h.kind==='directory')for await(const [name,child] of h.entries())if(child.kind==='file'&&name.endsWith('.jpg')){const f=await child.getFile();items.push({dir,name,bytes:f.size,mtime:f.lastModified})}return items})
+ if(before.length<2)throw Error('fixture did not produce multiple frames')
+ await page.evaluate(async item=>{const root=await navigator.storage.getDirectory();const folder=await root.getDirectoryHandle(item.dir);await folder.removeEntry(item.name)},before[0])
+ await page.reload({waitUntil:'networkidle'})
+ await page.getByRole('button',{name:'任务中心'}).click()
+ const [chooser]=await Promise.all([page.waitForEvent('filechooser'),page.locator('.fs-job-center').getByRole('button',{name:'重新关联并重试'}).first().click()])
+ await chooser.setFiles(file)
+ await page.getByText(/已关联续作目录/).waitFor({timeout:30000})
+ await page.getByRole('button',{name:/开始提取图片/}).click()
+ await done()
+ const after=await page.evaluate(async dir=>{const root=await navigator.storage.getDirectory(),folder=await root.getDirectoryHandle(dir),items=[];for await(const [name,h] of folder.entries())if(h.kind==='file'&&name.endsWith('.jpg')){const f=await h.getFile();items.push({name,bytes:f.size,mtime:f.lastModified})}return items},before[0].dir)
+ if(after.length!==before.length||!before.slice(1).every(item=>after.some(x=>x.name===item.name&&x.bytes===item.bytes&&x.mtime===item.mtime)))throw Error('resume did not preserve verified existing frames')
+ console.log('Real OPFS reload/resume regenerated missing frame and preserved verified outputs')
+ await page.getByRole('button',{name:'新建任务'}).count() // optional session was cleared on successful completion
+ await page.getByLabel(/启用断点续作/).uncheck()
+ await page.getByRole('combobox',{name:'抽帧策略'}).selectOption('sharpest')
+ await page.getByRole('button',{name:/开始提取图片/}).click();await done()
+ if(!await page.locator('.frame-tile img').count())throw Error('smart frame preview missing')
+ await page.getByRole('button',{name:'生成缩略图'}).click()
+ await page.locator('.fs-timeline-thumbs img').first().waitFor({timeout:30000})
+ await page.getByRole('slider',{name:'时间轴缩放'}).fill('2')
+ await page.getByRole('button',{name:'任务中心'}).click()
+ await page.locator('.fs-job-center').getByRole('textbox',{name:'搜索任务'}).fill('fixture')
+ await page.locator('.fs-center-job').first().waitFor()
+ await page.getByRole('combobox',{name:'主题'}).selectOption('dark')
+ const bg=await page.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--fs-bg').trim())
+ if(bg!=='#151916')throw Error('dark semantic token mismatch')
+ console.log('Smart frames, thumbnails, task center and dark token verified')
+}finally{await browser.close();await rm(dir,{recursive:true,force:true})}
