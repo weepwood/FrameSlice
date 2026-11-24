@@ -15,7 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  browser-gate:
+    uses: ./.github/workflows/browser-smoke.yml
+    permissions:
+      contents: read
   build-and-deploy:
+    needs: browser-gate
     runs-on: ubuntu-latest
     environment:
       name: github-pages

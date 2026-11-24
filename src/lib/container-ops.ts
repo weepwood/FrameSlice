@@ -9,6 +9,7 @@ import { baseName, checkCanceled } from './format'
 import { probeMatroska } from './mkv-probe.mjs'
 import type { MkvProbe } from './mkv-probe.mjs'
 import { normalizeSubtitleText } from './subtitle-track.mjs'
+import { assertDuration, timelineTolerance } from './timeline-validation.mjs'
 
 export type ContainerKind = 'video' | 'audio' | 'subtitle'
 export interface ContainerTrack {
@@ -148,12 +149,25 @@ async function verifyOutput(file: File, expected: InputTrack[], sourceDuration: 
         (Number.isFinite(sourceDuration) && duration > sourceDuration + 3)) {
       throw Error('输出文件时长不合理。')
     }
+    // Match each output track against an unused selected source track by kind, codec and presentation span.
+    const unmatched = await Promise.all(expected.map(async track => {
+      const sink = new EncodedPacketSink(track)
+      const [first, last, codec] = await Promise.all([sink.getFirstPacket(), sink.getPacket(Infinity), track.getCodec()])
+      if (!first || !last) throw Error('源轨道缺少首尾压缩包。')
+      return { kind: track.type, codec, span: last.timestamp + last.duration - first.timestamp, tolerance: timelineTolerance(first.duration, last.duration) }
+    }))
     for (const track of tracks) {
       const sink = new EncodedPacketSink(track)
       const [first, last] = await Promise.all([sink.getFirstPacket(), sink.getPacket(Infinity)])
       if (!first || !last || first.byteLength <= 0 || last.byteLength <= 0) {
         throw Error('输出的音视频轨道缺少首尾压缩包。')
       }
+      const codec = await track.getCodec()
+      const span = last.timestamp + last.duration - first.timestamp
+      const match = unmatched.findIndex(item => item.kind === track.type && item.codec === codec && Math.abs(item.span - span) <= item.tolerance + 1e-6)
+      if (match < 0) throw Error('封装校验失败：输出轨道时长偏离所选源轨道。')
+      const [item] = unmatched.splice(match, 1)
+      assertDuration(span, item.span, item.tolerance)
     }
   } finally {
     outputInput.dispose()

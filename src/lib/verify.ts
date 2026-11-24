@@ -1,6 +1,7 @@
 import { EncodedPacketSink } from 'mediabunny'
 import { checkCanceled } from './format'
 import { openInput } from './media'
+import { assertDuration, assertTimeline, timelineTolerance } from './timeline-validation.mjs'
 
 export type VerificationLevel = 'quick' | 'deep'
 
@@ -55,6 +56,19 @@ export interface VerificationOptions {
   signal: AbortSignal
   expectedVideo?: PacketDigest
   expectedAudio?: PacketDigest
+  expectedVideoTime?: TrackTimeline
+  expectedAudioTime?: TrackTimeline
+}
+
+export interface TrackTimeline { start: number; end: number; maxPacketDuration: number }
+
+export function includePacketTime(range: TrackTimeline, packet: { timestamp: number; duration: number }): void {
+  if (!Number.isFinite(packet.timestamp) || !Number.isFinite(packet.duration) || packet.duration < 0) {
+    throw Error('媒体包时间戳或时长无效。')
+  }
+  range.start = Math.min(range.start, packet.timestamp)
+  range.end = Math.max(range.end, packet.timestamp + packet.duration)
+  range.maxPacketDuration = Math.max(range.maxPacketDuration, packet.duration)
 }
 
 function requirePacket(packet: { byteLength: number } | null, track: string): void {
@@ -104,9 +118,8 @@ export async function verifySegment(options: VerificationOptions): Promise<Verif
         allTracks.length !== videos.length + audios.length) {
       throw new Error('校验失败：导出视频的轨道数量与原文件不一致。')
     }
-    if (!Number.isFinite(duration) || duration <= 0 || duration > expectedDuration + 2) {
-      throw new Error('校验失败：导出视频时长无效或偏离预期。')
-    }
+    const tolerance = timelineTolerance(options.expectedVideoTime?.maxPacketDuration ?? 0, options.expectedAudioTime?.maxPacketDuration ?? 0)
+    assertDuration(duration, expectedDuration, tolerance)
     const currentVideoCodec = await videos[0].getCodec()
     if (currentVideoCodec !== videoCodec) throw new Error('校验失败：视频编码格式发生变化。')
     if (audioCodec && (await audios[0].getCodec()) !== audioCodec) {
@@ -122,6 +135,9 @@ export async function verifySegment(options: VerificationOptions): Promise<Verif
       throw new Error('校验失败：视频片段没有从可独立解码的关键帧开始。')
     }
 
+    if (options.expectedVideoTime && firstVideo && lastVideo) {
+      assertTimeline({ start: firstVideo.timestamp, end: lastVideo.timestamp + lastVideo.duration }, options.expectedVideoTime, tolerance)
+    }
     let audioSink: EncodedPacketSink | null = null
     if (audioCodec) {
       audioSink = new EncodedPacketSink(audios[0])
@@ -130,6 +146,9 @@ export async function verifySegment(options: VerificationOptions): Promise<Verif
       ])
       requirePacket(firstAudio, '音频轨道')
       requirePacket(lastAudio, '音频轨道')
+      if (options.expectedAudioTime && firstAudio && lastAudio) {
+        assertTimeline({ start: firstAudio.timestamp, end: lastAudio.timestamp + lastAudio.duration }, options.expectedAudioTime, tolerance)
+      }
     }
     let checkedBytes = (firstVideo?.byteLength ?? 0) + (lastVideo?.byteLength ?? 0)
     if (level === 'deep') {
