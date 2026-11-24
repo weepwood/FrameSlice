@@ -12,6 +12,7 @@ export interface KeyframeStatistics {
   bitrateBins: number[]
   keyframeSamples: number[]
   keyframeIndex:number[]
+  safeKeyframeIndex:number[]
   structurallyEligible: boolean
   warnings: string[]
 }
@@ -23,6 +24,6 @@ export interface TrackShape {
 }
 export class VideoPacketStats {
   constructor(duration: number, bins?: number)
-  add(packet: { timestamp: number; byteLength: number; type: string }): void
+  add(packet: { timestamp: number; byteLength: number; type: string; duration?:number }): void
   summary(info: TrackShape): KeyframeStatistics
 }

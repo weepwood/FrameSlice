@@ -1,3 +1,4 @@
+import {safeGopGroups,emptyCoverage,assertGopOrder} from './coverage.mjs'
 /**
  * Fixed-memory video packet statistics. No encoded bytes are retained.
  * A packet's timestamp is presentation time, while iteration is decode order.
@@ -21,12 +22,13 @@ export class VideoPacketStats {
     this.nonMonotonicKeyframes = 0
     this.keyframeSamples = []
     this.keyframeIndex = []
+    this.gops=[]
   }
 
   add(packet) {
-    const { timestamp, byteLength, type } = packet
+    const { timestamp, byteLength, type, duration=0 } = packet
     if (!Number.isFinite(timestamp) || timestamp < -0.01 || timestamp > this.duration + 2 ||
-      !Number.isSafeInteger(byteLength) || byteLength < 0) {
+      !Number.isSafeInteger(byteLength) || byteLength < 0 || !Number.isFinite(duration) || duration<0) {
       throw new Error('视频媒体包时间戳或大小异常，已停止统计。')
     }
     this.videoPackets++
@@ -39,6 +41,7 @@ export class VideoPacketStats {
       if (this.keyframes >= 250_000) throw new Error('关键帧数量超过统计安全上限。')
       this.keyframes++
       this.keyframeIndex.push(timestamp)
+      this.gops.push({time:timestamp,minTime:Infinity,maxTime:-Infinity,bytes:0,video:emptyCoverage(),audio:emptyCoverage()})
       if (this.firstKeyframe === null) this.firstKeyframe = timestamp
       if (this.lastKeyframe !== null) {
         const interval = timestamp - this.lastKeyframe
@@ -52,7 +55,7 @@ export class VideoPacketStats {
       // A bounded overview; samples are approximate, not exhaustive.
       if (this.keyframeSamples.length < 80) this.keyframeSamples.push(timestamp)
     }
-    if (this.keyframes > 0) this.currentGopBytes += byteLength
+    if (this.keyframes > 0) {this.currentGopBytes += byteLength;const g=this.gops.at(-1);g.minTime=Math.min(g.minTime,timestamp);g.maxTime=Math.max(g.maxTime,timestamp+duration);g.bytes+=byteLength;g.video.packets++;g.video.bytes+=byteLength}
   }
 
   summary(trackInfo) {
@@ -66,6 +69,8 @@ export class VideoPacketStats {
     const trackCompatible = trackInfo.videoTracks === 1 && trackInfo.audioTracks <= 1 &&
       trackInfo.otherTracks === 0 && trackInfo.mp4Family
     const warnings = []
+    let safeKeyframeIndex=[];try{if(this.nonMonotonicKeyframes===0){assertGopOrder(this.gops,this.duration);safeKeyframeIndex=safeGopGroups(this.gops).map(g=>g.time)}}catch{warnings.push('无法验证独立 GOP 边界，请勿使用手动无损切点。')}
+    if(safeKeyframeIndex.length<this.keyframeIndex.length)warnings.push('存在开放 GOP 或不安全关键帧，手动切割仅显示已验证的安全边界。')
     if (!trackCompatible) warnings.push('当前文件的容器或轨道组成不满足现有 MP4 无损分割的要求。')
     if (this.firstKeyframe !== null && this.firstKeyframe > 0.05) warnings.push('视频起始位置没有关键帧，不能确保首段独立播放。')
     if (this.nonMonotonicKeyframes) warnings.push('关键帧时间顺序异常，建议先检查原始文件。')
@@ -84,7 +89,8 @@ export class VideoPacketStats {
       bitrateBins,
       keyframeSamples: this.keyframeSamples,
       keyframeIndex: [...new Set(this.keyframeIndex)].sort((a,b)=>a-b),
-      structurallyEligible: trackCompatible && this.firstKeyframe !== null &&
+      safeKeyframeIndex,
+      structurallyEligible: safeKeyframeIndex.length>0&&trackCompatible && this.firstKeyframe !== null &&
         this.firstKeyframe <= 0.05 && this.nonMonotonicKeyframes === 0,
       warnings,
     }

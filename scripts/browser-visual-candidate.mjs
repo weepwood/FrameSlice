@@ -17,10 +17,10 @@ try{
     if(mode==='captions')await page.locator('.caption-react-host').locator('.caption-action-toolbar').waitFor({timeout:30000})
     if(mode==='jobs')await page.locator('.fs-job-center').waitFor()
     await page.evaluate(async()=>{await document.fonts.ready;window.scrollTo(0,0);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})
-    if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error(mode+' horizontal overflow')
+    if(mode==='jobs'&&await page.locator('.fs-storage-values').count()!==2)throw Error('storage mask missing');if(viewport.width===390&&await page.getByRole('button',{name:/隐藏检查器|显示检查器/}).count())throw Error('unavailable inspector visible on mobile');if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error(mode+' horizontal overflow')
     const name=mode+'-'+theme+'-'+viewport.width+'.png',path=join(dir,name)
     // Storage estimates vary by runner, so mask only their diagnostic value block.
-    const mask=mode==='jobs'?[page.locator('.fs-storage-diagnostics')]:[]
+    const mask=mode==='jobs'?[page.locator('.fs-storage-values')]:[]
     await page.screenshot({path,animations:'disabled',caret:'hide',fullPage:false,mask})
     const bytes=await readFile(path);results.push({name,sha256:createHash('sha256').update(bytes).digest('hex'),width:viewport.width,height:viewport.height})
    }

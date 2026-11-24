@@ -4,10 +4,11 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: [main, feat/v071-compatibility-quality]
+    branches: [main]
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: frameslice-browser-smoke-${{ github.ref }}
@@ -46,6 +47,7 @@ jobs:
           sudo apt-get install -y fonts-noto-cjk
           fc-match 'Noto Sans CJK SC'
       - name: 构建与启动预览
+        id: preview
         run: |
           npm run build
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/frameslice-vite.log 2>&1 &
@@ -64,7 +66,21 @@ jobs:
           node scripts/browser-resume.mjs
           node scripts/browser-batch-resume.mjs
           node scripts/browser-history.mjs
-          node scripts/browser-visual-candidate.mjs
+      - name: 独立固定视口视觉候选
+        if: always() && steps.preview.outcome == 'success'
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          APP_URL: http://127.0.0.1:4173/FrameSlice/
+        run: node scripts/browser-visual-candidate.mjs
+      - name: 审核基线像素差异门禁
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if test ! -f visual-baseline/approval.json; then echo '候选阶段，尚无人工批准基线'; exit 0; fi
+          sudo apt-get install -y python3-pil
+          bash scripts/fetch-approved-visual.sh /tmp/frameslice-approved
+          python3 scripts/verify-approved-visual.py /tmp/frameslice-approved visual-candidate
+          python3 scripts/compare-visual.py /tmp/frameslice-approved visual-candidate --output visual-diff --threshold 0.02
       - name: 短样本真实浏览器性能基准
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
@@ -80,5 +96,6 @@ jobs:
           path: |
             visual-regression/
             visual-candidate/
+            visual-diff/
             browser-benchmark.json
           if-no-files-found: warn
