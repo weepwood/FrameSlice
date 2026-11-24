@@ -48,3 +48,5 @@ test('asset identity is file-object scoped; interrupted metadata restores withou
  assert.equal(restored.snapshot()[0].checkpoint.lastOutput,'part.mp4')
  release();await job;runtime.clearHistory();assert.equal(runtime.snapshot().length,0)
 })
+
+test('priority changes queued order without preempting the current task',async()=>{const runtime=new WorkspaceRuntime(),file=new File(['x'],'x.mp4'),signal=new AbortController().signal;let release;const order=[];const first=runtime.run('split',file,signal,async()=>{await new Promise(r=>release=r)});const low=runtime.run('frames',file,signal,async()=>{order.push('low')},undefined,'background');const high=runtime.run('frames',file,signal,async()=>{order.push('high')},undefined,'high');release();await Promise.all([first,low,high]);assert.deepEqual(order,['high','low'])})

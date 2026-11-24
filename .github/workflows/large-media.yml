@@ -1,0 +1,63 @@
+name: 真实 12GB 编码媒体浏览器专项
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/generate-large-media.mjs'
+      - 'scripts/browser-stress-real.mjs'
+      - '.github/workflows/large-media.yml'
+permissions:
+  contents: read
+concurrency:
+  group: frameslice-large-media-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 检查真实磁盘空间
+        run: |
+          df -h /tmp
+          FREE=$(df -B1 /tmp | tail -1 | awk '{print $4}')
+          test "$FREE" -ge 32000000000 || { echo '需要至少 32GB 可用空间；请使用更大磁盘 runner' >&2; exit 1; }
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          install-dependencies: true
+      - name: 安装固定依赖
+        run: |
+          npm ci --no-audit --no-fund
+          npm install -g npm@11.21.1
+          npm --prefix apps/caption-studio ci --ignore-scripts --no-audit --no-fund
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright-core@1.55.0
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: 生成真实编码媒体
+        run: node scripts/generate-large-media.mjs /tmp/frameslice-large-media
+      - name: 构建并启动生产预览
+        run: |
+          npm run build
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/frameslice-vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/FrameSlice/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: 真实 12GB 浏览器流式处理
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          STRESS_TIMEOUT_MS: '4200000'
+        run: node scripts/browser-stress-real.mjs /tmp/frameslice-large-media/real-large.mp4 browser-large-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-large-media-report
+          path: |
+            /tmp/frameslice-large-media/fixture.json
+            browser-large-report.json
+          if-no-files-found: warn

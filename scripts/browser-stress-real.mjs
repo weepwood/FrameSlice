@@ -2,6 +2,7 @@
 import {chromium} from 'playwright-core'
 import {stat,writeFile,readFile} from 'node:fs/promises'
 import {resolve,basename} from 'node:path'
+import {execFileSync} from 'node:child_process'
 import {platform,arch,totalmem} from 'node:os'
 const path=process.argv[2],reportPath=resolve(process.argv[3]||'browser-stress-report.json')
 if(!path||!process.env.CHROME_PATH)throw Error('Usage: CHROME_PATH=... node scripts/browser-stress-real.mjs /path/12GB.mp4 report.json')
@@ -11,7 +12,8 @@ if(!Number.isSafeInteger(minBytes)||minBytes<1||!source.isFile()||source.size<mi
 const timeout=Number(process.env.STRESS_TIMEOUT_MS||7200000)
 const origin=process.env.APP_URL||'http://127.0.0.1:4173/FrameSlice/'
 const report={kind:'real-browser-opfs',source:{name:basename(input),bytes:source.size},minimumBytes:minBytes,qualifies12GB:source.size>=12000000000,platform:platform(),arch:arch(),systemRamBytes:totalmem(),startedAt:new Date().toISOString(),status:'failed',samples:[],errors:[]}
-let browser,interval,started=Date.now()
+let browser,interval,started=Date.now(),sampling=false
+async function processMetrics(){if(platform()!=='linux')return null;try{const rows=execFileSync('ps',['-eo','pid=,ppid=,rss='],{encoding:'utf8'}).trim().split('\n').map(l=>l.trim().split(/\s+/).map(Number));const ids=new Set([process.pid]);let changed=true;while(changed){changed=false;for(const [pid,ppid] of rows)if(ids.has(ppid)&&!ids.has(pid)){ids.add(pid);changed=true}}let rss=0,readBytes=0,writeBytes=0;for(const [pid,,kb] of rows)if(ids.has(pid)){rss+=kb*1024;try{const io=await readFile('/proc/'+pid+'/io','utf8');readBytes+=Number(io.match(/^read_bytes:\s*(\d+)/m)?.[1]??0);writeBytes+=Number(io.match(/^write_bytes:\s*(\d+)/m)?.[1]??0)}catch{}}return {processTreeRssBytes:rss,processTreeReadBytes:readBytes,processTreeWriteBytes:writeBytes}}catch{return null}}
 try{
  browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']})
  report.browser=browser.version()
@@ -23,7 +25,7 @@ try{
  if(report.storage.quota-report.storage.usage<source.size*1.05)throw Error('OPFS 可用配额不足')
  const cdp=await page.context().newCDPSession(page)
  await cdp.send('Performance.enable')
- const sample=async()=>{try{const {metrics}=await cdp.send('Performance.getMetrics');const get=name=>metrics.find(m=>m.name===name)?.value??null;report.samples.push({elapsedMs:Date.now()-started,mainJsHeapBytes:get('JSHeapUsedSize'),taskDuration:get('TaskDuration')})}catch{}}
+ const sample=async()=>{if(sampling)return;sampling=true;try{const {metrics}=await cdp.send('Performance.getMetrics');const get=name=>metrics.find(m=>m.name===name)?.value??null;report.samples.push({elapsedMs:Date.now()-started,mainJsHeapBytes:get('JSHeapUsedSize'),taskDuration:get('TaskDuration'),...await processMetrics()})}catch{}finally{sampling=false}}
  interval=setInterval(()=>void sample(),5000)
  await sample()
  // Playwright passes a local file path, not a base64 upload or an in-memory buffer.
@@ -51,6 +53,7 @@ try{
 finally{
  clearInterval(interval);report.elapsedMs=Date.now()-started
  report.sourceReadMiBPerSecond=source.size/1048576/(report.elapsedMs/1000)
- report.measurementLimit='CDP main renderer JS heap is not total browser/Worker/WASM/GPU memory; OPFS is native browser storage, not OS picker.'
+ report.peakProcessTreeRssBytes=report.samples.some(s=>s.processTreeRssBytes!==undefined)?Math.max(...report.samples.map(s=>s.processTreeRssBytes??0)):null
+ report.measurementLimit='Linux sampled process tree RSS includes shared pages counted more than once; /proc I/O counters can decrease as children exit and exclude cached I/O. CDP main JS heap is not total browser memory. OPFS is native browser storage, not OS picker.'
  await browser?.close();await writeFile(reportPath,JSON.stringify(report,null,2));console.log(reportPath,report.status)
 }

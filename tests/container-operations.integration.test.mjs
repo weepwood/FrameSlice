@@ -134,3 +134,14 @@ test('external SRT is written as MKV WebVTT track and verified', { timeout: 75_0
   const probe = await probeMatroska(mkv)
   assert.ok(probe.tracks.some(t => t.kind === 'subtitle' && t.codecId.includes('WEBVTT')))
 })
+
+ test('multiple external subtitle tracks and incompatible merge rejection', {timeout:75000},async t=>{
+ const mp4=await fixture(),out=join(process.cwd(),'.frameslice-multi-'+process.pid+'.mjs');t.after(()=>rm(out,{force:true}))
+ await build({entryPoints:['src/lib/container-ops.ts'],bundle:true,platform:'node',format:'esm',packages:'external',outfile:out})
+ const {inspectContainer,executeContainerTask}=await import(pathToFileURL(out).href)
+ const report=await inspectContainer(mp4),folder=directoryMock(),options={file:mp4,folder,action:'package',format:'mkv',selectedIds:report.tracks.map(t=>t.id),acknowledgeUnlisted:true,signal:new AbortController().signal,onProgress(){},onFileStart(){},onOutput(){}}
+ const subtitle=(name,text)=>new File(['1\n00:00:00,000 --> 00:00:01,000\n'+text+'\n'],name)
+ const result=await executeContainerTask({...options,subtitles:[{file:subtitle('en.srt','Hello'),language:'eng'},{file:subtitle('zh.srt','你好'),language:'zho'}]})
+ assert.equal(result[0].subtitleTrackCount,2)
+ await assert.rejects(executeContainerTask({...options,action:'merge',mergeFiles:[mp4,mp4]}),/无音轨/)
+})

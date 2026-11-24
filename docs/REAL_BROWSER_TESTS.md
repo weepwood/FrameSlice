@@ -15,3 +15,7 @@
 浏览器门禁使用仓库短 MP4 样本生成 browser-benchmark.json（qualifies12GB=false），并采集 light/dark、桌面及移动端截图。真实 12GB 仍须提供实际源文件和足够磁盘；不可使用短样本替代。输出 mtime、跨标签页锁及篡改拒绝通过真实 Chrome OPFS 测试覆盖。性能指标包含主线程 JS 堆峰值、输出字节和端到端源字节/秒（非纯 IO 吞吐）。
 
 Pages 产物使用 github-pages-${GITHUB_RUN_ATTEMPT}，避免同一运行的重试产物重复；检查必须仅找到一个有效匹配产物。
+
+## 生成真实大型测试视频
+`node scripts/generate-large-media.mjs /tmp/frameslice-large-media` 生成至少 12GB 的非稀疏真实编码 MP4；源是重复编码的视频样本，不是多编码、多轨真实用户素材。需要至少 32GB 可用空间。专项工作流 large-media.yml 使用浏览器 OPFS 分割。Linux 采样进程树 RSS 含共享页重复统计，/proc IO 计数为近似值而非纯磁盘吞吐。
+视觉差异：安装 Pillow，人工审核后解压选定的工作流截图为 baseline 目录，运行 `python scripts/compare-visual.py baseline current --output visual-diff`；禁止自动覆盖基线。
