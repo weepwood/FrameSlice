@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {emptyCoverage,addCoverage,sumCoverage,assertCoverage,assertGopOrder,isLeadingAacPreroll} from '../src/lib/coverage.mjs'
+import {emptyCoverage,addCoverage,sumCoverage,assertCoverage,assertGopOrder,isLeadingAacPreroll,safeGopGroups} from '../src/lib/coverage.mjs'
 test('packet coverage catches missing or duplicated packets before export',()=>{
  const a=emptyCoverage();addCoverage(a,{byteLength:12});addCoverage(a,{byteLength:8})
  assert.deepEqual(a,{packets:2,bytes:20})
@@ -21,3 +21,5 @@ test('only a bounded complete AAC preroll before the first video boundary may be
  assert.equal(isLeadingAacPreroll('aac',{timestamp:-.2,duration:.02},0),false)
  assert.equal(isLeadingAacPreroll('opus',{timestamp:-.02,duration:.02},0),false)
 })
+
+test('open GOP boundaries merge without losing any packets or bytes',()=>{const g=(time,minTime,maxTime)=>({time,minTime,maxTime,bytes:20,video:{packets:2,bytes:20},audio:emptyCoverage()});const source=[g(0,0,.375),g(.5,.375,.875),g(1,1,2)];const safe=safeGopGroups(source);assert.deepEqual(safe.map(g=>g.time),[0,1]);assert.equal(safe[0].video.packets,4);assert.equal(safe[0].bytes,40);assert.equal(source[0].bytes,20);assert.throws(()=>safeGopGroups([g(0,-.1,1)]),/前置画面/)})

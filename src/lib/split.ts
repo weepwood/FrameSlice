@@ -9,7 +9,7 @@ import {
 } from 'mediabunny'
 import { baseName, checkCanceled } from './format'
 import { planGroups, planGroupsByDuration,planManualGroups,selectGopRange } from './planning.mjs'
-import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder, isLeadingAacPreroll } from './coverage.mjs'
+import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder, isLeadingAacPreroll, safeGopGroups } from './coverage.mjs'
 import type { ResumeJournal } from '../core/resume'
 import type { PacketCoverage } from './coverage.mjs'
 import {assertAvOnly} from './mp4-track-guard'
@@ -19,6 +19,8 @@ import type { VerificationLevel, VerificationReport, TrackTimeline } from './ver
 
 interface Group {
   time: number
+  minTime:number
+  maxTime:number
   packet: EncodedPacket
   bytes: number
   video: PacketCoverage
@@ -122,7 +124,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
 
     const videoSink = new EncodedPacketSink(video)
     const audioSink = audio ? new EncodedPacketSink(audio) : null
-    const groups: Group[] = []
+    let groups: Group[] = []
     report(0.01, '正在扫描关键帧与压缩数据索引…', true)
     let videoBytesScanned = 0
     let scannedVideoPackets = 0
@@ -135,15 +137,19 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       }
       if (packet.type === 'key') {
         if (groups.length >= 250_000) throw new Error('关键帧数量过多，超过资源安全上限。')
-        groups.push({ time: packet.timestamp, packet, bytes: 0, video: emptyCoverage(), audio: emptyCoverage() })
+        groups.push({ time: packet.timestamp,minTime:Infinity,maxTime:-Infinity, packet, bytes: 0, video: emptyCoverage(), audio: emptyCoverage() })
       }
       if (!groups.length) throw new Error('视频开始处没有可用关键帧，无法保证输出片段独立播放。')
-      addCoverage(groups[groups.length - 1].video,packet)
+      const group=groups[groups.length-1];if(!Number.isFinite(packet.timestamp)||!Number.isFinite(packet.duration)||packet.duration<0)throw Error('视频包时间戳无效');group.minTime=Math.min(group.minTime,packet.timestamp);group.maxTime=Math.max(group.maxTime,packet.timestamp+packet.duration)
+      addCoverage(group.video,packet)
       groups[groups.length - 1].bytes += packet.byteLength
       videoBytesScanned += packet.byteLength
       report(Math.min(0.07, 0.01 + 0.06 * videoBytesScanned / Math.max(1, file.size)), '正在扫描关键帧与压缩数据索引…')
     }
     assertGopOrder(groups,duration)
+    const originalGroups=groups;groups=safeGopGroups(groups)
+    const safeTimes=new Set(groups.map(g=>g.time)),unsafeTimes=new Set(originalGroups.filter(g=>!safeTimes.has(g.time)).map(g=>g.time))
+    if(options.manualCuts?.some(t=>unsafeTimes.has(t))||options.range&&(unsafeTimes.has(options.range.start)||unsafeTimes.has(options.range.end)))throw Error('所选关键帧存在跨 GOP 前置画面（开放 GOP），无法独立无损切割，请选择其他边界')
     const excludedPreroll=emptyCoverage()
     // Add audio payload sizes to the GOP containing the corresponding presentation time.
     if (audioSink) {
