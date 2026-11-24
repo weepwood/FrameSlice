@@ -380,9 +380,9 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-select-trigger[aria-expanded=true]{border-color:var(--fs-accent,#346dc1)}
 .caption-select-trigger:focus-visible{outline:2px solid var(--fs-focus,#346dc1);outline-offset:2px}
 .caption-select-trigger:disabled{opacity:.5;cursor:not-allowed}
-.caption-select-popup{z-index:10000;overflow:hidden;padding:4px;min-width:var(--radix-select-trigger-width);max-width:calc(100vw - 16px);max-height:var(--radix-select-content-available-height);background:var(--fs-surface,#fff);box-shadow:0 6px 20px #0002;font-size:12px;box-sizing:border-box}
+.caption-select-popup{z-index:10000;overflow:hidden;padding:4px;min-width:var(--anchor-width);max-width:calc(100vw - 16px);max-height:var(--available-height);background:var(--fs-surface,#fff);box-shadow:0 6px 20px #0002;font-size:12px;box-sizing:border-box}
 .caption-select-popup [role=option]{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:32px;padding:6px 9px;box-sizing:border-box;border-radius:4px;cursor:pointer}
-.caption-select-popup [data-state=checked]{color:var(--fs-accent,#346dc1)}
+.caption-select-popup [data-selected]{color:var(--fs-accent,#346dc1)}
 .caption-select-popup [data-highlighted]{background:var(--fs-selected,#e7effc);color:var(--fs-text,#27313b)}
 .app-shell.embedded .transcribe-bottom{flex-direction:column;align-items:stretch;padding:12px;gap:8px}
 .caption-running-dot{width:6px;height:6px;border-radius:50%;background:var(--fs-accent,#346dc1)}
@@ -390,7 +390,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 @media(max-width:1240px){.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.app-shell.embedded .caption-action-toolbar{gap:4px}.app-shell.embedded .caption-action-toolbar .btn{min-height:34px}.app-shell.embedded .side-tabs button{font-size:11px;gap:3px}}
 
-/* Shared tokens, Radix owns focus, selection, tabs and popup behavior. */
+/* Shared tokens, Base UI owns focus, selection, tabs and popup behavior. */
 .caption-select-viewport{max-height:inherit;overflow:auto}
 .caption-select-item{outline:none}
 .caption-inspector-tabs{min-width:0;display:flex;flex-direction:column}
@@ -398,9 +398,28 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-tab-content[hidden]{display:none}
 .caption-tab-content:focus-visible{outline:2px solid var(--fs-focus,#4678ce);outline-offset:-2px}
 .caption-checkbox{display:inline-grid;place-items:center;width:16px;height:16px;padding:0;border:1px solid var(--fs-border,#dce1e7);border-radius:4px;background:var(--fs-input,#fff);color:var(--fs-on-accent,#fff)}
-.caption-checkbox[data-state=checked]{background:var(--fs-accent,#305fb1);border-color:var(--fs-accent,#305fb1)}
+.caption-checkbox[data-checked]{background:var(--fs-accent,#305fb1);border-color:var(--fs-accent,#305fb1)}
 .caption-checkbox span{display:grid;place-items:center}
 .app-shell.embedded .caption-action-toolbar{row-gap:6px;flex-wrap:wrap}
 .app-shell.embedded .side-tabs button{min-height:36px}
 .app-shell.embedded .cue-row{border-radius:var(--fs-radius,6px)}
 .app-shell.embedded .side-panel .surface{box-shadow:none}
+
+.caption-select-positioner{z-index:10000;min-width:var(--anchor-width);max-width:calc(100vw - 16px)}
+.caption-select-trigger>span:last-child{display:grid;place-items:center;flex:none}
+.caption-select-viewport{max-height:min(280px,var(--available-height,280px));overflow:auto}
+
+/* Inspector controls: visually align both framework islands without duplicating logic. */
+.caption-select-trigger[aria-expanded=true]{border-color:var(--fs-accent,#305fb1)}
+.caption-select-popup{border-radius:var(--fs-radius,6px);max-height:min(320px,var(--available-height,320px))}
+.caption-select-popup [role=option]{gap:12px}
+.caption-select-popup [role=option]>div{min-width:0;overflow-wrap:anywhere}
+.app-shell.embedded .side-tabs{padding:3px;gap:2px;min-height:42px;height:auto;background:var(--fs-raised)}
+.app-shell.embedded .side-tabs button{flex:1;min-width:0;min-height:34px;border-radius:4px;white-space:nowrap}
+.app-shell.embedded .side-tabs button.active{background:var(--fs-surface);box-shadow:0 1px 2px #0001}
+.app-shell.embedded .side-tabs button.active::after{display:none}
+.app-shell.embedded .side-tabs button:focus-visible,.caption-checkbox:focus-visible{outline:2px solid var(--fs-focus,#4678ce);outline-offset:-2px}
+.app-shell.embedded .caption-tab-content .section-title{padding-block:10px}
+.app-shell.embedded .caption-field{gap:4px}
+.app-shell.embedded .caption-tab-content .settings-grid{gap:10px}
+@media(max-width:420px){.app-shell.embedded .side-tabs button svg{display:none}.app-shell.embedded .side-tabs button{font-size:12px}}

@@ -104,4 +104,6 @@
 
 - UI 优先复用现有 Reka UI 原语，统一 WorkbenchCheckbox、WorkbenchSelect、Collapsible 与 ToggleGroup；不自研基础选择、焦点与键盘行为。React 字幕端后续采用成熟 React 原语（先验证 Shadow DOM 浮层、键盘与依赖锁），不得为替换基础组件重写媒体引擎。个人工具常规 CI，不运行 12GB。
 
-- 字幕基础组件使用 Radix UI Select/Tabs/Checkbox（MIT，锁定实际 npm 版本），Select Portal 进入嵌入工作区 Shadow DOM 内的挂载节点，不自行实现键盘/浮层。Vue 与 React 共享视觉 token，保留业务时间轴与媒体引擎。真实 Shadow DOM 回归通过前不合并。
+- 字幕基础组件使用 Base UI Select/Tabs/Checkbox（MIT，锁定实际 npm 版本），Select Portal 直接进入 ShadowRoot，不自行实现键盘/浮层。Vue 与 React 共享视觉 token，保留业务时间轴与媒体引擎。真实 Shadow DOM 回归通过前不合并。
+
+- Radix Select 在实际嵌入式 Shadow DOM 中出现 document.activeElement 焦点识别错误（CI 45439883461、Mac Edge 本地复现），改用 Base UI 1.9.0，保留键盘选择与 Escape 测试，不能降级为鼠标测试。

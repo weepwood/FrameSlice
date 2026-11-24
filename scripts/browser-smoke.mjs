@@ -184,7 +184,18 @@ try {
   await caption.getByRole('button', { name: /打开工程/ }).waitFor()
   await caption.getByRole('button', { name: /导入字幕/ }).waitFor()
   await caption.getByRole('tab',{name:'转录'}).click()
-  const backend=caption.getByRole('combobox',{name:'计算后端'});await backend.focus();await backend.press('Enter');await page.keyboard.press('End');await page.keyboard.press('Enter');if(!(await backend.innerText()).includes('CPU / WASM'))throw Error('caption keyboard selection failed');await backend.press('Enter');await page.keyboard.press('Escape');if(await backend.getAttribute('aria-expanded')!=='false')throw Error('caption Escape failed');await caption.getByRole('tab',{name:'字幕'}).click()
+  const backend=caption.getByRole('combobox',{name:'计算后端'});
+  const focusedOption=async(text)=>page.waitForFunction(text=>{const root=document.querySelector('.caption-react-host')?.shadowRoot;const el=root?.activeElement;return el?.getAttribute('role')==='option'&&el.textContent.includes(text)},text)
+  await backend.focus();await backend.press('Enter');await focusedOption('自动');
+  await page.keyboard.press('End');await focusedOption('CPU / WASM');await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.querySelector('.caption-react-host')?.shadowRoot?.querySelector('[aria-label="计算后端"]')?.textContent.includes('CPU / WASM'));
+  await backend.press('Enter');await focusedOption('CPU / WASM');await page.keyboard.press('Escape');await page.getByRole('listbox').waitFor({state:'hidden'});
+  if(await backend.getAttribute('aria-expanded')!=='false')throw Error('caption Escape failed');
+  if(!await page.evaluate(()=>document.querySelector('.caption-react-host')?.shadowRoot?.activeElement?.getAttribute('aria-label')==='计算后端'))throw Error('caption Select did not restore trigger focus');
+  const transcriptionTab=caption.getByRole('tab',{name:'转录'});await transcriptionTab.focus();await page.keyboard.press('ArrowRight');
+  const styleTab=caption.getByRole('tab',{name:'样式'});await styleTab.press('Enter');await caption.getByRole('checkbox',{name:'文字加粗'}).waitFor();
+  const bold=caption.getByRole('checkbox',{name:'文字加粗'}),beforeBold=await bold.getAttribute('aria-checked');await bold.press('Space');if(await bold.getAttribute('aria-checked')===beforeBold)throw Error('caption checkbox keyboard toggle failed');
+  await caption.getByRole('tab',{name:'字幕'}).click()
   await caption.locator('input[accept=".srt,.vtt"]').setInputFiles({
     name: 'integration.srt', mimeType: 'text/plain',
     buffer: Buffer.from(['1','00:00:01,000 --> 00:00:03,000','FrameSlice 字幕合并测试',''].join(String.fromCharCode(10)), 'utf8'),
