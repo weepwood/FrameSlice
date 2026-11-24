@@ -64,6 +64,7 @@ jobs:
           node scripts/browser-resume.mjs
           node scripts/browser-batch-resume.mjs
           node scripts/browser-history.mjs
+          node scripts/browser-visual-candidate.mjs
       - name: 短样本真实浏览器性能基准
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
@@ -78,5 +79,6 @@ jobs:
           name: workbench-regression-${{ github.run_attempt }}
           path: |
             visual-regression/
+            visual-candidate/
             browser-benchmark.json
           if-no-files-found: warn
