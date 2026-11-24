@@ -20,6 +20,9 @@ import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import MediaTimeline from './components/MediaTimeline.vue'
+import PanelResize from './components/PanelResize.vue'
+import WorkbenchButton from './components/WorkbenchButton.vue'
+import {version} from '../package.json'
 import JobCenter from './components/JobCenter.vue'
 import { workspace } from './core/workspace'
 import type { MediaJob, RetryParameters } from './core/workspace'
@@ -51,6 +54,14 @@ const jobLabels: Record<string, string> = {inspect:'媒体读取',analyze:'视�
 const jobStates: Record<string,string> = {queued:'等待中',running:'运行中',canceling:'取消中',completed:'已完成',partial:'部分完成',failed:'失败',canceled:'已取消',interrupted:'已中断'}
 const subtitleHandoff = ref<{ file: File; subtitle: File } | null>(null)
 const file = ref<File | null>(null)
+const mediaLibrary=ref<File[]>([])
+const leftWidth=ref(232),rightWidth=ref(288),inspectorOpen=ref(true)
+try{const p=JSON.parse(localStorage.getItem('frameslice.layout')??'{}');if(Number.isFinite(p.left))leftWidth.value=Math.min(320,Math.max(190,p.left));if(Number.isFinite(p.right))rightWidth.value=Math.min(400,Math.max(240,p.right));if(typeof p.inspector==='boolean')inspectorOpen.value=p.inspector}catch{}
+function saveLayout(){try{localStorage.setItem('frameslice.layout',JSON.stringify({left:leftWidth.value,right:rightWidth.value,inspector:inspectorOpen.value}))}catch{}}
+function resizeLeft(n:number){leftWidth.value=n;saveLayout()}
+function resizeRight(n:number){rightWidth.value=n;saveLayout()}
+function importMedia(){const input=document.createElement('input');input.type='file';input.multiple=true;input.accept='video/*,.mp4,.mov,.mkv,.webm';input.onchange=()=>{const files=Array.from(input.files??[]).slice(0,50);for(const item of files)if(mediaLibrary.value.length<50)mediaLibrary.value.push(item);if(!file.value&&files[0])void loadFile(files[0])};input.click()}
+function removeMedia(item:File){if(file.value===item)clearFile();mediaLibrary.value=mediaLibrary.value.filter(f=>f!==item)}
 const info = ref<VideoInfo | null>(null)
 const videoUrl = ref('')
 const loading = ref(false)
@@ -143,6 +154,7 @@ async function loadFile(nextFile?: File | null) {
   inspectController = new AbortController()
   parseRevision += 1
   clearTimeline();resumeSession.value=null
+  if(nextFile&&!mediaLibrary.value.includes(nextFile)&&mediaLibrary.value.length<50)mediaLibrary.value.push(nextFile)
   const revision = parseRevision
   resetOutput()
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
@@ -533,7 +545,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'caption-active': mode === 'captions'&&!showJobs, 'jobs-active':showJobs }">
+  <div class="app-shell fs-workbench" :class="{ 'caption-active': mode === 'captions'&&!showJobs, 'jobs-active':showJobs, 'inspector-hidden':!inspectorOpen }" :style="{'--fs-left-width':leftWidth+'px','--fs-right-width':rightWidth+'px'}">
     <aside class="sidebar">
       <div class="identity">
         <div class="mark"><span></span><span></span><span></span></div>
@@ -550,6 +562,8 @@ onBeforeUnmount(() => {
         <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
         <button type="button" class="nav-item" :class="{active:showJobs}" @click="showJobs=true;jobsVisited=true"><Layers2 :size="18"/><span>任务中心</span><span class="nav-index">04</span></button>
       </nav>
+      <section class="fs-media-library"><div class="fs-analysis-header"><strong>媒体资源</strong><WorkbenchButton label="添加媒体资源" :disabled="status==='running'" @click="importMedia">＋</WorkbenchButton></div><p v-if="!mediaLibrary.length" class="fs-analysis-disclaimer">导入本地视频，按需读取。</p><div v-for="(asset,i) in mediaLibrary" :key="i" class="fs-library-row" :class="{selected:asset===file}"><button type="button" :disabled="status==='running'||containerBusy" :title="asset.name" @click="loadFile(asset)"><FileVideo :size="15"/><span>{{asset.name}}<small>{{humanBytes(asset.size)}}</small></span></button><button type="button" :disabled="status==='running'||containerBusy" :aria-label="'移除 '+asset.name" @click="removeMedia(asset)">×</button></div></section>
+      <PanelResize class="fs-left-resize" label="调整资源栏宽度" :value="leftWidth" :min="190" :max="320" side="left" @change="resizeLeft"/>
       <details class="fs-job-history">
         <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>
         <div v-if="!recentJobs.length" class="fs-job-empty">暂无任务</div>
@@ -567,7 +581,7 @@ onBeforeUnmount(() => {
         <label class="fs-theme-select">外观 <select aria-label="主题" v-model="theme" @change="applyTheme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
-        <div class="sidebar-version">FRAMESLICE / V0.1.0</div>
+        <WorkbenchButton :label="inspectorOpen?'隐藏检查器':'显示检查器'" @click="inspectorOpen=!inspectorOpen;saveLayout()">{{inspectorOpen?'隐藏检查器':'显示检查器'}}</WorkbenchButton><div class="sidebar-version">FRAMESLICE / V{{version}}</div>
       </div>
     </aside>
 
@@ -749,7 +763,7 @@ onBeforeUnmount(() => {
         <footer class="footer"><span>FrameSlice — Process locally, keep control.</span><span><LockKeyhole :size="13"/> 文件始终保留在你的设备上</span></footer>
       </div>
     </main>
-    <aside v-show="!showJobs && mode !== 'captions'" class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
+    <aside v-show="inspectorOpen && !showJobs && mode !== 'captions'" class="right-panel"><PanelResize class="fs-right-resize" label="调整检查器宽度" :value="rightWidth" :min="240" :max="400" side="right" @change="resizeRight"/><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
   </div>
 </template>
 

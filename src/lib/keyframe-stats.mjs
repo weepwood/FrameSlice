@@ -83,7 +83,7 @@ export class VideoPacketStats {
       peakWindowMbps: +maxBitrate.toFixed(3),
       bitrateBins,
       keyframeSamples: this.keyframeSamples,
-      keyframeIndex: this.keyframeIndex,
+      keyframeIndex: [...new Set(this.keyframeIndex)].sort((a,b)=>a-b),
       structurallyEligible: trackCompatible && this.firstKeyframe !== null &&
         this.firstKeyframe <= 0.05 && this.nonMonotonicKeyframes === 0,
       warnings,
