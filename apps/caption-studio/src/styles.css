@@ -291,3 +291,30 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded :is(.media-info,.notice-banner,.review-notice,.style-note,.transcribe-bottom,.transcribe-helper,.shortcut-grid kbd){background:var(--fs-surface,#fff);color:var(--fs-muted,#68736a);border-color:var(--fs-border,#e4e9e1)}
 .app-shell.embedded .media-info>div{color:var(--fs-text,#292d27)}
 .app-shell.embedded .style-note.warning,.app-shell.embedded .notice-banner{color:var(--fs-warning,#8c632b)}
+
+/* Embedded editor follows the host's media-workbench density. Standalone styles unchanged. */
+.app-shell.embedded {font-family:var(--fs-font,inherit)}
+.app-shell.embedded :is(.surface,.caption-action-toolbar,.workflow-step) {border-radius:var(--fs-radius,6px);box-shadow:none}
+.app-shell.embedded .caption-action-toolbar {padding:9px 10px;margin-bottom:12px;gap:6px}
+.app-shell.embedded .caption-action-toolbar .btn {font-size:12px;min-height:34px}
+.app-shell.embedded .workflow-strip {gap:6px;margin-bottom:14px}
+.app-shell.embedded .workflow-step {padding:8px;min-height:46px}
+.app-shell.embedded .workflow-step small,.app-shell.embedded .subtle {color:var(--fs-muted,#566371)}
+.app-shell.embedded .workflow-step>span {color:var(--fs-muted,#566371)}
+.app-shell.embedded .workflow-step.current {border-color:var(--fs-accent,#305fb1)}
+.app-shell.embedded .video-frame {background:var(--fs-preview,#171e29)}
+.app-shell.embedded .empty-icon {background:transparent;color:#b7c3d2;border-color:#465365}
+.app-shell.embedded .empty-actions .btn.outline {background:#252e3c;border-color:#465365;color:#e5eaf1}
+.app-shell.embedded .empty-media {color:#bbc6d4}
+.app-shell.embedded .empty-media h2 {color:#f1f4f8}
+.app-shell.embedded .section-title {padding-inline:12px}
+.app-shell.embedded .chip {color:var(--fs-accent,#305fb1);border-color:var(--fs-border,#dce1e7)}
+.app-shell.embedded .btn.primary:hover:not(:disabled) {background:var(--fs-accent,#305fb1);filter:brightness(.94)}
+.app-shell.embedded .timeline-ruler span,.app-shell.embedded .cue-row-bottom,.app-shell.embedded .time-input,.app-shell.embedded .shift-controls {color:var(--fs-muted,#566371)}
+.app-shell.embedded .cue-bar {background:var(--fs-wave,#537cae);border-color:var(--fs-wave,#537cae);color:#101722}
+.app-shell.embedded .cue-bar.selected {background:var(--fs-accent,#305fb1);border-color:var(--fs-accent,#305fb1);color:var(--fs-on-accent,#fff)}
+.app-shell.embedded .cue-row.playing {box-shadow:inset 2px 0 0 var(--fs-accent,#305fb1)}
+.app-shell.embedded .playhead,.app-shell.embedded .playhead:before {border-color:#d79a42;background:#d79a42}
+.app-shell.embedded .playhead {background:transparent}
+.app-shell.embedded :is(button,a,input,select,textarea):focus-visible {outline-color:var(--fs-focus,#4678ce)}
+@media(max-width:600px) {.app-shell.embedded .caption-action-toolbar {padding:8px}.app-shell.embedded .caption-action-toolbar .btn {font-size:11px}.app-shell.embedded .workflow-step {padding:6px}}

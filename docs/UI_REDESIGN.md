@@ -1,0 +1,10 @@
+# FrameSlice 工作台视觉重构（候选）
+## 设计依据
+- [Anthropic frontend-design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)：从领域任务决定层级和视觉，而不是从模板或装饰出发；删除无意义的编号和眉题。
+- [归藏设计](https://github.com/op7418/dsh-guizang-design)：借鉴中文排版与编辑节奏，不直接套用演示文稿模板。
+- [Reka UI accessibility](https://reka-ui.com/docs/overview/accessibility)：继续复用现有锁定的 Select、Splitter、Slider、Dialog。无新增依赖，原生表单保留。
+- [LosslessCut](https://github.com/mifi/lossless-cut)：仅借鉴媒体工具的源文件/时间轴/输出关系，不复制源码或宣称实现同等剪辑能力。
+## 第一阶段
+以桌面媒体工具而非营销页面为目标。中性灰蓝双主题、单一交互强调色、语义成功/危险色、系统字体、6px 控件圆角。真实检查器取代宣传文案，显示媒体元数据、预计输出和任务状态；轨道封装不展示不相关的检查器。保留三工具入口及任务中心、输出与授权流程、字幕挂载、真实功能及全部媒体安全限制。去除主导航装饰编号、英文眉题与重复宣传语；AI 转录仍保留，仅调整措辞。
+## 验收
+现有 v0.7.1 16 张基线不得覆盖或跳过，预期本次有显著像素差异。先检查完整浏览器功能测试，再下载并逐张检查固定视口候选及差异图；补充已载入视频、处理状态、字幕编辑和任务中心等交互截图。只有审核并另行批准新的清单后才合并；若浏览器版本不一致则重新取得可比候选。保留旧发布产物。没有本地真实构建或截图时不得称已视觉验收。

@@ -45,6 +45,13 @@ try {
   }
   await page.locator('input[type=file]').setInputFiles(sample)
   await page.locator('.file-codec').waitFor({ timeout: 30_000 })
+  const inspector = page.getByRole('complementary', { name: '媒体检查器' })
+  await inspector.getByText('源媒体', { exact: true }).waitFor()
+  if (!(await inspector.locator('.fs-inspector-filename').innerText()).trim()) throw Error('Inspector filename missing')
+  await page.getByRole('button', { name: '隐藏检查器' }).click()
+  if (await inspector.count()) throw Error('Inspector should be hidden')
+  await page.getByRole('button', { name: '显示检查器' }).click()
+  await inspector.getByText('当前输出', { exact: true }).waitFor()
 
   await page.getByRole('button', { name: '分析视频' }).click()
   await page.locator('.fs-analysis-metrics').waitFor({ timeout: 30_000 })

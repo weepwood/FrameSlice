@@ -342,7 +342,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
             </section>
             <section className="transcribe-panel surface">
-              <div className="section-title"><div><strong>AI 语音识别</strong><span className="subtle">WHISPER · ON DEVICE</span></div><span className="chip"><Activity size={13}/> Local AI</span></div>
+              <div className="section-title"><div><strong>语音转录</strong><span className="subtle">Whisper · 本地运行</span></div><span className="chip"><Activity size={13}/> 本地模型</span></div>
               <div className="settings-grid">
                 <label>识别模型 <select value={model} disabled={busy} onChange={e=>setModel(e.target.value)}>{MODELS.map(m=><option key={m.id} value={m.id}>{m.title} ({m.size})</option>)}</select></label>
                 <label>原文语言 <select value={language} disabled={busy||model.endsWith('.en')} onChange={e=>setLanguage(e.target.value)}>{LANGS.map(([id,title])=><option key={id} value={id}>{title}</option>)}</select></label>
