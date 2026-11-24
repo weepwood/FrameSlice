@@ -21,7 +21,7 @@ watch(selected, item=>{if(!item&&open.value)open.value=false})
 <div v-if="parts.length" class="result-list"><div v-for="item in parts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div>
 <section v-if="frames.length" class="fs-frame-results" aria-label="抽帧预览">
   <header class="fs-gallery-header">
-    <div><strong><ImageIcon :size="16"/> 抽帧预览 <span class="fs-gallery-count">{{frames.length}}</span></strong><small>仅显示最近保留的预览，完整输出以导出目录和处理报告为准。</small></div>
+    <div><strong><ImageIcon :size="16"/> 抽帧预览 <span class="fs-gallery-count">{{frames.length}}</span></strong><small>仅显示最近预览</small></div>
     <ToggleGroupRoot type="single" :model-value="density" aria-label="画廊布局" class="fs-gallery-density" @update:model-value="v=>{if(v==='compact'||v==='large')density=v}">
       <ToggleGroupItem value="compact" aria-label="紧凑网格"><Grid3X3 :size="16"/></ToggleGroupItem>
       <ToggleGroupItem value="large" aria-label="大图网格"><Grid2X2 :size="16"/></ToggleGroupItem>
