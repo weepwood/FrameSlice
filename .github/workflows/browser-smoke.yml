@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: [main]
+    branches: [main, feat/v07-media-task-foundation]
 
 permissions:
   contents: read
