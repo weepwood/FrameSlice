@@ -4,7 +4,7 @@ import {chromium} from 'playwright-core'
 import {mkdir,writeFile,readFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {createHash} from 'node:crypto'
-const dir=process.env.VISUAL_BASELINE_DIR||'visual-candidate';await mkdir(dir,{recursive:true})
+const dir=process.env.VISUAL_BASELINE_DIR||'visual-candidate';await mkdir(dir,{recursive:true});await mkdir('visual-regression',{recursive:true})
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']})
 const results=[]
 try{
@@ -25,6 +25,11 @@ try{
     await page.screenshot({path,animations:'disabled',caret:'hide',fullPage:false,mask})
     const bytes=await readFile(path);results.push({name,sha256:createHash('sha256').update(bytes).digest('hex'),width:viewport.width,height:viewport.height})
    }
+   // Additional interactive evidence is intentionally outside the 16-image baseline.
+   const evidence=async(name)=>page.screenshot({path:join('visual-regression',name+'-'+theme+'-'+viewport.width+'.png'),animations:'disabled',caret:'hide'})
+   const batch=page.getByRole('combobox',{name:'批处理方式',exact:true});await batch.scrollIntoViewIfNeeded();await batch.click();await page.getByRole('option',{name:'定时抽帧',exact:true}).waitFor();await evidence('menu-batch');await page.keyboard.press('Escape');await page.getByRole('listbox').waitFor({state:'hidden'})
+   await page.getByRole('button',{name:'清除本地任务记录'}).click();await page.getByRole('dialog').waitFor();await evidence('storage-confirm');await page.getByRole('dialog').getByRole('button',{name:'取消'}).click()
+   await page.getByRole('button',{name:'字幕工作台',exact:true}).click();const caption=page.locator('.caption-react-host');await caption.getByRole('tab',{name:'转录',exact:true}).click();const model=caption.getByRole('combobox',{name:'识别模型'});await model.scrollIntoViewIfNeeded();await evidence('caption-transcribe');await model.click();await page.getByRole('option',{name:'Base · 均衡 (~80 MB)',exact:true}).waitFor();await evidence('menu-caption');await model.press('Escape');if(await model.getAttribute('aria-expanded')!=='false')throw Error('Caption popup did not close')
   }finally{await ctx.close()}
  }
  await writeFile(join(dir,'candidate.json'),JSON.stringify({schema:1,chrome:browser.version(),commit:process.env.GITHUB_SHA??null,images:results},null,2))

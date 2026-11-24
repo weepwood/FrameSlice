@@ -25,6 +25,7 @@ try{
   await panel.getByRole('tab',{name:'转录'}).click()
   const start=Date.now()
   await panel.getByRole('button',{name:/开始自动转录|重新生成字幕/}).click()
+  if(await panel.getByRole('tab',{name:'转录',exact:true}).getAttribute('aria-selected')!=='true')throw Error('Starting transcription unexpectedly hid its progress panel')
   await panel.locator('.transcribe-panel .task-status.done,.transcribe-panel .task-status.failed').waitFor({timeout:600000})
   if(await panel.locator('.transcribe-panel .task-status.failed').count())throw Error(await panel.locator('.transcribe-panel .task-status.failed').innerText())
   await panel.getByRole('tab',{name:'字幕'}).click()
@@ -47,6 +48,14 @@ try{
  report.phases.burn={elapsedMs:Date.now()-start,bytes:size,duration:Number(probe.format.duration),videoCodec:probe.streams.find(s=>s.codec_type==='video').codec_name}
  // Verify actual frames can be decoded, not only container metadata.
  execFileSync('ffmpeg',['-v','error','-i',output,'-f','null','-'],{stdio:'pipe'})
+ // Verify cleanup against actual downloaded model resources, not just synthetic fixtures.
+ const modelEntries=()=>page.evaluate(async()=>{const entries=[];for(const name of await caches.keys()){const c=await caches.open(name);for(const request of await c.keys()){const u=new URL(request.url);if(u.hostname==='huggingface.co'&&u.pathname.startsWith('/onnx-community/whisper-tiny.en/resolve/'))entries.push({cache:name,path:u.pathname})}}return entries})
+ const before=await modelEntries();report.phases.modelCleanup={before};if(!before.length)throw Error('Downloaded Whisper resources not found at expected model URL; inspect actual cache layout')
+ await page.getByRole('button',{name:'任务中心',exact:true}).click()
+ await page.getByRole('button',{name:'清除模型缓存'}).click()
+ await page.getByRole('dialog').getByRole('button',{name:'确认清理'}).click()
+ await page.getByText(/已清除 \d+ 项模型缓存/).waitFor()
+ const after=await modelEntries();report.phases.modelCleanup={before,after};if(after.length)throw Error('Actual downloaded Whisper cache was not cleared')
  report.status='passed'
 }catch(e){report.errors.push(String(e));process.exitCode=1}
 finally{await browser?.close();await writeFile(reportPath,JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2))}

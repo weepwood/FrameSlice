@@ -182,13 +182,13 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const startTranscription=()=>{
     if(!file)return;
     if(cues.length&&!window.confirm('重新转录将替换当前所有字幕。是否继续？'))return;
-    setError('');setPeaks([]);resetCues([]);setSelectedId(null);setTab('cues');
+    setError('');setPeaks([]);resetCues([]);setSelectedId(null);setTab('transcribe');
     // Automatically extract the original File audio in a Worker, no 350 MB cap.
     transcriber.transcribe(file,model,language==='auto'?null:language,device);
   };
   const makeWaveform=()=>{
     if(!file)return;
-    setError('');setPeaks([]);transcriber.extractWaveform(file);
+    setError('');setPeaks([]);setTab('transcribe');transcriber.extractWaveform(file);
   };
   const cancelTask=()=>{transcriber.stop()};
   const updateCue=(id:string,patch:Partial<Cue>)=>setCues(list=>{
@@ -288,7 +288,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       <main className="editor-area">
         {embedded&&<div className="caption-action-toolbar" role="toolbar" aria-label="字幕工作台操作">
           <div className="caption-project-field"><span>工程</span><input aria-label="字幕工程名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/></div>
-          <span className="caption-action-spacer"/>{busy&&<button className="btn outline" onClick={()=>setTab('transcribe')}>转录 {Math.round(transcriber.state.progress)}%</button>}
+          <span className="caption-action-spacer"/>{(busy||transcriber.state.phase==='error'||transcriber.state.phase==='done')&&tab!=='transcribe'&&<button className="btn outline" onClick={()=>setTab('transcribe')}>{busy?'转录 / 波形 '+Math.round(transcriber.state.progress)+'%':transcriber.state.phase==='error'?'处理失败 · 查看':'处理完成 · 查看'}</button>}
           <span className="caption-save-state">{saved==='saved'?'已自动保存':saved==='saving'?'保存中…':saved==='loading'?'读取工程中':'保存异常'}</span>
           <button className="btn outline" disabled={!file||!cues.length||busy}
             title={!file?'请先打开媒体文件，再封装当前字幕':'将当前字幕和本地媒体发送到轨道封装工具'}
