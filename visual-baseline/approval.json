@@ -1,110 +1,110 @@
 {
   "schema": 1,
   "chrome": "158.0.8127.88",
-  "commit": "b3f2e199c07ba117d3a00d4160cdf29b4ba50f75",
-  "head": "0e5dd281b2ac12d6046148799e51fb588a41dd69",
-  "runId": 45419289141,
+  "commit": "eafc861ce56e874991fcd2a83460bebe011b6f86",
+  "head": "00f8fd6151046e373cdff51a7a73a8a0bbefdc7b",
+  "runId": 45425639823,
   "runAttempt": 1,
-  "artifactId": 14932339497,
-  "artifactDigest": "sha256:aa4ab735766389d4b373dac2763c21643d4254674f3f9ee245e544ffb4373f2f",
+  "artifactId": 14937030024,
+  "artifactDigest": "sha256:4c5964e447caad878ea410d579659ab9c35454d1a99361f88334a6093ba935c4",
   "releaseTag": "v0.7.1",
-  "assetName": "visual-baseline-ui-pr12-0e5dd28.zip",
-  "reviewedOn": "2026-11-24",
-  "scope": "固定视口空工作台，四工作区双主题；动态存储配额值遮罩；另审查载入、滚动、字幕编辑证据，不纳入像素基线。保留原始 v0.7.1 发布资产。",
+  "assetName": "visual-baseline-ui-pr13-00f8fd6.zip",
+  "reviewedOn": "2026-11-25",
+  "scope": "PR #13 UI 变更后的固定视口空态基线：四工作区 split/frames/captions/jobs × light/dark × 1440×900/390×844。任务中心存储配额两处动态值使用真实 DOM 遮罩；交互态（自定义下拉展开、清理确认、字幕转录检查器）及导入字幕编辑态另存于同一 CI artifact 的 visual-regression，不纳入 16 张像素基线。390px 使用单列自然滚动，未出现横向溢出。保留 v0.7.1 原始清单及 Release 资产，PR #13 使用独立资产名。",
   "images": [
     {
       "name": "split-light-1440.png",
-      "sha256": "7227f93290a7d00ed83aaa329fc3430d1a8be73f58f56a87f74f3f10c6bf946e",
+      "sha256": "4a6abf7d3f08ffa9f706cf3eef6117dbc6322645339c1275f4eaa428272105a8",
       "width": 1440,
       "height": 900
     },
     {
       "name": "frames-light-1440.png",
-      "sha256": "e7c8f56ba2b267976e42c170a56361c327ac93fc0fb6600fd612578a31ebd572",
+      "sha256": "c19d76c68d35f8e7b20916034c51fadab4a28e296a60ff3766fac4fa54ba6312",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-light-1440.png",
-      "sha256": "872f55c5a37086b89753306486aeb9387c3f324c5de767f65ac6982e15521e2b",
+      "sha256": "126b5edd7cf964f4139cf295f7cdb3efeb01a9d233e53c563f9973f9e6814ab1",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-light-1440.png",
-      "sha256": "72603c0d6b3fb3c8ab170305b01551668808986b2fa7d24dea279bfdc9537960",
+      "sha256": "b169325014ad8dd7e09da4e3ef9010216d63822991149de929cd7e5260114c4d",
       "width": 1440,
       "height": 900
     },
     {
       "name": "split-dark-1440.png",
-      "sha256": "f5bc616b8ead284036fdad6311bb810c6fe41612a0b99eaf97d2198096362913",
+      "sha256": "13bd5694772cb7f6de3d632294e3469bc2621f4927f6ec34ca7bff33751632f3",
       "width": 1440,
       "height": 900
     },
     {
       "name": "frames-dark-1440.png",
-      "sha256": "3a8f3782c451485d5a6c637b7c34237fc3f1be17d7e255fcb99d34cd5f4c48e0",
+      "sha256": "7d30204626057b824aaa8b5f13f0f647106ed19e705271cecd2f35456f28f699",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-dark-1440.png",
-      "sha256": "98c0cb6b8e60108649509f4e00f0f6500694e85e94bc5962bb2f6c8debefb755",
+      "sha256": "31a2f72e00482dff438c25d57394aeb49cc56ed9337d45b63a30d7d88ff7919c",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-dark-1440.png",
-      "sha256": "788ca7ce8aa09288496754dd8d5ba21183911386bddc0f60462bfa59a854ca1f",
+      "sha256": "dacee5f15eea33d875f1094624df3957542e7215cf0ad08def8eebd9d9480b59",
       "width": 1440,
       "height": 900
     },
     {
       "name": "split-light-390.png",
-      "sha256": "d85279858083770b2381fa1fd12d3ec75a6dd153fde054cb9fd3183a82f86141",
+      "sha256": "b9a87b78647f7116f6fa640b1b39bc3f6d607d402d34d8c0f85e21b0b60da513",
       "width": 390,
       "height": 844
     },
     {
       "name": "frames-light-390.png",
-      "sha256": "7f0be50bb02c65ee82d3a658c50c00a7e16ae5f697bd1df4ecb1173ecc440577",
+      "sha256": "8e27d6a23392540e7ba6c31572d2f0b3c35ead8e473c35496df9414fd296156c",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-light-390.png",
-      "sha256": "4aff080bca6271973c869383b0de7b6d64c0810366389f893ccd40205b72807c",
+      "sha256": "ca65d73589f94fa4e607323af317cfa2d4964f93336197bcf9832feb3354592a",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-light-390.png",
-      "sha256": "90432a3b81089bf655878a3cb700907ab94b9b06b6715a8a4dd083aae6f488ea",
+      "sha256": "a04a14801519dfe8049c0c74dc099115194bb36d8c1b38255333c2f197af0327",
       "width": 390,
       "height": 844
     },
     {
       "name": "split-dark-390.png",
-      "sha256": "4d67ebd3e36032b101ace7550d79998a607d5f9c4d429c0c21ee7783cf339654",
+      "sha256": "4bfb940b2b234ad6c206a2ac2c74c40f9c7d317a9e5bb379e8e81cd86e50e56b",
       "width": 390,
       "height": 844
     },
     {
       "name": "frames-dark-390.png",
-      "sha256": "dc02672f2461e17c2c425a8ca8a3856f097c80ad46947db991c7eb508ebced4e",
+      "sha256": "c600237da1a2146550fe4c80a08d1ded08b9336e5e041666e5846e911f62328f",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-dark-390.png",
-      "sha256": "28a8ff44b85cdfe266e972846a3d77a30cf499ca0fd078fa30a0fe86520be75b",
+      "sha256": "6c4d8ae939377cd3548cd15fe8b3229a97ca514c2402f4f318c899083bc1cdd0",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-dark-390.png",
-      "sha256": "98335aface1543721c1cf88f499cc85ab243722cc7ff80feb760131ab2dbf797",
+      "sha256": "a4d7d11ad599dcd90bd057f9f6616b2fff2797244b5eaf02365c8009b39def57",
       "width": 390,
       "height": 844
     }

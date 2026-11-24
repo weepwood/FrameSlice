@@ -218,3 +218,23 @@
 .fs-workbench .execution:has(.execution-summary:last-child) {align-items:stretch}
 .fs-workbench .fs-timeline-ruler span {max-width:80px;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:1140px) {.fs-workbench .topbar {position:static}}
+
+/* Shared custom select: Reka handles keyboard, typeahead and collision. */
+.fs-select-trigger,.fs-select-content{border:1px solid var(--fs-border);background:var(--fs-input);color:var(--fs-text);border-radius:var(--fs-radius);font:inherit}
+.fs-select-trigger{min-height:32px;padding:6px 9px;gap:8px;cursor:pointer}
+.fs-select-trigger:disabled{opacity:.5;cursor:not-allowed}
+.fs-select-trigger[data-state=open]{border-color:var(--fs-accent)}
+.fs-select-trigger>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.fs-select-trigger svg{flex:none;color:var(--fs-muted)}
+.fs-select-content{background:var(--fs-surface);max-width:calc(100vw - 16px);max-height:var(--reka-select-content-available-height,320px);overflow:hidden;box-shadow:0 6px 20px #0002}
+.fs-select-viewport{max-height:inherit;overflow:auto}
+.fs-select-item{min-height:32px;white-space:normal;font-size:12px;line-height:1.4}
+.fs-select-item[data-state=checked]{color:var(--fs-accent)}
+.fs-select-item[data-highlighted]{background:var(--fs-selected);color:var(--fs-text)}
+.fs-workbench .fs-theme-select .fs-select-trigger{min-height:30px;font-size:12px}
+.fs-inline-field,.fs-storage-row{display:flex;align-items:center;gap:10px}
+.fs-storage-row{justify-content:space-between;padding:11px 0;border-top:1px solid var(--fs-border)}
+.fs-storage-row>div{min-width:0;display:grid;gap:4px}
+.fs-storage-row small{color:var(--fs-muted);font-size:11px;line-height:1.5}
+.fs-storage-row button{flex:none}
+@media(max-width:480px){.fs-storage-row{align-items:flex-start;flex-wrap:wrap}}

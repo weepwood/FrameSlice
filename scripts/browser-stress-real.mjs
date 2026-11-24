@@ -1,3 +1,4 @@
+import {selectOption,themeOption} from './select-option.mjs'
 /** Real local file -> production browser -> native OPFS. No synthetic Blob substitute. */
 import {chromium} from 'playwright-core'
 import {stat,writeFile,readFile,mkdtemp,rm,statfs} from 'node:fs/promises'
@@ -47,10 +48,10 @@ try{
  // Playwright passes a local file path, not a base64 upload or an in-memory buffer.
  await page.locator('input[type=file]').first().setInputFiles(input,{timeout})
  await page.locator('.file-codec').waitFor({timeout})
- if(deep)await page.getByRole('combobox',{name:'视频输出校验等级'}).selectOption('deep')
+ if(deep)await selectOption(page,'视频输出校验等级','逐包深度校验')
  const listFiles=()=>page.evaluate(async()=>{const root=await navigator.storage.getDirectory(),files=[];for await(const [dir,handle] of root.entries())if(handle.kind==='directory')for await(const [name,child] of handle.entries())if(child.kind==='file'){const f=await child.getFile();files.push({dir,name,bytes:f.size})}return files})
  for(let run=0;run<runs;run++){
- if(run>0){await page.reload();await page.locator('input[type=file]').first().setInputFiles(input,{timeout});await page.locator('.file-codec').waitFor({timeout});if(deep)await page.getByRole('combobox',{name:'视频输出校验等级'}).selectOption('deep')}
+ if(run>0){await page.reload();await page.locator('input[type=file]').first().setInputFiles(input,{timeout});await page.locator('.file-codec').waitFor({timeout});if(deep)await selectOption(page,'视频输出校验等级','逐包深度校验')}
  const runStarted=Date.now();processingStarted??=runStarted
  await page.getByRole('button',{name:/开始分割视频/}).click()
  if(scenario==='cancel'){

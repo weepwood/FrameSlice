@@ -84,3 +84,11 @@
 - 主任务开始/取消按钮保持同一 DOM 源，桌面工具栏可达、窄屏执行区回退；不可复制或绕过既有 start/cancel 校验。原生视频载入态截图须实际解码并完成 seek 后采集。视觉改动后不得沿用未经复审的新候选清单；保留 v0.7.1 发布基线。
 
 - UI 基线批准与合并分离：先实际审查 PNG、清单及载入截图，再提交新 approval；原 v0.7.1 清单保留在 visual-baseline/history，原 Release ZIP 不覆盖，新的 UI 基线使用独立资产名并在部署后核验。任何截图范围限制记录于 UI_REVIEW.md；未通过新 2% 门禁/性能回归不可合并。
+
+- Vue 自定义下拉统一复用 Reka UI WorkbenchSelect，测试使用角色与选项名称。存储清理仅允许结束任务记录和已知 Whisper 模型 URL，禁止全域 localStorage.clear、CacheStorage 全量删除、OPFS 递归删除；字幕自动保存工程由编辑器自身管理。PR #12 生产 CI 45420893068 已成功、两个 Release 资产并存。新 UI 候选需审核后才批准基线。
+
+- React 字幕岛 CaptionSelect 使用 ShadowRoot portal、键盘与浮层定位；转录移至右侧页签，流式字幕不强制跳回字幕页。原版媒体与导出逻辑不变。新 UI 候选需审核后才批准基线。
+
+- 开始转录/波形必须保留或打开转录页签，流式输出不得自动切换；用户切到其他页签仍能返回查看进度、失败、完成状态。真实 AI 测试须检查实际下载模型清理；模拟 CacheStorage 隔离用例不能代替实际模型验证。菜单展开与清理确认截图作为补充证据，不混入固定 16 图像素基线。
+
+- PR #13 新视觉基线：Chrome 158.0.8127.88，CI 45425639823 / artifact 14937030024，head 00f8fd6151046e373cdff51a7a73a8a0bbefdc7b，merge candidate eafc861ce56e874991fcd2a83460bebe011b6f86；16 张 PNG SHA-256 与尺寸已逐一核对并审查，approval.json 指向独立资产名 visual-baseline-ui-pr13-00f8fd6.zip。旧 v0.7.1 清单与 Release 资产保留。approval 更新后必须复跑 2% 门禁，不能跳过性能测试；部署后再将该 ZIP 作为独立资产归档，禁止覆盖旧资产。

@@ -1,3 +1,4 @@
+import {selectOption,themeOption} from './select-option.mjs'
 /**
  * Actual Chrome smoke test for the production-built Vite app.
  * Uses a real origin-private FileSystemDirectoryHandle in place of the
@@ -91,11 +92,11 @@ try {
 
   await page.getByRole('button', { name: '预览分割计划' }).click()
   await page.getByText(/1 个片段 · 下列为媒体包估算/).waitFor({timeout:30000})
-  await page.getByRole('combobox',{name:'主题'}).selectOption('dark')
+  await themeOption(page,'dark')
   if(await page.locator('html').getAttribute('data-fs-theme')!=='dark')throw Error('theme switch failed')
   await mkdir('visual-regression',{recursive:true})
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-split-dark.png',animations:'disabled'})
-  await page.getByRole('combobox',{name:'主题'}).selectOption('light')
+  await themeOption(page,'light')
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-split-light.png',animations:'disabled'})
   await page.getByRole('region',{name:'媒体时间轴'}).scrollIntoViewIfNeeded();await page.screenshot({path:'visual-regression/loaded-timeline-light.png',animations:'disabled'})
   await page.getByRole('button', { name: /开始分割视频/ }).click()
@@ -182,6 +183,8 @@ try {
   }
   await caption.getByRole('button', { name: /打开工程/ }).waitFor()
   await caption.getByRole('button', { name: /导入字幕/ }).waitFor()
+  await caption.getByRole('tab',{name:'转录'}).click()
+  const backend=caption.getByRole('combobox',{name:'计算后端'});await backend.focus();await backend.press('Enter');await backend.press('End');await backend.press('Enter');if(!(await backend.innerText()).includes('CPU / WASM'))throw Error('caption keyboard selection failed');await backend.press('Enter');await backend.press('Escape');if(await backend.getAttribute('aria-expanded')!=='false')throw Error('caption Escape failed');await caption.getByRole('tab',{name:'字幕'}).click()
   await caption.locator('input[accept=".srt,.vtt"]').setInputFiles({
     name: 'integration.srt', mimeType: 'text/plain',
     buffer: Buffer.from(['1','00:00:01,000 --> 00:00:03,000','FrameSlice 字幕合并测试',''].join(String.fromCharCode(10)), 'utf8'),
@@ -213,7 +216,7 @@ try {
   await page.locator('.ct-file-note').waitFor({ timeout: 30_000 })
   if (!((await page.locator('.ct-file-note').innerText()).includes('caption-export.srt')) ||
       !((await page.locator('.ct-choice.active').innerText()).includes('重新封装')) ||
-      !((await page.locator('select[aria-label="封装目标格式"]').inputValue()) === 'mkv')) {
+      !((await page.getByRole('combobox',{name:'封装目标格式'}).innerText()).includes('MKV'))) {
     throw new Error('Edited caption handoff failed to preselect source media and MKV soft subtitles')
   }
   await page.getByRole('button', { name: /字幕工作台/ }).click()
@@ -284,7 +287,7 @@ try {
     throw new Error('MKV inspector silently omitted an embedded subtitle track')
   }
   await containerPanel.locator('.ct-ack input').check()
-  await containerPanel.locator('select[aria-label="封装目标格式"]').selectOption('mp4')
+  await selectOption(page,'封装目标格式','MP4',containerPanel)
   await containerPanel.getByRole('button', { name: /开始无损重新封装/ }).click()
   await page.waitForFunction(() => {
     const panel = document.querySelector('.ct-workspace')

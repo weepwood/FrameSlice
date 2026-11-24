@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
+import {CaptionSelect} from './components/CaptionSelect';
 import {Timeline} from './components/Timeline';
 import {ReviewTools} from './components/ReviewTools';
 import {useHistory} from './hooks/useHistory';
@@ -17,7 +18,7 @@ const MODELS=[
   {id:'onnx-community/whisper-base.en',title:'Base · 仅英语',size:'~80 MB'},
 ];
 const LANGS=[['auto','自动检测'],['chinese','中文'],['english','英语'],['japanese','日语'],['korean','韩语'],['spanish','西班牙语'],['french','法语'],['german','德语'],['russian','俄语'],['hindi','印地语']];
-type Tab='cues'|'style'|'export';
+type Tab='cues'|'transcribe'|'style'|'export';
 type RenderState={phase:'idle'|'working'|'error';progress:number;message:string};
 const issueNames:Record<Issue,string>={empty:'空白内容',time:'无效时间',overlap:'时间重叠',fast:'阅读太快',long:'字幕过长'};
 const download=(data:Blob,name:string)=>{
@@ -103,7 +104,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   useEffect(()=>{if(video.current)video.current.playbackRate=playbackRate},[playbackRate,mediaURL]);
   const onChunks=useCallback((chunks:Chunk[])=>{
     setCues(previous=>sorted([...previous,...chunksToCues(chunks,maxChars,duration||undefined)]));
-    setTab('cues');setSelectedId(null);
+    setSelectedId(null);
   },[duration,maxChars,setCues]);
   const transcriber=useTranscriber(onChunks,setPeaks);
   const busy=['loading','extracting','running'].includes(transcriber.state.phase);
@@ -181,13 +182,13 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const startTranscription=()=>{
     if(!file)return;
     if(cues.length&&!window.confirm('重新转录将替换当前所有字幕。是否继续？'))return;
-    setError('');setPeaks([]);resetCues([]);setSelectedId(null);setTab('cues');
+    setError('');setPeaks([]);resetCues([]);setSelectedId(null);setTab('transcribe');
     // Automatically extract the original File audio in a Worker, no 350 MB cap.
     transcriber.transcribe(file,model,language==='auto'?null:language,device);
   };
   const makeWaveform=()=>{
     if(!file)return;
-    setError('');setPeaks([]);transcriber.extractWaveform(file);
+    setError('');setPeaks([]);setTab('transcribe');transcriber.extractWaveform(file);
   };
   const cancelTask=()=>{transcriber.stop()};
   const updateCue=(id:string,patch:Partial<Cue>)=>setCues(list=>{
@@ -287,7 +288,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       <main className="editor-area">
         {embedded&&<div className="caption-action-toolbar" role="toolbar" aria-label="字幕工作台操作">
           <div className="caption-project-field"><span>工程</span><input aria-label="字幕工程名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/></div>
-          <span className="caption-action-spacer"/>
+          <span className="caption-action-spacer"/>{(busy||transcriber.state.phase==='error'||transcriber.state.phase==='done')&&tab!=='transcribe'&&<button className="btn outline" onClick={()=>setTab('transcribe')}>{busy?'转录 / 波形 '+Math.round(transcriber.state.progress)+'%':transcriber.state.phase==='error'?'处理失败 · 查看':'处理完成 · 查看'}</button>}
           <span className="caption-save-state">{saved==='saved'?'已自动保存':saved==='saving'?'保存中…':saved==='loading'?'读取工程中':'保存异常'}</span>
           <button className="btn outline" disabled={!file||!cues.length||busy}
             title={!file?'请先打开媒体文件，再封装当前字幕':'将当前字幕和本地媒体发送到轨道封装工具'}
@@ -305,12 +306,6 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
           <div className="editor-header-actions">{iconStatus('无需上传视频')}<span className="line-separator"/><span className="header-meta">{cues.length} 条字幕</span></div>
         </div>
         }
-        <div className="workflow-strip" aria-label="制作流程">
-          <div className={`workflow-step ${file?'complete':'current'}`}><span>01</span><div><b>导入素材</b><small>{file?'已关联本地媒体':'等待选择媒体'}</small></div></div>
-          <div className={`workflow-step ${busy?'current':cues.length?'complete':''}`}><span>02</span><div><b>语音转录</b><small>{busy?'正在处理':cues.length?'已生成字幕':'本地 Whisper'}</small></div></div>
-          <div className={`workflow-step ${cues.length?'current':''}`}><span>03</span><div><b>字幕校对</b><small>{cues.length?`${cues.length} 条 · ${problemCount} 项提示`:'精确调整时间轴'}</small></div></div>
-          <button className="workflow-step workflow-action" disabled={!cues.length} onClick={()=>setTab('export')}><span>04</span><div><b>导出成果</b><small>SRT / VTT / MP4</small></div><ArrowDownToLine size={15}/></button>
-        </div>
         {error&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>{error}</span><button aria-label="关闭错误提示" onClick={()=>setError('')}><X size={16}/></button></div>}
         {mediaMissing&&<div className="notice-banner"><Info size={16}/>已恢复字幕工程，但媒体文件不会自动保存。请重新打开「{originalMediaName}」以继续视频预览。</div>}
         <div className="content-grid">
@@ -337,20 +332,30 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <span className="playback-time">{shortTime(time)} <span>/ {shortTime(effectiveDuration)}</span></span>
                 <input type="range" min={0} max={effectiveDuration||1} step={.01} value={Math.min(time,effectiveDuration)} aria-label="跳转播放位置" onChange={e=>seek(Number(e.target.value))}/>
                 <button className={`icon-btn loop-button ${loopSelected?'active':''}`} disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
-                <label className="speed-control"><span>倍速</span><select aria-label="播放速度" value={playbackRate} onChange={e=>setPlaybackRate(Number(e.target.value))}>{[.5,.75,1,1.25,1.5,2].map(rate=><option key={rate} value={rate}>{rate}×</option>)}</select></label>
+                <label className="speed-control"><span>倍速</span><CaptionSelect label="播放速度" value={playbackRate} onChange={setPlaybackRate} options={[.5,.75,1,1.25,1.5,2].map(value=>({value,label:value+"×"}))}/></label>
               </div>
               <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
             </section>
             <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={setSelectedId} onUpdate={updateCue}/>
+
+          </div>
+          <aside className="side-panel surface">
+            <div className="side-tabs" role="tablist" aria-label="工作区功能">
+              <button role="tab" aria-selected={tab==='cues'} className={tab==='cues'?'active':''} onClick={()=>setTab('cues')}><Subtitles size={16}/>字幕</button>
+              <button role="tab" aria-selected={tab==='transcribe'} className={tab==='transcribe'?'active':''} onClick={()=>setTab('transcribe')}><AudioLines size={16}/>转录{busy&&<span className="caption-running-dot"/>}</button>
+              <button role="tab" aria-selected={tab==='style'} className={tab==='style'?'active':''} onClick={()=>setTab('style')}><Settings2 size={16}/>样式</button>
+              <button role="tab" aria-selected={tab==='export'} className={tab==='export'?'active':''} onClick={()=>setTab('export')}><ArrowDownToLine size={16}/>导出</button>
+            </div>
+            {tab==='transcribe'&&<>
             <section className="transcribe-panel surface">
-              <div className="section-title"><div><strong>语音转录</strong><span className="subtle">Whisper · 本地运行</span></div><span className="chip"><Activity size={13}/> 本地模型</span></div>
+              <div className="section-title"><div><strong>语音转录</strong></div><span className="chip"><Activity size={13}/> 本地模型</span></div>
               <div className="settings-grid">
-                <label>识别模型 <select value={model} disabled={busy} onChange={e=>setModel(e.target.value)}>{MODELS.map(m=><option key={m.id} value={m.id}>{m.title} ({m.size})</option>)}</select></label>
-                <label>原文语言 <select value={language} disabled={busy||model.endsWith('.en')} onChange={e=>setLanguage(e.target.value)}>{LANGS.map(([id,title])=><option key={id} value={id}>{title}</option>)}</select></label>
-                <label>计算后端 <select value={device} disabled={busy} onChange={e=>setDevice(e.target.value as Device)}><option value="auto">自动 (GPU 优先)</option><option value="webgpu">WebGPU</option><option value="wasm">CPU / WASM</option></select></label>
+                <div className="caption-field"><span>识别模型</span><CaptionSelect label="识别模型" value={model} disabled={busy} onChange={setModel} options={MODELS.map(m=>({value:m.id,label:m.title+" ("+m.size+")"}))}/></div>
+                <div className="caption-field"><span>原文语言</span><CaptionSelect label="原文语言" value={language} disabled={busy||model.endsWith('.en')} onChange={setLanguage} options={LANGS.map(([value,label])=>({value,label}))}/></div>
+                <div className="caption-field"><span>计算后端</span><CaptionSelect<Device> label="计算后端" value={device} disabled={busy} onChange={setDevice} options={[{value:"auto",label:"自动（GPU 优先）"},{value:"webgpu",label:"WebGPU"},{value:"wasm",label:"CPU / WASM"}]}/></div>
                 <label>每条字幕最大字符 <input type="number" min={8} max={120} value={maxChars} disabled={busy} onChange={e=>setMaxChars(Math.min(120,Math.max(8,Number(e.target.value)||30)))}/></label>
               </div>
-              <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>自动提取视频音轨，分段识别大文件（无需上传或压缩视频）。首次使用需下载模型；模型文件由浏览器缓存管理，源媒体不写入模型缓存。</span></div>
+              <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>本地转录，首次使用需下载模型；源媒体不会上传。</span></div>
                 {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
               {transcriber.state.phase==='loading'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在准备模型 {Math.round(transcriber.state.progress)}% <progress value={transcriber.state.progress} max="100"/></div>}
               {transcriber.state.phase==='extracting'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在从媒体分段提取音轨 · {Math.round(transcriber.state.progress)}% <progress value={transcriber.state.progress} max="100"/></div>}
@@ -358,13 +363,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               {transcriber.state.phase==='done'&&<div className="task-status done"><Check size={15}/>处理完成 · {transcriber.state.segments} 个识别分段 · {transcriber.state.seconds.toFixed(1)} 秒</div>}
               {transcriber.state.phase==='error'&&<div className="task-status failed"><AlertTriangle size={15}/>{transcriber.state.message}</div>}
             </section>
-          </div>
-          <aside className="side-panel surface">
-            <div className="side-tabs" role="tablist" aria-label="工作区功能">
-              <button role="tab" aria-selected={tab==='cues'} className={tab==='cues'?'active':''} onClick={()=>setTab('cues')}><Subtitles size={16}/>字幕</button>
-              <button role="tab" aria-selected={tab==='style'} className={tab==='style'?'active':''} onClick={()=>setTab('style')}><Settings2 size={16}/>样式</button>
-              <button role="tab" aria-selected={tab==='export'} className={tab==='export'?'active':''} onClick={()=>setTab('export')}><ArrowDownToLine size={16}/>导出</button>
-            </div>
+            </>}
             {tab==='cues'&&<>
               <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕内容 · ⌘K" aria-label="搜索字幕" value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
@@ -388,7 +387,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>文字颜色 <input type="color" value={style.textColor} onChange={e=>setStyle(s=>({...s,textColor:e.target.value}))}/></label>
                 <label>背景颜色 <input type="color" value={style.boxColor} onChange={e=>setStyle(s=>({...s,boxColor:e.target.value}))}/></label>
                 <label>背景透明度 <div className="size-range"><input type="range" min={0} max={100} value={style.boxOpacity*100} onChange={e=>setStyle(s=>({...s,boxOpacity:Number(e.target.value)/100}))}/><output>{Math.round(style.boxOpacity*100)}%</output></div></label>
-                <label>字幕位置 <select value={style.position} onChange={e=>setStyle(s=>({...s,position:e.target.value as CaptionStyle['position']}))}><option value="bottom">底部居中</option><option value="middle">画面居中</option><option value="top">顶部居中</option></select></label>
+                <div className="caption-field"><span>字幕位置</span><CaptionSelect<CaptionStyle["position"]> label="字幕位置" value={style.position} onChange={position=>setStyle(s=>({...s,position}))} options={[{value:"bottom",label:"底部居中"},{value:"middle",label:"画面居中"},{value:"top",label:"顶部居中"}]}/></div>
                 <label className="switch-row">文字加粗 <input type="checkbox" checked={style.bold} onChange={e=>setStyle(s=>({...s,bold:e.target.checked}))}/></label>
               </div>
               <button className="btn outline full" onClick={()=>setStyle(defaultStyle)}>恢复默认样式</button>
