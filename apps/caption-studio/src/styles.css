@@ -286,3 +286,8 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .workflow-step+.workflow-step:before{background:var(--fs-border,#e4e9e1)}
 .app-shell.embedded .workflow-step:disabled{opacity:.65;background:var(--fs-surface,#fff)}
 .app-shell.embedded .cue-row.playing:not(.selected){background:var(--fs-selected,#e8ede6)}
+
+/* Remaining light strip below the player and local warnings. */
+.app-shell.embedded :is(.media-info,.notice-banner,.review-notice,.style-note,.transcribe-bottom,.transcribe-helper,.shortcut-grid kbd){background:var(--fs-surface,#fff);color:var(--fs-muted,#68736a);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded .media-info>div{color:var(--fs-text,#292d27)}
+.app-shell.embedded .style-note.warning,.app-shell.embedded .notice-banner{color:var(--fs-warning,#8c632b)}
