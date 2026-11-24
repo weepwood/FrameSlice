@@ -51,7 +51,7 @@ try{
  console.log('Cross-tab lock and same-size output corruption refusal verified')
  await page.getByRole('button',{name:'新建任务'}).count() // optional session was cleared on successful completion
  await page.getByLabel(/启用断点续作/).uncheck()
- await page.getByRole('combobox',{name:'抽帧策略'}).selectOption('sharpest')
+ await page.getByRole('combobox',{name:'抽帧策略'}).click();await page.getByRole('option',{name:'最清晰帧'}).click()
  await page.getByRole('button',{name:/开始提取图片/}).click();await done()
  await page.locator('.frame-tile img').first().waitFor({timeout:60000})
  await page.locator('.frame-caption small').first().waitFor({timeout:60000})
@@ -66,11 +66,11 @@ try{
  if(bg!=='#151916')throw Error('dark semantic token mismatch')
  console.log('Smart frames, thumbnails, task center and dark token verified')
  const screenshots=process.env.VISUAL_DIR||'visual-regression';await mkdir(screenshots,{recursive:true})
- for(const theme of ['light','dark']){await page.getByRole('combobox',{name:'主题'}).selectOption(theme);await page.screenshot({path:join(screenshots,'jobs-'+theme+'.png'),fullPage:true,animations:'disabled'})}
+ for(const theme of ['light','dark']){await page.getByRole('combobox',{name:'主题'}).selectOption(theme);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:join(screenshots,'jobs-'+theme+'.png'),fullPage:true,animations:'disabled'})}
  await page.getByRole('button',{name:'定时抽帧'}).click()
  const slider=page.getByRole('slider',{name:'截图质量'});await slider.focus();const quality=Number(await slider.getAttribute('aria-valuenow'));await slider.press('ArrowLeft');await page.waitForFunction(q=>Number(document.querySelector('[aria-label="截图质量"]').getAttribute('aria-valuenow'))<q,quality);await slider.press('ArrowRight')
  const separator=page.getByRole('separator',{name:'调整资源栏宽度'});const initial=(await page.locator('.sidebar').boundingBox()).width;await separator.focus();await separator.press('ArrowRight');await page.waitForFunction(w=>document.querySelector('.sidebar').getBoundingClientRect().width>w+.5,initial,{timeout:10000});const resized=(await page.locator('.sidebar').boundingBox()).width;if(resized>321)throw Error('resource panel exceeded maximum');await page.getByRole('button',{name:'隐藏检查器'}).click();await page.locator('.right-panel').waitFor({state:'detached'});await page.getByRole('button',{name:'显示检查器'}).click();await page.locator('.right-panel').waitFor({state:'visible'})
- for(const theme of ['light','dark']){await page.getByRole('combobox',{name:'主题'}).selectOption(theme);await page.screenshot({path:join(screenshots,'frames-'+theme+'.png'),fullPage:true,animations:'disabled'})}
- await page.getByRole('button',{name:/字幕工作台/}).click();await page.locator('.caption-react-host').locator('.caption-action-toolbar').waitFor({timeout:30000});const captionSurface=await page.locator('.caption-react-host').locator('.surface').first().evaluate(el=>getComputedStyle(el).backgroundColor);if(captionSurface==='rgb(255, 255, 255)')throw Error('dark caption surface still white');await page.screenshot({path:join(screenshots,'captions-dark.png'),fullPage:true,animations:'disabled'})
- await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'定时抽帧'}).click();await page.screenshot({path:join(screenshots,'frames-mobile.png'),fullPage:true,animations:'disabled'})
+ for(const theme of ['light','dark']){await page.getByRole('combobox',{name:'主题'}).selectOption(theme);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:join(screenshots,'frames-'+theme+'.png'),fullPage:true,animations:'disabled'})}
+ await page.getByRole('button',{name:/字幕工作台/}).click();await page.locator('.caption-react-host').locator('.caption-action-toolbar').waitFor({timeout:30000});const captionSurface=await page.locator('.caption-react-host').locator('.surface').first().evaluate(el=>getComputedStyle(el).backgroundColor);if(captionSurface==='rgb(255, 255, 255)')throw Error('dark caption surface still white');const strip=await page.locator('.caption-react-host').locator('.media-info').evaluate(el=>getComputedStyle(el).backgroundColor);if(strip!=='rgb(28, 35, 30)')throw Error('dark caption media strip mismatch '+strip);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:join(screenshots,'captions-dark.png'),fullPage:true,animations:'disabled'})
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'定时抽帧'}).click();await page.waitForFunction(()=>document.documentElement.scrollWidth<=window.innerWidth+1);const sidebar=await page.locator('.sidebar').boundingBox();if(sidebar.height>470)throw Error('mobile navigation consumes excessive height '+sidebar.height);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:join(screenshots,'frames-mobile.png'),fullPage:true,animations:'disabled'})
 }finally{await browser.close();await rm(dir,{recursive:true,force:true})}

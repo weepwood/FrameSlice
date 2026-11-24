@@ -54,15 +54,17 @@ export class ResumeJournal {
 
 /** Deletes only metadata and persisted handle references; never calls removeEntry on user folders. */
 export async function forgetResumeSession(id:string):Promise<void>{return forgetResumeSessions([id])}
-export async function forgetResumeSessions(ids:string[]):Promise<void>{
+export async function forgetResumeSessions(ids:string[],batchId?:string):Promise<void>{
  const sorted=[...new Set(ids.filter(Boolean))].sort()
- if(!sorted.length)return
+ if(!sorted.length&&!batchId)return
+ if(batchId&&!/^[a-f0-9-]{36}$/i.test(batchId))throw Error('无效批次清理标识')
  if(sorted.length>50||!navigator.locks)throw Error('无法安全清理检查点')
  async function locked(i:number):Promise<void>{
   if(i<sorted.length)return navigator.locks.request('frameslice-resume-'+sorted[i],{ifAvailable:true},async lock=>{if(!lock)throw Error('任务仍在执行，不能清除检查点');await locked(i+1)})
   const db=await open()
   try{await new Promise<void>((resolve,reject)=>{
    const tx=db.transaction(['sessions','outputs'],'readwrite'),sessions=tx.objectStore('sessions'),outputs=tx.objectStore('outputs')
+   if(batchId)sessions.put({id:batchId,committedAt:Date.now()},'cleanup:'+batchId)
    for(const id of sorted){sessions.delete(id);const req=outputs.openCursor(IDBKeyRange.bound([id],[id,[]],false,true));req.onsuccess=()=>{const cursor=req.result;if(cursor){cursor.delete();cursor.continue()}};req.onerror=()=>tx.abort()}
    tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error??Error('检查点清理中止'))
   })}finally{db.close()}
@@ -74,3 +76,7 @@ export async function resumePermission(id:string):Promise<PermissionState|'missi
  const h=session.folder as FileSystemDirectoryHandle & {queryPermission?:(o:{mode:'readwrite'})=>Promise<PermissionState>}
  return h.queryPermission?await h.queryPermission({mode:'readwrite'}):'granted'
 }
+
+/** The deletion marker is committed in the same transaction as all checkpoint removals. */
+export async function batchCleanupCommitted(id:string){return !!await read('sessions','cleanup:'+id)}
+export async function finishBatchCleanup(id:string){const db=await open();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('sessions','readwrite');tx.objectStore('sessions').delete('cleanup:'+id);tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error??Error('清理标识事务中止'));tx.onerror=()=>reject(tx.error)})}finally{db.close()}}

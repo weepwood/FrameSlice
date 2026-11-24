@@ -113,7 +113,7 @@ function toggleTrack(track: ContainerTrack) {
 function setAction(next: ContainerAction) {
   if (working.value) return
   action.value = next
-  if(next==='package')selectedIds.value=selectedIds.value.filter(id=>!id.startsWith('mkv:'))
+  if(next==='package')selectedIds.value=selectedIds.value.filter(id=>!id.startsWith('mkv:')&&!id.startsWith('mp4-handler:'))
   error.value = ''
   if (next === 'extract'){subtitle.value = null;additionalSubtitles.value=[]}
 }

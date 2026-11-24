@@ -4,6 +4,7 @@ import {
   Output, StreamTarget, TextSubtitleSource,
 } from 'mediabunny'
 import type { InputTrack, InputVideoTrack, InputAudioTrack, OutputFormat } from 'mediabunny'
+import {extractMp4Text,listMp4TextTracks} from './mp4-text-extract'
 import {extractMkvText} from './mkv-text-extract'
 import {saveBlob} from './storage'
 import {splitVideo} from './split'
@@ -109,8 +110,8 @@ export async function inspectContainer(file: File): Promise<ContainerInspection>
             id: `mkv:${t.number}`, kind: 'subtitle', codec: t.codecId,
             codecLabel: t.codecId || '未知轨道',
             language: t.language, name: t.name,
-            detail: t.codecId==='S_TEXT/UTF8'&&t.kind==='subtitle'?'内嵌 UTF-8 文本：可独立提取 VTT，暂不复制封装':'其他字幕或轨道：当前不支持',
-            selectable: t.kind==='subtitle'&&t.codecId==='S_TEXT/UTF8',
+            detail: t.kind==='subtitle'&&t.codecId==='S_TEXT/ASS'?'ASS 文本及样式：可提取 ASS，不含附件字体':t.codecId==='S_TEXT/UTF8'&&t.kind==='subtitle'?'内嵌 UTF-8 文本：可独立提取 VTT，暂不复制封装':'其他字幕或轨道：当前不支持',
+            selectable: t.kind==='subtitle'&&['S_TEXT/UTF8','S_TEXT/ASS'].includes(t.codecId),
           })
         }
         if (unsupported.length) warnings.push('检测到当前无法复制的内嵌字幕或其他轨道；处理前必须确认不保留。')
@@ -119,7 +120,7 @@ export async function inspectContainer(file: File): Promise<ContainerInspection>
       if (mkv.chapters) warnings.push('检测到章节；此版本重封装不会保留章节。')
     }
     if (/\.(mp4|mov|m4v|m4a)$/i.test(file.name)) {
-    try{const handlers=await inspectMp4Handlers(file);for(const [i,handler] of handlers.entries())if(handler!=='vide'&&handler!=='soun')result.push({id:'mp4-handler:'+i,kind:'subtitle',codec:handler,codecLabel:handler,language:'und',name:'',detail:'内嵌字幕或其他轨道：尚不能复制',selectable:false});if(handlers.some(h=>h!=='vide'&&h!=='soun'))warnings.push('MP4 包含尚不支持的内嵌字幕或其他轨道，重封装不会保留。')}
+    try{const handlers=await inspectMp4Handlers(file),textTracks=await listMp4TextTracks(file);for(const [i,handler] of handlers.entries())if(handler!=='vide'&&handler!=='soun')result.push({id:'mp4-handler:'+i,kind:'subtitle',codec:handler,codecLabel:handler,language:'und',name:'',detail:textTracks.includes(i)?'tx3g 文本：可提取 VTT（不保留样式）':'内嵌字幕或其他轨道：尚不能复制',selectable:textTracks.includes(i)});if(handlers.some(h=>h!=='vide'&&h!=='soun'))warnings.push('MP4 包含尚不支持的内嵌字幕或其他轨道，重封装不会保留。')}
     catch{warnings.push('无法独立验证 MP4 轨道表，请谨慎处理。')}
   }
     if (!Number.isFinite(duration) || duration <= 0) warnings.push('媒体时长无法确认，请谨慎操作。')
@@ -300,8 +301,8 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
   try {
   const available: InputTrack[] = await input.getTracks()
   if(/\.(mp4|mov|m4v|m4a)$/i.test(file.name)&&!options.acknowledgeUnlisted){const handlers=await inspectMp4Handlers(file);if(handlers.length!==available.length||handlers.some(h=>h!=='vide'&&h!=='soun'))throw Error('MP4 存在未支持轨道，必须明确确认不保留。')}
-  const textIds=selectedIds.filter(id=>/^mkv:\d+$/.test(id))
-  if(textIds.length&&(action!=='extract'||!/\.mkv$/i.test(file.name)))throw Error('内嵌文本字幕仅支持 MKV 独立提取')
+  const textIds=selectedIds.filter(id=>/^(mkv|mp4-handler):\d+$/.test(id))
+  if(textIds.length&&(action!=='extract'||textIds.some(id=>id.startsWith('mkv:')?!/\.mkv$/i.test(file.name):!/\.(mp4|mov|m4v)$/i.test(file.name))))throw Error('内嵌文本字幕仅支持对应容器的独立提取')
   const selected = available.filter(t => selectedIds.includes(trackId(t)))
   if (selected.length+textIds.length !== selectedIds.length ||
     selected.some(t => t.type !== 'video' && t.type !== 'audio')) {
@@ -316,7 +317,7 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
     }))
     : [{ selected, filename: `${base}_packaged.${format}`, format, subtitles }]
   const results: ContainerOutput[] = []
-  for(const id of textIds){checkCanceled(signal);const track=Number(id.slice(4)),text=await extractMkvText(file,track,signal),filename=base+'_subtitle_'+track+'.vtt',blob=new Blob([text.webvtt],{type:'text/vtt'});options.onFileStart(filename);try{await saveBlob(options.folder,filename,blob,signal);const saved=await (await options.folder.getFileHandle(filename)).getFile();if(await saved.text()!==text.webvtt)throw Error('字幕回读校验失败');checkCanceled(signal)}catch(e){await options.folder.removeEntry(filename).catch(()=>{});throw e}const result:ContainerOutput={filename,bytes:blob.size,trackIds:[id],verified:true,subtitleTrackAdded:false};results.push(result);onOutput(result)}
+  for(const id of textIds){checkCanceled(signal);const track=Number(id.split(':')[1]),isMkv=id.startsWith('mkv:'),ass=isMkv&&(await probeMatroska(file)).tracks.find(t=>t.number===track)?.codecId==='S_TEXT/ASS',text=isMkv?await extractMkvText(file,track,signal,ass?'ass':'vtt'):await extractMp4Text(file,track,signal),filename=base+'_subtitle_'+track+(ass?'.ass':'.vtt'),blob=new Blob([text.webvtt],{type:ass?'text/plain':'text/vtt'});options.onFileStart(filename);try{await saveBlob(options.folder,filename,blob,signal);const saved=await (await options.folder.getFileHandle(filename)).getFile();if(await saved.text()!==text.webvtt)throw Error('字幕回读校验失败');checkCanceled(signal)}catch(e){await options.folder.removeEntry(filename).catch(()=>{});throw e}const result:ContainerOutput={filename,bytes:blob.size,trackIds:[id],verified:true,subtitleTrackAdded:false};results.push(result);onOutput(result)}
   for (let i = 0; i < plan.length; i++) {
     checkCanceled(signal)
     const item = plan[i]

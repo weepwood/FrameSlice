@@ -23,3 +23,17 @@ export function assertGopOrder(groups,duration){
   if(!Number.isFinite(t)||t<0||!Number.isFinite(end)||end<=t)throw Error('关键帧时间戳异常，无法安全分割')
  }
 }
+
+/** Decode-order GOPs with leading presentation pictures cannot be independent cut boundaries. */
+export function safeGopGroups(groups){
+ const eps=1e-5, result=[]
+ for(const group of groups){
+  if(!Number.isFinite(group.minTime)||!Number.isFinite(group.maxTime)||group.maxTime<=group.minTime)throw Error('视频 GOP 时间范围异常')
+  const prev=result.at(-1)
+  if(!prev){if(group.minTime<group.time-eps)throw Error('首个 GOP 包含播放边界外的前置画面');result.push({...group,video:{...group.video},audio:{...group.audio}});continue}
+  if(group.minTime<group.time-eps||prev.maxTime>group.time+eps){
+   prev.minTime=Math.min(prev.minTime,group.minTime);prev.maxTime=Math.max(prev.maxTime,group.maxTime);prev.bytes+=group.bytes;prev.video=sumCoverage([prev.video,group.video]);prev.audio=sumCoverage([prev.audio,group.audio])
+  }else result.push({...group,video:{...group.video},audio:{...group.audio}})
+ }
+ return result
+}

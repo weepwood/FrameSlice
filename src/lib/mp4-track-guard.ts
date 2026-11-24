@@ -1,6 +1,6 @@
 /** Bounded random-access ISO BMFF track inventory. No media payload is read. */
-interface Box {type:string;start:number;end:number;payload:number}
-async function boxes(file:Blob,start:number,end:number):Promise<Box[]>{
+export interface Box {type:string;start:number;end:number;payload:number}
+export async function boxes(file:Blob,start:number,end:number):Promise<Box[]>{
  const result:Box[]=[];let cursor=start
  while(cursor<end){
   if(result.length>=10000||end-cursor<8)throw Error('MP4 box 结构异常')
