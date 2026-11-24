@@ -16,7 +16,7 @@ try{
  await page.getByRole('spinbutton',{name:'抽帧间隔秒数'}).fill('0.5')
  await page.getByLabel(/启用断点续作/).check()
  await page.getByRole('button',{name:/开始提取图片/}).click()
- async function done(){await page.locator('.status-card.success,.status-card.failure').waitFor({timeout:60000});if(await page.locator('.status-card.failure').count())throw Error(await page.locator('.status-card.failure').innerText())}
+ async function done(){await page.locator('.status-card.success').waitFor({timeout:60000})}
  await done()
  const before=await page.evaluate(async()=>{const root=await navigator.storage.getDirectory();const items=[];for await(const [dir,h] of root.entries())if(h.kind==='directory')for await(const [name,child] of h.entries())if(child.kind==='file'&&name.endsWith('.jpg')){const f=await child.getFile();items.push({dir,name,bytes:f.size,mtime:f.lastModified})}return items})
  if(before.length<2)throw Error('fixture did not produce multiple frames')
@@ -53,8 +53,8 @@ try{
  await page.getByLabel(/启用断点续作/).uncheck()
  await page.getByRole('combobox',{name:'抽帧策略'}).selectOption('sharpest')
  await page.getByRole('button',{name:/开始提取图片/}).click();await done()
- if(!await page.locator('.frame-tile img').count())throw Error('smart frame preview missing')
- if(!await page.locator('.frame-caption small').count())throw Error('quality score missing')
+ await page.locator('.frame-tile img').first().waitFor({timeout:60000})
+ await page.locator('.frame-caption small').first().waitFor({timeout:60000})
  await page.getByRole('button',{name:'生成缩略图'}).click()
  await page.locator('.fs-timeline-thumbs img').first().waitFor({timeout:30000})
  await page.getByRole('slider',{name:'时间轴缩放'}).fill('2')

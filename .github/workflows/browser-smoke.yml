@@ -62,6 +62,7 @@ jobs:
         run: |
           node scripts/browser-smoke.mjs
           node scripts/browser-resume.mjs
+          node scripts/browser-batch-resume.mjs
       - name: 短样本真实浏览器性能基准
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
