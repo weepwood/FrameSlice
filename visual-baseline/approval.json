@@ -1,16 +1,7 @@
 {
   "schema": 1,
   "chrome": "158.0.8127.88",
-  "commit": "eafc861ce56e874991fcd2a83460bebe011b6f86",
-  "head": "00f8fd6151046e373cdff51a7a73a8a0bbefdc7b",
-  "runId": 45425639823,
-  "runAttempt": 1,
-  "artifactId": 14937030024,
-  "artifactDigest": "sha256:4c5964e447caad878ea410d579659ab9c35454d1a99361f88334a6093ba935c4",
-  "releaseTag": "v0.7.1",
-  "assetName": "visual-baseline-ui-pr13-00f8fd6.zip",
-  "reviewedOn": "2026-11-25",
-  "scope": "PR #13 UI 变更后的固定视口空态基线：四工作区 split/frames/captions/jobs × light/dark × 1440×900/390×844。任务中心存储配额两处动态值使用真实 DOM 遮罩；交互态（自定义下拉展开、清理确认、字幕转录检查器）及导入字幕编辑态另存于同一 CI artifact 的 visual-regression，不纳入 16 张像素基线。390px 使用单列自然滚动，未出现横向溢出。保留 v0.7.1 原始清单及 Release 资产，PR #13 使用独立资产名。",
+  "commit": "384c5cfd86f75c472d835d01ed82b40eb6a601de",
   "images": [
     {
       "name": "split-light-1440.png",
@@ -20,19 +11,19 @@
     },
     {
       "name": "frames-light-1440.png",
-      "sha256": "c19d76c68d35f8e7b20916034c51fadab4a28e296a60ff3766fac4fa54ba6312",
+      "sha256": "84c121383ee0afada77a170b727acc5368fdf7a50e488a340ae263ede400142b",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-light-1440.png",
-      "sha256": "126b5edd7cf964f4139cf295f7cdb3efeb01a9d233e53c563f9973f9e6814ab1",
+      "sha256": "fe7bd37419a582c2499018b1bbbf1fdf831645516524d4d8a1335c35beb0630b",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-light-1440.png",
-      "sha256": "b169325014ad8dd7e09da4e3ef9010216d63822991149de929cd7e5260114c4d",
+      "sha256": "4f6f495b0c88e32ecb716a8d0d6903f6fddb0a2136d75c8c080cbc37564303e4",
       "width": 1440,
       "height": 900
     },
@@ -44,19 +35,19 @@
     },
     {
       "name": "frames-dark-1440.png",
-      "sha256": "7d30204626057b824aaa8b5f13f0f647106ed19e705271cecd2f35456f28f699",
+      "sha256": "480df451be13b63f3c0730afd4a563c2edcbf3279ecc8e9f6dc36f587d8b02b9",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-dark-1440.png",
-      "sha256": "31a2f72e00482dff438c25d57394aeb49cc56ed9337d45b63a30d7d88ff7919c",
+      "sha256": "5c6057d960c8abc33aa542e10bc825cb7307ab29c2e8ff314807aa61beb79dd6",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-dark-1440.png",
-      "sha256": "dacee5f15eea33d875f1094624df3957542e7215cf0ad08def8eebd9d9480b59",
+      "sha256": "bd85ca26a0cb153b0eda5cc27b3b9e95b619f96c430a972b5370a80838ea08a7",
       "width": 1440,
       "height": 900
     },
@@ -68,19 +59,19 @@
     },
     {
       "name": "frames-light-390.png",
-      "sha256": "8e27d6a23392540e7ba6c31572d2f0b3c35ead8e473c35496df9414fd296156c",
+      "sha256": "644f6e6521398274699cb0b30f13647338b64729543e878c5a2d8c43aaa8d1a5",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-light-390.png",
-      "sha256": "ca65d73589f94fa4e607323af317cfa2d4964f93336197bcf9832feb3354592a",
+      "sha256": "c370c32b9cf05dc49292991515d0fd048c218c7527ede6f519a43165fd60d6d7",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-light-390.png",
-      "sha256": "a04a14801519dfe8049c0c74dc099115194bb36d8c1b38255333c2f197af0327",
+      "sha256": "8bf8e098c8a53089222c003ff25839b3728d62995f96a0a258ce568dc176b785",
       "width": 390,
       "height": 844
     },
@@ -92,21 +83,30 @@
     },
     {
       "name": "frames-dark-390.png",
-      "sha256": "c600237da1a2146550fe4c80a08d1ded08b9336e5e041666e5846e911f62328f",
+      "sha256": "abda57eab2c84addd8534dd9c5d6528e1304ade961a88bba54312c2f347184dd",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-dark-390.png",
-      "sha256": "6c4d8ae939377cd3548cd15fe8b3229a97ca514c2402f4f318c899083bc1cdd0",
+      "sha256": "a3d7510631d74ac019775da321f5980c2cf1dea8bf2c6f7939241e2486d5bd96",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-dark-390.png",
-      "sha256": "a4d7d11ad599dcd90bd057f9f6616b2fff2797244b5eaf02365c8009b39def57",
+      "sha256": "9d20c3b6e5ea434fbd731701c70d28c4e20053cb70b4fa3f9322b197e84330de",
       "width": 390,
       "height": 844
     }
-  ]
+  ],
+  "head": "66d12ed60af960f9cff6e608775116ebb977f6f3",
+  "runId": 45440899864,
+  "runAttempt": 1,
+  "artifactId": 14943621179,
+  "artifactDigest": "sha256:9b3d38a7d71b54565117bc1fc31af2d670610436ebe4f8c10b2c80795f829eb8",
+  "releaseTag": "v0.7.1",
+  "assetName": "visual-baseline-ui-pr16-66d12ed.zip",
+  "reviewedOn": "2026-11-25",
+  "scope": "PR #16 组件库迁移：四工作区、深浅主题、1440×900/390×844 的16张固定空态截图。逐张核对SHA-256与尺寸，审核菜单、转录、确认弹窗、载入媒体及字幕补充截图；动态配额真实DOM遮罩不属于缺陷。移动检查器需纵向滚动；不代表跨浏览器全面验收。保留旧清单及发布资产，不调整2%门禁。"
 }

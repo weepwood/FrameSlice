@@ -1,5 +1,7 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
+import {Tabs} from '@base-ui/react/tabs';
+import {Checkbox} from '@base-ui/react/checkbox';
 import {CaptionSelect} from './components/CaptionSelect';
 import {Timeline} from './components/Timeline';
 import {ReviewTools} from './components/ReviewTools';
@@ -340,13 +342,14 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
 
           </div>
           <aside className="side-panel surface">
-            <div className="side-tabs" role="tablist" aria-label="工作区功能">
-              <button role="tab" aria-selected={tab==='cues'} className={tab==='cues'?'active':''} onClick={()=>setTab('cues')}><Subtitles size={16}/>字幕</button>
-              <button role="tab" aria-selected={tab==='transcribe'} className={tab==='transcribe'?'active':''} onClick={()=>setTab('transcribe')}><AudioLines size={16}/>转录{busy&&<span className="caption-running-dot"/>}</button>
-              <button role="tab" aria-selected={tab==='style'} className={tab==='style'?'active':''} onClick={()=>setTab('style')}><Settings2 size={16}/>样式</button>
-              <button role="tab" aria-selected={tab==='export'} className={tab==='export'?'active':''} onClick={()=>setTab('export')}><ArrowDownToLine size={16}/>导出</button>
-            </div>
-            {tab==='transcribe'&&<>
+            <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">
+            <Tabs.List className="side-tabs" aria-label="工作区功能">
+              <Tabs.Tab value="cues" className={tab==='cues'?'active':''}><Subtitles size={16}/>字幕</Tabs.Tab>
+              <Tabs.Tab value="transcribe" className={tab==='transcribe'?'active':''}><AudioLines size={16}/>转录{busy&&<span className="caption-running-dot"/>}</Tabs.Tab>
+              <Tabs.Tab value="style" className={tab==='style'?'active':''}><Settings2 size={16}/>样式</Tabs.Tab>
+              <Tabs.Tab value="export" className={tab==='export'?'active':''}><ArrowDownToLine size={16}/>导出</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="transcribe" className="caption-tab-content">
             <section className="transcribe-panel surface">
               <div className="section-title"><div><strong>语音转录</strong></div><span className="chip"><Activity size={13}/> 本地模型</span></div>
               <div className="settings-grid">
@@ -363,8 +366,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               {transcriber.state.phase==='done'&&<div className="task-status done"><Check size={15}/>处理完成 · {transcriber.state.segments} 个识别分段 · {transcriber.state.seconds.toFixed(1)} 秒</div>}
               {transcriber.state.phase==='error'&&<div className="task-status failed"><AlertTriangle size={15}/>{transcriber.state.message}</div>}
             </section>
-            </>}
-            {tab==='cues'&&<>
+            </Tabs.Panel>
+            <Tabs.Panel value="cues" className="caption-tab-content">
               <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕内容 · ⌘K" aria-label="搜索字幕" value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
                 onToggleIssues={setOnlyIssues} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
@@ -379,8 +382,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                   </article>})}
               </div>
               <div className="cue-footer"><div className="shift-controls"><span>整体偏移</span><input aria-label="偏移秒数" type="number" step="0.1" value={shift} onChange={e=>setShift(e.target.value)}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div><button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
-            </>}
-            {tab==='style'&&<div className="style-editor">
+            </Tabs.Panel>
+            <Tabs.Panel value="style" className="style-editor caption-tab-content">
               <div className="section-subheading"><strong>预览样式</strong><small>适用于播放器与视频烧录</small></div>
               <div className="style-fields">
                 <label>字号 <div className="size-range"><input type="range" min={24} max={92} value={style.fontSize} onChange={e=>setStyle(s=>({...s,fontSize:Number(e.target.value)}))}/><output>{style.fontSize}px</output></div></label>
@@ -388,12 +391,12 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>背景颜色 <input type="color" value={style.boxColor} onChange={e=>setStyle(s=>({...s,boxColor:e.target.value}))}/></label>
                 <label>背景透明度 <div className="size-range"><input type="range" min={0} max={100} value={style.boxOpacity*100} onChange={e=>setStyle(s=>({...s,boxOpacity:Number(e.target.value)/100}))}/><output>{Math.round(style.boxOpacity*100)}%</output></div></label>
                 <div className="caption-field"><span>字幕位置</span><CaptionSelect<CaptionStyle["position"]> label="字幕位置" value={style.position} onChange={position=>setStyle(s=>({...s,position}))} options={[{value:"bottom",label:"底部居中"},{value:"middle",label:"画面居中"},{value:"top",label:"顶部居中"}]}/></div>
-                <label className="switch-row">文字加粗 <input type="checkbox" checked={style.bold} onChange={e=>setStyle(s=>({...s,bold:e.target.checked}))}/></label>
+                <div className="switch-row"><label htmlFor="caption-bold">文字加粗</label><Checkbox.Root id="caption-bold" aria-label="文字加粗" className="caption-checkbox" checked={style.bold} onCheckedChange={checked=>setStyle(s=>({...s,bold:checked===true}))}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root></div>
               </div>
               <button className="btn outline full" onClick={()=>setStyle(defaultStyle)}>恢复默认样式</button>
               <div className="style-note"><Info size={15}/> 浏览器字幕预览与 FFmpeg 烧录可能存在字体度量差异。中文烧录建议手动选择支持中文的字体文件。</div>
-            </div>}
-            {tab==='export'&&<div className="export-editor">
+            </Tabs.Panel>
+            <Tabs.Panel value="export" className="export-editor caption-tab-content">
               <div className="section-subheading"><strong>字幕文件</strong><small>兼容常见播放器与剪辑软件</small></div>
               <div className="export-grid"><button disabled={!cues.length} onClick={()=>exportAs('srt')}><FileText size={22}/><strong>SRT</strong><small>通用字幕文件</small><Download size={15}/></button><button disabled={!cues.length} onClick={()=>exportAs('vtt')}><FileText size={22}/><strong>VTT</strong><small>网页视频字幕</small><Download size={15}/></button></div>
               <button className="btn outline full" onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</button>
@@ -403,7 +406,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               {renderState.phase==='error'&&<div className="style-note warning">{renderState.message}</div>}
               {renderState.message&&renderState.phase==='idle'&&<div className="task-status done"><Check size={15}/>{renderState.message}</div>}
               <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>
-            </div>}
+            </Tabs.Panel>
+            </Tabs.Root>
           </aside>
         </div>
         

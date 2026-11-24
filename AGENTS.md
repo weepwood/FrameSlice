@@ -101,3 +101,11 @@
 - 发布保留正常构建、浏览器门禁、Pages 版本标识验证；既有报告和 Release 资产保留。不因个人工具简化流程而放松无损处理、轨道保留、文件清理边界等业务安全约束。
 
 - 本地存储诊断提供显式清除本应用存储的入口。仅在用户确认、无活动任务、无其他 FrameSlice 标签页时重载并在应用初始化前清除已知数据库记录、模型缓存和设置，保留用户外部文件、OPFS 与其他应用数据；不得全域清空。分项清理仍可独立使用。
+
+- UI 优先复用现有 Reka UI 原语，统一 WorkbenchCheckbox、WorkbenchSelect、Collapsible 与 ToggleGroup；不自研基础选择、焦点与键盘行为。React 字幕端后续采用成熟 React 原语（先验证 Shadow DOM 浮层、键盘与依赖锁），不得为替换基础组件重写媒体引擎。个人工具常规 CI，不运行 12GB。
+
+- 字幕基础组件使用 Base UI Select/Tabs/Checkbox（MIT，锁定实际 npm 版本），Select Portal 直接进入 ShadowRoot，不自行实现键盘/浮层。Vue 与 React 共享视觉 token，保留业务时间轴与媒体引擎。真实 Shadow DOM 回归通过前不合并。
+
+- Radix Select 在实际嵌入式 Shadow DOM 中出现 document.activeElement 焦点识别错误（CI 45439883461、Mac Edge 本地复现），改用 Base UI 1.9.0，保留键盘选择与 Escape 测试，不能降级为鼠标测试。
+
+- PR #16 Base UI 1.9.0 / Reka UI 2.11.0 实际 Chrome 功能通过；CI 45440899864 / artifact 14943621179 的16张固定视口及交互截图已审核，锁定新 approval，旧 PR13 清单归档于 visual-baseline/history/ui-pr13-00f8fd6.json。待2%门禁与短样本复验通过后合并，部署后归档独立资产。

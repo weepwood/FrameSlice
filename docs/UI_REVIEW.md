@@ -45,3 +45,6 @@ head 00f8fd6151046e373cdff51a7a73a8a0bbefdc7b；Chrome CI 45425639823 / artifact
 - loaded-caption-light.png 是“导入字幕、无媒体”的编辑器状态，不将黑色预览误判为媒体解码失败；字幕列表可编辑，SRT 导入/导出往返由 Chrome 测试验证。
 - 批处理菜单、字幕模型菜单、清理确认弹窗均以额外真实截图留证，不混入 16 张固定像素基线。
 批准 PR #13 新的 16 张固定视口基线；旧 v0.7.1 清单保留于 visual-baseline/history/v0.7.1.json，原 Release 资产不覆盖。新 approval 暂以 CI artifact 作为来源，独立 Release 资产名 visual-baseline-ui-pr13-00f8fd6.zip；2% 差异门禁需在下一提交重新通过，方可合并。未覆盖完整读屏、Firefox/WebKit、原生目录权限撤销及真实长视频字幕长时播放。
+
+## PR #16 视觉批准（2026-11-25）
+CI 45440899864，head 66d12ed，merge 384c5cfd，artifact 14943621179，ZIP SHA-256 9b3d38a7d71b54565117bc1fc31af2d670610436ebe4f8c10b2c80795f829eb8。全部16张固定候选 SHA-256 与尺寸核验通过，桌面/移动深浅主题及26张补充交互证据已审查。Chrome 功能脚本通过（Base UI 下拉键盘、Escape 焦点恢复、页签及复选框）；旧基线6张超2%，最大12.22%，属于实际组件与布局变化，短样本性能尚未执行。批准新基线，保留旧PR13清单、Release资产和2%阈值，独立资产 visual-baseline-ui-pr16-66d12ed.zip。
