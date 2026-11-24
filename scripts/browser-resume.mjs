@@ -6,7 +6,8 @@ const dir=await mkdtemp(join(tmpdir(),'frameslice-resume-')),file=join(dir,'fixt
 await writeFile(file,Buffer.from((await readFile(new URL('../tests/fixtures/black-h264-aac.mp4.b64',import.meta.url),'utf8')).trim(),'base64'))
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']})
 try{
- const page=await browser.newPage({acceptDownloads:true,viewport:{width:1440,height:900}})
+ const context=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:900}})
+ const page=await context.newPage()
  await page.addInitScript(()=>Object.defineProperty(window,'showDirectoryPicker',{configurable:true,value:()=>navigator.storage.getDirectory()}))
  await page.goto(process.env.APP_URL??'http://127.0.0.1:4173/FrameSlice/')
  await page.locator('input[type=file]').first().setInputFiles(file)
