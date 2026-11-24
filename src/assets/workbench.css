@@ -208,3 +208,13 @@
  .fs-workbench .fs-timeline-tools input {width:76px}
  .fs-workbench .fs-timeline-legend {gap:8px}
 }
+
+/* Loaded workspace: primary action is reachable without scrolling through analysis. */
+.fs-workbench .topbar {position:sticky;top:0;z-index:12}
+.fs-workbench .fs-primary-target:empty {display:none}
+.fs-workbench .fs-primary-target {display:flex;align-items:center}
+.fs-workbench .fs-primary-target :is(.primary-button,.cancel-button) {width:auto;min-height:32px;padding:0 10px;font-size:12px}
+.fs-workbench .fs-primary-target .primary-button svg:last-child {display:none}
+.fs-workbench .execution:has(.execution-summary:last-child) {align-items:stretch}
+.fs-workbench .fs-timeline-ruler span {max-width:80px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:1140px) {.fs-workbench .topbar {position:static}}

@@ -359,3 +359,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
  .app-shell.embedded .timeline-top {height:auto;min-height:44px;flex-wrap:wrap;padding-block:7px}
  .app-shell.embedded .timeline-actions {flex-wrap:wrap}
 }
+
+/* Explicit width avoids the aspect-ratio/max-height combination shrinking the viewer. */
+.app-shell.embedded .video-frame {width:100%;min-width:0}
+.app-shell.embedded .empty-media {position:absolute;inset:0;width:auto;height:auto}
