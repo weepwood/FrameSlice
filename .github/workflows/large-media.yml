@@ -11,7 +11,7 @@ permissions:
   contents: read
 concurrency:
   group: frameslice-large-media-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   real-media:
     runs-on: ubuntu-latest

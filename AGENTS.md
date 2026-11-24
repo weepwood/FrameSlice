@@ -50,3 +50,5 @@
 - 批量检查点清理必须先取得全部 session 锁并单一 IDB 事务删除，不清理用户文件；localStorage 摘要与 IDB 无跨存储原子性。Reka Dialog 必须保留确认和焦点语义。
 
 - 媒体兼容专项脚本 media-compat-real.mjs；必须区分解码成功、逐包一致、AAC 接缝逐采样一致和明确拒绝。真实跨标签页历史 E2E 需验证清理与刷新。
+
+- 全局历史实际 DOM 为 .fs-center-job，批量记录为 .fs-job-row；历史 E2E 必须区分。真实大文件 CI 不因新提交主动中止已有长任务。
