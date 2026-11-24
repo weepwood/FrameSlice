@@ -11,7 +11,7 @@ permissions:
   contents: read
 concurrency:
   group: frameslice-large-media-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   real-media:
     runs-on: ubuntu-latest
@@ -53,12 +53,15 @@ jobs:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
           STRESS_TIMEOUT_MS: '4200000'
           STRESS_OPFS_QUOTA_BYTES: '15000000000'
-        run: node scripts/browser-stress-real.mjs /tmp/frameslice-large-media/real-large.mp4 browser-large-report.json
+        run: |
+          STRESS_DEEP=1 STRESS_RUNS=2 node scripts/browser-stress-real.mjs /tmp/frameslice-large-media/real-large.mp4 browser-large-report.json
+          STRESS_SCENARIO=cancel node scripts/browser-stress-real.mjs /tmp/frameslice-large-media/real-large.mp4 browser-cancel-report.json
+          STRESS_SCENARIO=quota STRESS_OPFS_QUOTA_BYTES=1000000000 node scripts/browser-stress-real.mjs /tmp/frameslice-large-media/real-large.mp4 browser-quota-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: real-large-media-report
           path: |
             /tmp/frameslice-large-media/fixture.json
-            browser-large-report.json
+            browser-*-report.json
           if-no-files-found: warn

@@ -1,0 +1,25 @@
+name: 真实复杂编码与字幕兼容专项
+on:
+  pull_request:
+    branches: [main]
+    paths: ['src/lib/**','scripts/media-compat-real.mjs','.github/workflows/media-compat.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-codecs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: node scripts/media-compat-real.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: media-compat-report
+          path: media-compat-report.json
