@@ -124,6 +124,20 @@ try {
   if (await page.locator('.frame-tile img').count() < 1) {
     throw new Error('Frame Worker did not return any image previews')
   }
+  const tile=page.locator('.frame-preview-button').first()
+  await page.getByRole('button',{name:'大图网格',exact:true}).click()
+  if(!await page.locator('.frame-gallery.density-large').count())throw Error('large gallery layout not selected')
+  await tile.click()
+  const galleryDialog=page.getByRole('dialog')
+  await galleryDialog.getByRole('img').waitFor()
+  if(!await galleryDialog.getByRole('img').evaluate(img=>img.complete&&img.naturalWidth>0))throw Error('full frame preview not decoded')
+  await page.screenshot({path:'visual-regression/loaded-frame-preview.png',animations:'disabled'})
+  await page.keyboard.press('Escape')
+  await galleryDialog.waitFor({state:'hidden'})
+  if(!await tile.evaluate(el=>document.activeElement===el))throw Error('gallery did not restore focus')
+  await page.getByRole('button',{name:'紧凑网格',exact:true}).click()
+  if(!await page.locator('.frame-gallery.density-compact').count())throw Error('compact gallery layout not selected')
+  await page.screenshot({path:'visual-regression/loaded-frame-gallery.png',animations:'disabled'})
   const [sheetDownload] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /生成分镜拼图/ }).click(),
