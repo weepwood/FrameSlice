@@ -349,7 +349,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>计算后端 <select value={device} disabled={busy} onChange={e=>setDevice(e.target.value as Device)}><option value="auto">自动 (GPU 优先)</option><option value="webgpu">WebGPU</option><option value="wasm">CPU / WASM</option></select></label>
                 <label>每条字幕最大字符 <input type="number" min={8} max={120} value={maxChars} disabled={busy} onChange={e=>setMaxChars(Math.min(120,Math.max(8,Number(e.target.value)||30)))}/></label>
               </div>
-              <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>自动提取视频音轨，分段识别大文件（无需上传或压缩视频）。首次使用需下载模型。</span></div>
+              <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>自动提取视频音轨，分段识别大文件（无需上传或压缩视频）。首次使用需下载模型；模型文件由浏览器缓存管理，源媒体不写入模型缓存。</span></div>
                 {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
               {transcriber.state.phase==='loading'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在准备模型 {Math.round(transcriber.state.progress)}% <progress value={transcriber.state.progress} max="100"/></div>}
               {transcriber.state.phase==='extracting'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在从媒体分段提取音轨 · {Math.round(transcriber.state.progress)}% <progress value={transcriber.state.progress} max="100"/></div>}

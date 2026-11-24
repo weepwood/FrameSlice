@@ -20,7 +20,8 @@ import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import { workspace } from './core/workspace'
-import type { MediaJob } from './core/workspace'
+import type { MediaJob, RetryParameters } from './core/workspace'
+import { sampleFingerprint } from './core/source-identity'
 
 type Mode = 'split' | 'frames' | 'captions'
 type Status = 'idle' | 'running' | 'done' | 'error' | 'canceled'
@@ -32,6 +33,12 @@ const videoTool = ref<'split' | 'container'>('split')
 const containerVisited = ref(false)
 const containerBusy = ref(false)
 const recentJobs = ref<MediaJob[]>([])
+const retryTarget=ref<MediaJob|null>(null)
+const retryNotice=ref('')
+const theme=ref<'system'|'light'|'dark'>('system')
+try{const saved=localStorage.getItem('frameslice.theme');if(saved==='light'||saved==='dark')theme.value=saved}catch{}
+function applyTheme(){document.documentElement.dataset.fsTheme=theme.value;try{localStorage.setItem('frameslice.theme',theme.value)}catch{}}
+applyTheme()
 const unsubscribeJobs = workspace.subscribe(jobs => { recentJobs.value = jobs })
 const jobLabels: Record<string, string> = {inspect:'媒体读取',analyze:'视频体检',split:'无损分割',frames:'定时抽帧','container-scan':'轨道读取','extract-tracks':'轨道提取',remux:'重新封装',waveform:'波形',transcribe:'语音转录',burn:'字幕烧录'}
 const jobStates: Record<string,string> = {queued:'等待中',running:'运行中',canceling:'取消中',completed:'已完成',failed:'失败',canceled:'已取消',interrupted:'已中断'}
@@ -299,6 +306,27 @@ async function previewSplitPlan(){
   try{await workspace.run('analyze',target,controller.signal,ctx=>runWorkerJob({mode:'split',file:target,folder:null,planOnly:true,maxBytes:targetBytes.value,maxSeconds:splitStrategy.value==='duration'?splitMinutes.value*60:undefined,verificationLevel:verificationLevel.value},controller.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:()=>{},onPlan:entries=>{if(!controller.signal.aborted&&file.value===target&&key===currentPlanKey.value){splitPlan.value=entries;planKey.value=key}}}))}
   catch(e){if(!controller.signal.aborted)planError.value=friendlyError(e)}finally{if(planAbort===controller){planning.value=false;planAbort=null}}
 }
+function requestRetry(job:MediaJob){
+  if(status.value==='running'||containerBusy.value||!job.retry)return
+  retryTarget.value=job;retryNotice.value='请选择原始视频以重新关联。'
+  const input=document.createElement('input');input.type='file';input.accept='video/*,.mp4,.mov,.mkv,.webm';input.onchange=e=>void relinkRetry(e);input.click()
+}
+async function relinkRetry(event:Event){
+  const input=event.target as HTMLInputElement,target=retryTarget.value,selected=input.files?.[0];input.value='';retryTarget.value=null
+  if(!target?.retry||!selected)return
+  try{
+    if(selected.size!==target.asset.bytes||await sampleFingerprint(selected)!==target.retry.fingerprint)throw Error('源文件大小或抽样指纹不一致，拒绝重新关联。')
+    const params=target.retry.parameters
+    changeMode(params.mode);if(params.mode==='split')changeVideoTool('split')
+    await loadFile(selected)
+    if(file.value!==selected||!info.value)throw Error('源媒体读取失败')
+    if(params.mode==='split'){
+      splitStrategy.value=params.maxSeconds===undefined?'size':'duration';sizeUnit.value='GB';size.value=params.maxBytes/1e9;splitMinutes.value=(params.maxSeconds??600)/60;verificationLevel.value=params.verificationLevel
+    }else{interval.value=params.interval;frameStart.value=params.startTime;frameEnd.value=params.endTime;imageFormat.value=params.format;imageWidth.value=params.width;jpegQuality.value=params.quality}
+    outputFolder.value=null;selectedFolderName.value=''
+    retryNotice.value='已恢复参数。请重新授权目录并手动开始；将写入独立新目录，不覆盖或跳过旧文件。'
+  }catch(e){retryNotice.value=friendlyError(e)}
+}
 async function start() {
   if (!file.value || !info.value || status.value === 'running') return
   if (mode.value === 'split' && splitStrategy.value === 'size' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
@@ -364,6 +392,8 @@ async function start() {
           startTime: frameStart.value, endTime: frameEnd.value,
           format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
         }
+    const retryParameters:RetryParameters=payload.mode==='split'?{mode:'split',maxBytes:payload.maxBytes,maxSeconds:payload.maxSeconds,verificationLevel:payload.verificationLevel}:{mode:'frames',interval:payload.interval,startTime:payload.startTime,endTime:payload.endTime,format:payload.format,width:payload.width,quality:payload.quality}
+    const fingerprint=await sampleFingerprint(currentFile)
     const summary = await workspace.run(payload.mode, currentFile, controller.signal, async ctx => {
       const result=await runWorkerJob(payload, controller.signal, {
       onProgress: (value, text) => { progress.value = value; progressLabel.value = text; ctx.progress(value, text) },
@@ -375,7 +405,7 @@ async function start() {
       })
       if(missedFrames.value.length)ctx.progress(1,'存在遗漏帧，已重试')
       return result
-    })
+    },{fingerprint,parameters:retryParameters})
     jobElapsedMs.value = summary.elapsedMs
     if (mode.value === 'frames') finishedFrames.value = summary.count
     // Human-readable JSON alongside the media outputs; no original file paths.
@@ -489,10 +519,13 @@ onBeforeUnmount(() => {
           <small>{{ job.asset.name }}</small>
           <progress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" max="1" />
           <small v-if="job.checkpoint">已写入 {{ job.checkpoint.count }} 项</small>
+          <button v-if="job.retry && ['failed','canceled','interrupted'].includes(job.status)" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
         </div>
+        <p v-if="retryNotice" role="status">{{retryNotice}}</p>
         <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
       </details>
       <div class="sidebar-bottom">
+        <label class="fs-theme-select">外观 <select aria-label="主题" v-model="theme" @change="applyTheme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
         <div class="sidebar-version">FRAMESLICE / V0.1.0</div>

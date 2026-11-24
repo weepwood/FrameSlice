@@ -1,3 +1,4 @@
+@import './tokens.css';
 :root{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;color:#292d27;background:#f8f8f6;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;--ink:#292d27;--muted:#8b9087;--line:#e9eae4;--panel:#fff;--accent:#3c4f3f;--accent-soft:#eef2eb}
 *,*::before,*::after{box-sizing:border-box}body{margin:0;min-width:320px}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed}a{color:inherit;text-decoration:none}p,h1,h2,h3{margin:0}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #6b9374;outline-offset:3px}::selection{background:#cad9c6}
 .app-shell{min-height:100vh;display:grid;grid-template-columns:232px minmax(0,1fr) 288px;max-width:2200px;margin:auto}
@@ -161,3 +162,15 @@
 .ct-workspace button:focus-visible,.video-tool-switch button:focus-visible{outline:2px solid #7b9d80;outline-offset:2px}
 @media(max-width:600px){.video-tool-switch{width:100%}.video-tool-switch button{flex:1;padding:10px 8px;font-size:10px}.ct-top-line{align-items:flex-start;flex-direction:column}.ct-choices{gap:8px;padding:12px}.ct-option-row{align-items:flex-start;flex-direction:column;gap:10px}.ct-warning{margin:10px}.ct-ack{margin:12px}.ct-primary{margin:8px 12px 14px;width:calc(100% - 24px)}.ct-section-heading{padding:12px}.ct-track{padding:10px 7px}}
 @media(prefers-reduced-motion:reduce){.ct-progress span{transition:none}}
+
+/* Semantic workbench surfaces and shared native control contract. */
+:root{background:var(--fs-bg);color:var(--fs-text);--ink:var(--fs-text);--muted:var(--fs-muted);--line:var(--fs-border);--panel:var(--fs-surface);--accent:var(--fs-accent);--accent-soft:var(--fs-selected)}
+.sidebar,.right-panel,.topbar,.caption-active .workspace{background:var(--fs-bg);border-color:var(--fs-border)}
+:where(.config-panel,.fs-analysis,.ct-card,.ct-file-card,.ct-result,.status-card,.result-item,.caption-embed-feedback,.file-card,.drop-zone,.execution-summary,.video-tool-switch,.local-notice){background:var(--fs-surface);border-color:var(--fs-border);color:var(--fs-text)}
+.nav-item,.page-head p,.step-description,.breadcrumbs,.sidebar-link,.right-panel p,.config-footnote,.fs-analysis-disclaimer{color:var(--fs-muted)}
+.nav-item.active,.nav-item:hover:not(:disabled),.ct-track.selected,.ct-choice.active,.video-tool-switch button.active{background:var(--fs-selected);color:var(--fs-text);border-color:var(--fs-border)}
+.primary-button,.ct-primary{background:var(--fs-accent);color:var(--fs-on-accent)}
+.secondary-button,.fs-tool-button,.ct-choice,.ct-select,.ct-icon-btn,.number-input,.select-wrap select,.fs-theme-select select{background:var(--fs-input);color:var(--fs-text);border-color:var(--fs-border);border-radius:var(--fs-radius)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(--fs-focus)}
+.fs-theme-select{display:flex;align-items:center;justify-content:space-between;margin:8px 5px;color:var(--fs-muted);font-size:11px}.fs-theme-select select{border:1px solid var(--fs-border);padding:6px;font:inherit}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}

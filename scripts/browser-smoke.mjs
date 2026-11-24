@@ -63,6 +63,11 @@ try {
     }
   }
 
+  await page.getByRole('button', { name: '预览分割计划' }).click()
+  await page.getByText(/1 个片段 · 下列为媒体包估算/).waitFor({timeout:30000})
+  await page.getByRole('combobox',{name:'主题'}).selectOption('dark')
+  if(await page.locator('html').getAttribute('data-fs-theme')!=='dark')throw Error('theme switch failed')
+  await page.getByRole('combobox',{name:'主题'}).selectOption('light')
   await page.getByRole('button', { name: /开始分割视频/ }).click()
   await awaitResult('split Worker')
   if (await page.locator('.result-list .result-item').count() !== 1) {

@@ -35,7 +35,7 @@ async function mountWorkspace() {
     if (!active || sequence !== generation) return
     const shadow = container.shadowRoot ?? container.attachShadow({ mode: 'open' })
     const style = document.createElement('style')
-    style.textContent = `:host{display:block;min-width:0;color:#292d27;background:transparent;}\n` + cssText
+    style.textContent = `:host{display:block;min-width:0;color:var(--fs-text,#292d27);background:transparent;}\n` + cssText
     const mountPoint = document.createElement('div')
     mountPoint.id = 'root'
     shadow.replaceChildren(style, mountPoint)
