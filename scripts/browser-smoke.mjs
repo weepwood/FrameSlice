@@ -229,6 +229,16 @@ try {
   }
   await page.setViewportSize({width:1440,height:900})
   await caption.getByRole('button', { name: /导入字幕/ }).waitFor()
+  const followTimeline=caption.getByRole('checkbox',{name:'跟随播放',exact:true})
+  await followTimeline.waitFor()
+  const followBefore=await followTimeline.getAttribute('aria-checked')
+  await followTimeline.press('Space')
+  if(await followTimeline.getAttribute('aria-checked')===followBefore)throw Error('timeline follow keyboard toggle failed')
+  await followTimeline.press('Space')
+  if(await followTimeline.getAttribute('aria-checked')!==followBefore)throw Error('timeline follow keyboard restore failed')
+  const playbackSlider=caption.getByRole('slider',{name:'跳转播放位置',exact:true})
+  if(await playbackSlider.evaluate(el=>getComputedStyle(el).appearance!=='none'))throw Error('caption slider is not themed')
+
   await caption.getByRole('tab',{name:'转录'}).click()
   const backend=caption.getByRole('combobox',{name:'计算后端'});
   const focusedOption=async(text)=>page.waitForFunction(text=>{const root=document.querySelector('.caption-react-host')?.shadowRoot;const el=root?.activeElement;return el?.getAttribute('role')==='option'&&el.textContent.includes(text)},text)

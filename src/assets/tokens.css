@@ -4,7 +4,7 @@
   --fs-input:#ffffff; --fs-text:#242b35; --fs-muted:#566371;
   --fs-border:#dce1e7; --fs-accent:#305fb1; --fs-on-accent:#fff;
   --fs-selected:#e8effb; --fs-focus:#4678ce; --fs-danger:#a43d39;
-  --fs-warning:#805919; --fs-success:#28734e; --fs-radius:6px;
+  --fs-warning:#805919; --fs-success:#28734e; --fs-radius:6px; --fs-control-height:34px; --fs-space-2:8px; --fs-space-3:12px; --fs-space-4:16px;
   --fs-wave:#537cae; --fs-wave-bg:#e6edf6; --fs-preview:#171e29;
   --fs-font: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
   color-scheme:light;

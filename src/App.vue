@@ -817,6 +817,6 @@ onBeforeUnmount(() => {
 .fs-job-history .fs-history-trigger span,.fs-job-row small,.fs-job-empty{opacity:.7;font-weight:400}
 .fs-job-row{display:flex;flex-direction:column;gap:4px;padding:8px 4px;border-bottom:1px solid rgba(128,128,128,.16)}
 .fs-job-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fs-job-row progress{width:100%;height:4px;accent-color:#729e82}
+
 .fs-job-clear{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;padding:8px 4px;text-decoration:underline}
 </style>

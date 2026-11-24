@@ -15,7 +15,7 @@ try{
    await themeOption(page,theme)
    for(const [mode,button] of [['split','无损分割'],['frames','定时抽帧'],['captions','字幕工作台'],['jobs','任务中心']]){
     await page.getByRole('button',{name:new RegExp(button)}).first().click()
-    if(mode==='captions')await page.locator('.caption-react-host').locator('.caption-action-toolbar').waitFor({timeout:30000})
+    if(mode==='captions'){const host=page.locator('.caption-react-host');await host.locator('.caption-action-toolbar').waitFor({timeout:30000});await host.locator('.caption-save-state[data-save="saved"]').waitFor({timeout:30000})}
     if(mode==='jobs')await page.locator('.fs-job-center').waitFor()
     await page.evaluate(async()=>{await document.fonts.ready;window.scrollTo(0,0);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})
     if(mode==='jobs'){if(await page.locator('.fs-storage-values').count()!==2)throw Error('storage mask missing');const meter=page.getByRole('progressbar',{name:'站点存储使用量'});await meter.waitFor();if(await meter.evaluate(el=>el.tagName==='PROGRESS'||el.getBoundingClientRect().height!==7||!el.querySelector('.fs-workbench-progress-fill')))throw Error('storage meter is not custom styled')}if(viewport.width===390&&await page.getByRole('button',{name:/隐藏检查器|显示检查器/}).count())throw Error('unavailable inspector visible on mobile');if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error(mode+' horizontal overflow')
