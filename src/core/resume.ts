@@ -16,10 +16,11 @@ export async function fullFingerprint(blob:Blob,signal:AbortSignal,progress?:(n:
 function open():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{
  const req=indexedDB.open('frameslice-resume-v1',1)
  req.onupgradeneeded=()=>{req.result.createObjectStore('sessions');req.result.createObjectStore('outputs')}
- req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);req.onblocked=()=>reject(Error('续作数据库被阻塞'))
+ let abandoned=false
+ req.onsuccess=()=>{if(abandoned){req.result.close();return}req.result.onversionchange=()=>req.result.close();resolve(req.result)};req.onerror=()=>reject(req.error);req.onblocked=()=>{abandoned=true;reject(Error('续作数据库被阻塞'))}
 })}
 async function read<T>(store:string,key:IDBValidKey):Promise<T|undefined>{const db=await open();try{return await new Promise((resolve,reject)=>{const req=db.transaction(store).objectStore(store).get(key);req.onsuccess=()=>resolve(req.result as T|undefined);req.onerror=()=>reject(req.error)})}finally{db.close()}}
-async function write(store:string,key:IDBValidKey,value:unknown):Promise<void>{const db=await open();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).put(value,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}finally{db.close()}}
+async function write(store:string,key:IDBValidKey,value:unknown):Promise<void>{const db=await open();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).put(value,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error??new DOMException('续作数据库事务中止','AbortError'))})}finally{db.close()}}
 export async function createResumeSession(folder:FileSystemDirectoryHandle):Promise<ResumeSession>{const session={id:crypto.randomUUID(),folder};await write('sessions',session.id,session);return session}
 export function loadResumeSession(id:string){return read<ResumeSession>('sessions',id)}
 export async function authorizeResumeFolder(folder:FileSystemDirectoryHandle):Promise<void>{
@@ -80,3 +81,6 @@ export async function resumePermission(id:string):Promise<PermissionState|'missi
 /** The deletion marker is committed in the same transaction as all checkpoint removals. */
 export async function batchCleanupCommitted(id:string){return !!await read('sessions','cleanup:'+id)}
 export async function finishBatchCleanup(id:string){const db=await open();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('sessions','readwrite');tx.objectStore('sessions').delete('cleanup:'+id);tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error??Error('清理标识事务中止'));tx.onerror=()=>reject(tx.error)})}finally{db.close()}}
+
+/** Called only under the batch lock, after reading the current summary successfully. */
+export async function pruneBatchCleanupMarkers(keepId?:string){const db=await open();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('sessions','readwrite'),req=tx.objectStore('sessions').openCursor(IDBKeyRange.bound('cleanup:','cleanup; ',false,true));req.onsuccess=()=>{const c=req.result;if(!c)return;if(typeof c.key==='string'&&c.key.startsWith('cleanup:')&&c.key!=='cleanup:'+keepId)c.delete();c.continue()};req.onerror=()=>tx.abort();tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error??new DOMException('清理标识事务中止','AbortError'));tx.onerror=()=>reject(tx.error)})}finally{db.close()}}

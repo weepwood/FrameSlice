@@ -1,4 +1,4 @@
-import {batchCleanupCommitted,finishBatchCleanup,forgetResumeSessions} from './resume'
+import {batchCleanupCommitted,finishBatchCleanup,forgetResumeSessions,pruneBatchCleanupMarkers} from './resume'
 import type {BatchResult,BatchSettings} from './batch'
 export interface BatchJournal {id:string;settings:BatchSettings;files:{name:string;bytes:number;lastModified:number}[];rows:BatchResult[];updatedAt:number;sessions?:string[]}
 const KEY='frameslice.batch.v1'
@@ -10,8 +10,8 @@ export const batchStorageKey=KEY
 
 /** Call while holding the batch lock. IDB is authoritative for a committed deletion. */
 export async function reconcileBatchCleanup():Promise<boolean>{
- const batch=loadBatch();if(!batch||!await batchCleanupCommitted(batch.id))return false
- clearBatch();await finishBatchCleanup(batch.id);return true
+ const raw=localStorage.getItem(KEY);const batch=loadBatch();if(!batch){if(raw===null)await pruneBatchCleanupMarkers();return false}if(!await batchCleanupCommitted(batch.id)){await pruneBatchCleanupMarkers(batch.id);return false}
+ clearBatch();await finishBatchCleanup(batch.id);await pruneBatchCleanupMarkers();return true
 }
 export async function clearBatchCheckpoints(batch:BatchJournal):Promise<void>{
  await forgetResumeSessions(batch.sessions??[],batch.id)

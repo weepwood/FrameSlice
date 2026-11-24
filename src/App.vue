@@ -117,7 +117,7 @@ let timelineAbort:AbortController|null=null
 function clearTimeline(){timelineAbort?.abort();for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
 async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){for(const t of rows)URL.revokeObjectURL(t.url);if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
 function seekTimeline(time:number){timelineTime.value=time;const video=document.querySelector<HTMLVideoElement>('.file-card video');if(video&&Number.isFinite(time))video.currentTime=time}
-function addManualCut(time:number){const keys=mediaAnalysis.value?.keyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
+function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
 const size = ref(4)
@@ -587,7 +587,7 @@ onBeforeUnmount(() => {
         <label class="fs-theme-select">外观 <select aria-label="主题" v-model="theme" @change="applyTheme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
-        <WorkbenchButton :label="inspectorOpen?'隐藏检查器':'显示检查器'" @click="inspectorOpen=!inspectorOpen;saveLayout()">{{inspectorOpen?'隐藏检查器':'显示检查器'}}</WorkbenchButton><div class="sidebar-version">FRAMESLICE / V{{version}}</div>
+        <WorkbenchButton v-if="wideLayout&&!showJobs&&mode!=='captions'" :label="inspectorOpen?'隐藏检查器':'显示检查器'" @click="inspectorOpen=!inspectorOpen;saveLayout()">{{inspectorOpen?'隐藏检查器':'显示检查器'}}</WorkbenchButton><div class="sidebar-version">FRAMESLICE / V{{version}}</div>
       </div>
     </SplitterPanel>
     <SplitterResizeHandle id="frameslice-resource-handle" class="fs-reka-handle" aria-label="调整资源栏宽度" :disabled="!wideLayout"/>
@@ -641,7 +641,7 @@ onBeforeUnmount(() => {
           <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
-        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mediaAnalysis?.keyframeIndex??[]" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
+        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">
             <div class="fs-analysis-heading">
