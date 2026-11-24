@@ -77,7 +77,7 @@ async function loadFile(next: File | null) {
     workspace.cache(next,'container-info',result)
     if (revision !== currentRevision) return
     report.value = result
-    selectedIds.value = result.tracks.filter(t => t.selectable).map(t => t.id)
+    selectedIds.value = result.tracks.filter(t => t.selectable&&t.kind!=='subtitle').map(t => t.id)
     stage.value = 'idle'
     statusMessage.value = `识别到 ${result.tracks.length} 条轨道`
   } catch (cause) {
@@ -104,7 +104,7 @@ function onSubtitleChange(event: Event) {
   target.value = ''
 }
 function toggleTrack(track: ContainerTrack) {
-  if (!track.selectable || working.value) return
+  if (!track.selectable || working.value || track.kind==='subtitle'&&action.value!=='extract') return
   const current = new Set(selectedIds.value)
   if (current.has(track.id)) current.delete(track.id)
   else current.add(track.id)
@@ -113,6 +113,7 @@ function toggleTrack(track: ContainerTrack) {
 function setAction(next: ContainerAction) {
   if (working.value) return
   action.value = next
+  if(next==='package')selectedIds.value=selectedIds.value.filter(id=>!id.startsWith('mkv:'))
   error.value = ''
   if (next === 'extract'){subtitle.value = null;additionalSubtitles.value=[]}
 }
@@ -239,7 +240,7 @@ onBeforeUnmount(() => cleanup())
         <div class="ct-tracks">
           <button v-for="track in report.tracks" :key="track.id" type="button"
             class="ct-track" :class="{ selected: selectedIds.includes(track.id), disabled: !track.selectable }"
-            :disabled="!track.selectable || working" :aria-pressed="selectedIds.includes(track.id)" @click="toggleTrack(track)">
+            :disabled="!track.selectable || working || track.kind==='subtitle'&&action!=='extract'" :aria-pressed="selectedIds.includes(track.id)" @click="toggleTrack(track)">
             <span class="ct-track-kind"><FileVideo v-if="track.kind === 'video'" :size="19"/><FileAudio v-else-if="track.kind === 'audio'" :size="19"/><Subtitles v-else :size="19"/></span>
             <span class="ct-track-detail">
               <strong>{{ track.kind === 'video' ? '视频' : track.kind === 'audio' ? '音频' : '字幕 / 其他' }} · {{ track.codecLabel }}</strong>
