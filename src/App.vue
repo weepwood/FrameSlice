@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
-  FileVideo, Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
+  Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
   LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
   Upload, X, Zap, AlertTriangle, Monitor, Film, HardDrive, Settings2,
 } from 'lucide-vue-next'
@@ -22,6 +22,7 @@ import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import MediaTimeline from './components/MediaTimeline.vue'
 import PanelResize from './components/PanelResize.vue'
 import MediaResourceLibrary from './components/MediaResourceLibrary.vue'
+import MediaResults from './components/MediaResults.vue'
 import WorkbenchButton from './components/WorkbenchButton.vue'
 import {version} from '../package.json'
 import JobCenter from './components/JobCenter.vue'
@@ -742,7 +743,7 @@ onBeforeUnmount(() => {
         <section v-if="status !== 'idle'" class="result-section" aria-live="polite">
           <div class="step-head"><span class="step-number">03</span><h2>任务结果</h2><span class="step-description">{{ status === 'running' ? '处理中' : status === 'done' ? '处理完毕' : '状态信息' }}</span></div>
           <div class="status-card" :class="{ success: status === 'done', failure: status === 'error' }"><div class="status-card-head"><div class="status-icon"><BadgeCheck v-if="status === 'done'" :size="19"/><AlertTriangle v-else-if="status === 'error'" :size="19"/><CircleHelp v-else-if="status === 'canceled'" :size="19"/><RotateCcw v-else :size="19" class="rotating"/></div><div class="status-details"><strong>{{ status === 'running' ? '正在处理' : status === 'done' ? '任务完成' : status === 'canceled' ? '任务已取消' : '处理失败' }}</strong><span>{{ progressLabel }}</span></div><div class="status-percent">{{ progressPercent }}%</div></div><div class="progress-track"><div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div></div><p v-if="lastJobFolder" class="output-path">保存目录：{{ lastJobFolder }}</p><p v-if="jobElapsedMs > 0" class="output-path">后台处理耗时：{{ (jobElapsedMs / 1000).toFixed(1) }} 秒</p><p v-if="errorText" class="status-error">{{ errorText }}</p><button v-if="status === 'error' || status === 'canceled'" type="button" class="text-button" @click="retry">重新配置任务 <ArrowRight :size="14"/></button></div>
-          <div v-if="parts.length" class="result-list"><div v-for="item in parts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div>
+          <MediaResults :parts="parts" :frames="frames" @save="savePreview"/>
           <div v-if="status === 'done' && (exportReportJson || frames.length)" class="fs-result-tools">
             <button v-if="exportReportJson" type="button" class="fs-tool-button" @click="downloadManifest">
               <ArrowDownToLine :size="15"/> 导出处理报告 JSON
@@ -756,7 +757,7 @@ onBeforeUnmount(() => {
           <p v-if="filteredCount" class="fs-analysis-disclaimer">已主动过滤 {{filteredCount}} 张相似或无明显场景变化的候选画面，不计为遗漏。</p>
           <p v-if="missedFrames.length" class="fs-analysis-warning">有 {{missedFrames.length}} 个时间点重试后仍无画面，详见 JSON 报告：{{missedFrames.slice(0,10).map(t=>t.toFixed(3)+'s').join('、')}}</p>
           <p v-if="storyboardError" class="fs-analysis-warning">{{ storyboardError }}</p>
-          <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}<small v-if="item.sharpness!==undefined"> · Q {{item.sharpness.toFixed(1)}}</small></span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
+
         </section>
 
         <div v-if="errorText && status === 'idle'" class="inline-error"><AlertTriangle :size="17"/><span>{{ errorText }}</span><button type="button" @click="errorText = ''" aria-label="关闭"><X :size="16"/></button></div>

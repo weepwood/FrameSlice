@@ -264,3 +264,19 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 @media(max-width:1240px){.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr)}.caption-action-toolbar{gap:6px}}
 @media(max-width:720px){.caption-action-toolbar{align-items:stretch;gap:7px}.caption-project-field{flex:1 1 100%}.caption-project-field input{flex:1}.caption-action-spacer{display:none}.caption-save-state{margin-right:auto}.caption-action-toolbar .btn{flex:0 1 auto}}
 @media(max-width:480px){.app-shell.embedded .editor-area{padding:0 0 15px}.caption-action-toolbar{padding:10px}.caption-action-toolbar .btn{font-size:10px;padding:6px 8px}.caption-save-state{flex-basis:100%}}
+
+/* Shared host tokens; standalone React defaults preserved. */
+:host{font-family:inherit;color:var(--fs-text,#292d27);color-scheme:inherit}
+.app-shell.embedded{color:var(--fs-text,#292d27);--studio-ink:var(--fs-text,#292d27);--studio-muted:var(--fs-muted,#68736a);--studio-accent:var(--fs-accent,#455f49);--studio-border:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(.surface,.section-title,.workflow-step,.caption-action-toolbar,.cue-row,.review-chip,.subtitle-search,.replace-panel,.shortcut-dialog,.cue-footer,.side-tabs,.playback-controls,.timeline-foot,.export-grid button){background:var(--fs-surface,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(.section-title strong,.workflow-step b,.editor-header h1,.section-subheading strong){color:var(--fs-text,#292d27)}
+.app-shell.embedded :is(.subtle,.media-info,.caption-save-state,.caption-project-field>span,.timeline-foot,.style-note,.transcribe-helper,.cue-stats,.bottom-meta){color:var(--fs-muted,#68736a)}
+.app-shell.embedded :is(.workflow-step.current,.workflow-step.complete,.cue-row.selected,.rail-item.selected,.chip,.review-chip.active){background:var(--fs-selected,#e8ede6);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(input:not([type=range]):not([type=checkbox]):not([type=color]),textarea,select,.btn.outline,.btn.icon-help,.cue-pagination button){background:var(--fs-input,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(input,textarea,select):focus-visible{outline-color:var(--fs-focus,#729574);background:var(--fs-input,#fff)}
+.app-shell.embedded :is(.btn.primary,.play-button){background:var(--fs-accent,#455f49);color:var(--fs-on-accent,#fff)}
+.app-shell.embedded :is(.btn.outline:hover:not(:disabled),.cue-pagination button:hover:not(:disabled),.subtitle-search:focus-within){background:var(--fs-selected,#e8ede6);color:var(--fs-text,#292d27);border-color:var(--fs-focus,#729574)}
+.app-shell.embedded input:is([type=range],[type=checkbox]){accent-color:var(--fs-accent,#455f49)}
+.app-shell.embedded .side-tabs button.active{color:var(--fs-accent,#455f49)}
+.app-shell.embedded .side-tabs button.active::after{background:var(--fs-accent,#455f49)}
+.app-shell.embedded .empty-actions .btn.outline{background:#283b2e;border-color:#4a634f;color:#e6eee4}
