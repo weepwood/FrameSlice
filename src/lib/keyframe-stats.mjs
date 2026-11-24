@@ -1,4 +1,4 @@
-import {safeGopGroups,emptyCoverage} from './coverage.mjs'
+import {safeGopGroups,emptyCoverage,assertGopOrder} from './coverage.mjs'
 /**
  * Fixed-memory video packet statistics. No encoded bytes are retained.
  * A packet's timestamp is presentation time, while iteration is decode order.
@@ -69,7 +69,7 @@ export class VideoPacketStats {
     const trackCompatible = trackInfo.videoTracks === 1 && trackInfo.audioTracks <= 1 &&
       trackInfo.otherTracks === 0 && trackInfo.mp4Family
     const warnings = []
-    let safeKeyframeIndex=[];try{if(this.nonMonotonicKeyframes===0)safeKeyframeIndex=safeGopGroups(this.gops).map(g=>g.time)}catch{warnings.push('无法验证独立 GOP 边界，请勿使用手动无损切点。')}
+    let safeKeyframeIndex=[];try{if(this.nonMonotonicKeyframes===0){assertGopOrder(this.gops,this.duration);safeKeyframeIndex=safeGopGroups(this.gops).map(g=>g.time)}}catch{warnings.push('无法验证独立 GOP 边界，请勿使用手动无损切点。')}
     if(safeKeyframeIndex.length<this.keyframeIndex.length)warnings.push('存在开放 GOP 或不安全关键帧，手动切割仅显示已验证的安全边界。')
     if (!trackCompatible) warnings.push('当前文件的容器或轨道组成不满足现有 MP4 无损分割的要求。')
     if (this.firstKeyframe !== null && this.firstKeyframe > 0.05) warnings.push('视频起始位置没有关键帧，不能确保首段独立播放。')

@@ -43,7 +43,7 @@ FrameSlice 是基于 Vue 3、TypeScript、Vite 和 [Mediabunny](https://mediabun
 - 不支持的内嵌字幕、字体附件及章节 **不会隐式复制**；处理前必须显式确认可能丢失的轨道。
 - 使用独立 Web Worker、文件流式保存、输出后重新读取验证轨道与时长；原视频不上传，也不需要后端。
 
-**限制：** Mediabunny 当前不支持读取容器原有字幕轨；MKV 的 ASS/PGS、章节与附件完整保留功能尚未实现。输出文件中不能无损复制的轨道将报错，绝不默默丢轨或转码。首版软字幕只支持 MKV WebVTT，未提供 MP4 mov_text。
+**限制：** 内嵌字幕采用独立有界解析器，仅支持 MKV UTF-8/ASS 与非分片 MP4 tx3g 文本提取；ASS 不包含附件字体，tx3g 不保留样式，PGS、章节、附件及内嵌轨道完整复制尚未实现。输出文件中不能无损复制的轨道将报错，绝不默默丢轨或转码。首版软字幕只支持 MKV WebVTT，未提供 MP4 mov_text。
 
 详细实现、操作步骤和兼容性范围：[MKV 轨道工作台文档](docs/CONTAINER_WORKSPACE.md)。
 

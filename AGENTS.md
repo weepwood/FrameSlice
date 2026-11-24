@@ -68,3 +68,5 @@
 - 改动 split/coverage/verify 触发高风险 12GB CI；视觉基线从新 context 固定视口候选生成，记录哈希/浏览器版本，人工审核后方可作为基线。
 
 - 安全切割索引必须调用同一 safeGopGroups 规则，普通关键帧仍用于抽帧。清理标识仅在 batch lock 内、成功读取摘要时回收；IDB abort 不得部分删除。视觉审核必须校验真实遮罩节点。
+
+- v0.7.1 发布需批准视觉清单；CI 优先读取正式 Release 的基线 ZIP，发布前读取锁定 run artifact，核验所有 16 张 SHA 与浏览器版本，缺少/不匹配失败。发布 job 从 draft 上传基线后公开，不自动批准新候选。
