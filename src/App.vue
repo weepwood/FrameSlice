@@ -21,6 +21,7 @@ import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import MediaTimeline from './components/MediaTimeline.vue'
 import PanelResize from './components/PanelResize.vue'
+import MediaResourceLibrary from './components/MediaResourceLibrary.vue'
 import WorkbenchButton from './components/WorkbenchButton.vue'
 import {version} from '../package.json'
 import JobCenter from './components/JobCenter.vue'
@@ -562,7 +563,7 @@ onBeforeUnmount(() => {
         <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'captions' }" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span><span class="nav-index">03</span></button>
         <button type="button" class="nav-item" :class="{active:showJobs}" @click="showJobs=true;jobsVisited=true"><Layers2 :size="18"/><span>任务中心</span><span class="nav-index">04</span></button>
       </nav>
-      <section class="fs-media-library"><div class="fs-analysis-header"><strong>媒体资源</strong><WorkbenchButton label="添加媒体资源" :disabled="status==='running'" @click="importMedia">＋</WorkbenchButton></div><p v-if="!mediaLibrary.length" class="fs-analysis-disclaimer">导入本地视频，按需读取。</p><div v-for="(asset,i) in mediaLibrary" :key="i" class="fs-library-row" :class="{selected:asset===file}"><button type="button" :disabled="status==='running'||containerBusy" :title="asset.name" @click="loadFile(asset)"><FileVideo :size="15"/><span>{{asset.name}}<small>{{humanBytes(asset.size)}}</small></span></button><button type="button" :disabled="status==='running'||containerBusy" :aria-label="'移除 '+asset.name" @click="removeMedia(asset)">×</button></div></section>
+      <MediaResourceLibrary :assets="mediaLibrary" :current="file" :disabled="status==='running'||containerBusy" @import="importMedia" @select="loadFile" @remove="removeMedia"/>
       <PanelResize class="fs-left-resize" label="调整资源栏宽度" :value="leftWidth" :min="190" :max="320" side="left" @change="resizeLeft"/>
       <details class="fs-job-history">
         <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>

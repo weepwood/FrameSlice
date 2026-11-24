@@ -4,6 +4,8 @@ import {
   Output, StreamTarget, TextSubtitleSource,
 } from 'mediabunny'
 import type { InputTrack, InputVideoTrack, InputAudioTrack, OutputFormat } from 'mediabunny'
+import {splitVideo} from './split'
+import {mergeVideoOnly} from './merge'
 import { openInput } from './media'
 import { baseName, checkCanceled } from './format'
 import { probeMatroska } from './mkv-probe.mjs'
@@ -31,13 +33,14 @@ export interface ContainerInspection {
   warnings: string[]
 }
 export type ContainerFormat = 'mkv' | 'mp4' | 'flac' | 'mp3' | 'ogg'
-export type ContainerAction = 'extract' | 'package'
+export type ContainerAction = 'extract' | 'package' | 'trim' | 'merge'
 export interface ContainerOutput {
   filename: string
   bytes: number
   trackIds: string[]
   verified: true
   subtitleTrackAdded: boolean
+  subtitleTrackCount?:number
 }
 export interface ContainerOptions {
   file: File
@@ -46,6 +49,9 @@ export interface ContainerOptions {
   format: ContainerFormat
   selectedIds: string[]
   subtitle?: File | null
+  subtitles?:{file:File;language:string}[]
+  range?:{start:number;end:number}
+  mergeFiles?:File[]
   language?: string
   acknowledgeUnlisted: boolean
   signal: AbortSignal
@@ -133,7 +139,7 @@ function extensionForTrack(codec: string, kind: ContainerKind): { ext: string; f
   return { ext: 'mkv', format: 'mkv' }
 }
 
-async function verifyOutput(file: File, expected: InputTrack[], sourceDuration: number, needsSubtitle: boolean): Promise<void> {
+async function verifyOutput(file: File, expected: InputTrack[], sourceDuration: number, subtitleCount: number): Promise<void> {
   if (file.size <= 64) throw Error('输出过小，封装可能未完成。')
   const outputInput = openInput(file)
   try {
@@ -172,9 +178,9 @@ async function verifyOutput(file: File, expected: InputTrack[], sourceDuration: 
   } finally {
     outputInput.dispose()
   }
-  if (needsSubtitle) {
+  if (subtitleCount) {
     const mkv = await probeMatroska(file)
-    if (!mkv.foundTracks || !mkv.tracks.some(t => t.kind === 'subtitle' && t.codecId.includes('WEBVTT'))) {
+    if (!mkv.foundTracks || mkv.tracks.filter(t => t.kind === 'subtitle' && t.codecId.includes('WEBVTT')).length!==subtitleCount) {
       throw Error('封装后无法检测到 WebVTT 字幕轨道，已取消输出。')
     }
   }
@@ -185,7 +191,7 @@ async function exportOne(
   selected: InputTrack[],
   filename: string,
   format: ContainerFormat,
-  subtitle: { webvtt: string; count: number } | null,
+  subtitles: { webvtt: string; count: number; language:string; name:string }[],
 ): Promise<ContainerOutput> {
   const { file, folder, signal, onProgress, onFileStart } = options
   checkCanceled(signal)
@@ -208,7 +214,7 @@ async function exportOne(
   const selectedSet = new Set(selected.map(trackId))
   try {
     conversion = await Conversion.init({
-      input, output, copy: { mode: 'forced' }, composable: Boolean(subtitle),
+      input, output, copy: { mode: 'forced' }, composable: subtitles.length>0,
       video: (track: InputVideoTrack) => ({ discard: !selectedSet.has(trackId(track)) }),
       audio: (track: InputAudioTrack) => ({ discard: !selectedSet.has(trackId(track)) }),
     })
@@ -225,13 +231,12 @@ async function exportOne(
     signal.addEventListener('abort', onAbort, { once: true })
     try {
       conversion.onProgress = value => onProgress(value * .95, '正在无损复制压缩轨道…')
-      if (subtitle) {
-        const source = new TextSubtitleSource('webvtt')
-        output.addSubtitleTrack(source, { languageCode: options.language || 'zho', name: '字幕' })
+      if (subtitles.length) {
+        const sources=subtitles.map(subtitle=>{const source=new TextSubtitleSource('webvtt');output.addSubtitleTrack(source,{languageCode:subtitle.language,name:subtitle.name});return {source,subtitle}})
         await output.start()
         await Promise.all([
           conversion.execute(),
-          source.add(subtitle.webvtt).then(() => source.close()),
+          ...sources.map(({source,subtitle})=>source.add(subtitle.webvtt).then(()=>source.close())),
         ])
         await output.finalize()
       } else {
@@ -244,11 +249,11 @@ async function exportOne(
     checkCanceled(signal)
     const finished = await handle.getFile()
     onProgress(.96, '正在检查导出文件的轨道与时长…')
-    await verifyOutput(finished, selected, await input.computeDuration(), Boolean(subtitle))
+    await verifyOutput(finished, selected, await input.computeDuration(), subtitles.length)
     checkCanceled(signal)
     return {
       filename, bytes: finished.size, trackIds: selected.map(trackId),
-      verified: true, subtitleTrackAdded: Boolean(subtitle),
+      verified: true, subtitleTrackAdded: subtitles.length>0,subtitleTrackCount:subtitles.length,
     }
   } catch (error) {
     if (!finalized) await output.cancel().catch(() => {})
@@ -267,20 +272,21 @@ async function exportOne(
 export async function executeContainerTask(options: ContainerOptions): Promise<ContainerOutput[]> {
   const { file, selectedIds, action, format, signal, onProgress, onOutput } = options
   if (!options.folder) throw Error('必须选择本地输出目录。')
+  if(action==='merge'){const result=await mergeVideoOnly(options.mergeFiles??[],options.folder,signal,onProgress,options.onFileStart);const out:ContainerOutput={...result,trackIds:['video'],verified:true,subtitleTrackAdded:false};onOutput(out);return [out]}
+  if(action==='trim'){if(!options.range)throw Error('缺少截取区间');const results=await splitVideo({file,folder:options.folder,maxBytes:Number.MAX_SAFE_INTEGER,range:options.range,verificationLevel:'deep',signal,onProgress,onFileStart:options.onFileStart,onSegment:()=>{}});return results.map(part=>{const out:ContainerOutput={filename:part.filename,bytes:part.size,trackIds:['原音视频轨'],verified:true,subtitleTrackAdded:false};onOutput(out);return out})}
   if (!Array.isArray(selectedIds) || selectedIds.length === 0 || selectedIds.length > 64 ||
       new Set(selectedIds).size !== selectedIds.length) throw Error('请选择有效的媒体轨道。')
   if (!['extract', 'package'].includes(action) || !['mkv', 'mp4'].includes(format)) throw Error('不支持的处理任务。')
   if (/\.(mkv|webm)$/i.test(file.name) && !options.acknowledgeUnlisted) {
     throw Error('MKV 可能包含尚不能保留的字幕、字体或章节，请先确认轨道丢弃提示。')
   }
-  if (options.subtitle && action !== 'package') throw Error('只支持在重新封装模式下添加软字幕。')
-  if (options.subtitle && format !== 'mkv') throw Error('软字幕第一版仅支持写入 MKV。')
-  let subtitle: { webvtt: string; count: number } | null = null
-  if (options.subtitle) {
-    if (options.subtitle.size > 4_000_000) throw Error('SRT/VTT 字幕不得超过 4MB。')
-    const text = await options.subtitle.text()
-    subtitle = normalizeSubtitleText(text, options.subtitle.name.split('.').pop() || '')
-  }
+  const entries=options.subtitles??(options.subtitle?[{file:options.subtitle,language:options.language||'zho'}]:[])
+  if(entries.length>8||entries.reduce((n,s)=>n+s.file.size,0)>16_000_000)throw Error('最多 8 条字幕，总大小不超过 16MB')
+  if(entries.length&&(action!=='package'||format!=='mkv'))throw Error('多字幕软封装仅支持 MKV')
+  const subtitles=await Promise.all(entries.map(async ({file,language})=>{
+    if(file.size>4_000_000||!/^([a-z]{3})$/.test(language))throw Error('字幕大小或 ISO 639 语言代码无效')
+    return {...normalizeSubtitleText(await file.text(),file.name.split('.').pop()||''),language,name:baseName(file.name)}
+  }))
   const input = openInput(file)
   try {
   const available: InputTrack[] = await input.getTracks()
@@ -294,14 +300,14 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
     ? await Promise.all(selected.map(async track => {
       const codec = await track.getCodec()
       const output = extensionForTrack(codec || '', track.type as ContainerKind)
-      return { selected: [track], filename: `${base}_${track.type}_${track.id}.${output.ext}`, format: output.format, subtitle: null }
+      return { selected: [track], filename: `${base}_${track.type}_${track.id}.${output.ext}`, format: output.format, subtitles: [] }
     }))
-    : [{ selected, filename: `${base}_packaged.${format}`, format, subtitle }]
+    : [{ selected, filename: `${base}_packaged.${format}`, format, subtitles }]
   const results: ContainerOutput[] = []
   for (let i = 0; i < plan.length; i++) {
     checkCanceled(signal)
     const item = plan[i]
-    const result = await exportOne(options, item.selected, item.filename, item.format, item.subtitle)
+    const result = await exportOne(options, item.selected, item.filename, item.format, item.subtitles)
     results.push(result)
     onOutput(result)
     onProgress((i + 1) / plan.length, `已完成 ${i + 1} / ${plan.length} 个输出`)

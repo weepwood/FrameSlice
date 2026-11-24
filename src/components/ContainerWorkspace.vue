@@ -5,6 +5,7 @@ import {
   FileVideo, Folder, FolderOpen, LoaderCircle, PackageOpen, Play, Subtitles,
   X, ShieldCheck,
 } from 'lucide-vue-next'
+import MediaEditWorkspace from './MediaEditWorkspace.vue'
 import type { ContainerInspection, ContainerTrack, ContainerOutput, ContainerAction, ContainerFormat } from '../lib/container-ops'
 import { scanContainerInWorker, runContainerInWorker } from '../lib/container-client'
 import { chooseFolder, supportsFolderWrite, saveBlob } from '../lib/storage'
@@ -20,6 +21,8 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const subtitleInput = ref<HTMLInputElement | null>(null)
 const media = ref<File | null>(null)
 const subtitle = ref<File | null>(null)
+const additionalSubtitles=ref<{file:File;language:string}[]>([])
+function addSubtitles(){const input=document.createElement('input');input.type='file';input.multiple=true;input.accept='.srt,.vtt';input.onchange=()=>{for(const file of Array.from(input.files??[])){if(additionalSubtitles.value.length>=7)break;if(/\.(srt|vtt)$/i.test(file.name)&&file.size<=4000000)additionalSubtitles.value.push({file,language:'und'})}};input.click()}
 const report = ref<ContainerInspection | null>(null)
 const selectedIds = ref<string[]>([])
 const format = ref<ContainerFormat>('mkv')
@@ -41,7 +44,7 @@ const working = computed(() => stage.value === 'running' || stage.value === 'sca
 const canRun = computed(() =>
   !!media.value && !!report.value && !working.value && !!selectedIds.value.length &&
   confirmed.value && supportsFolderWrite() &&
-  (action.value !== 'package' || format.value !== 'mp4' || !subtitle.value),
+  (action.value !== 'package' || format.value !== 'mp4' || (!subtitle.value&&!additionalSubtitles.value.length)),
 )
 watch(working, value => emit('busy', value))
 
@@ -58,6 +61,7 @@ async function loadFile(next: File | null) {
   const currentRevision = ++revision
   media.value = next
   subtitle.value = null
+  additionalSubtitles.value=[]
   report.value = null
   selectedIds.value = []
   confirmed.value = false
@@ -110,7 +114,7 @@ function setAction(next: ContainerAction) {
   if (working.value) return
   action.value = next
   error.value = ''
-  if (next === 'extract') subtitle.value = null
+  if (next === 'extract'){subtitle.value = null;additionalSubtitles.value=[]}
 }
 async function pickFolder() {
   if (working.value) return
@@ -124,7 +128,7 @@ async function pickFolder() {
 async function start() {
   if (!media.value || !report.value || working.value || !selectedIds.value.length) return
   if (!confirmed.value) { error.value = '请先确认不支持的字幕、附件及章节不会被保留。'; return }
-  if (subtitle.value && (action.value !== 'package' || format.value !== 'mkv')) {
+  if ((subtitle.value||additionalSubtitles.value.length) && (action.value !== 'package' || format.value !== 'mkv')) {
     error.value = '带字幕封装目前只能选择 MKV。'; return
   }
   if (!folder.value) {
@@ -151,6 +155,7 @@ async function start() {
       format: format.value,
       selectedIds: selectedTracks,
       subtitle: subtitle.value,
+      subtitles:[...(subtitle.value?[{file:subtitle.value,language:language.value}]:[]),...additionalSubtitles.value.map(s=>({...s}))],
       language: language.value,
       acknowledgeUnlisted: confirmed.value,
     }, controller.signal, {
@@ -171,6 +176,7 @@ async function start() {
           sourceBytes: current.size, outputFormat: format.value,
           discardedUnsupportedTracksAcknowledged: confirmed.value,
           subtitleSource: subtitle.value?.name || null,
+          additionalSubtitles:additionalSubtitles.value.map(s=>({name:s.file.name,language:s.language})),
           selectedTrackIds: selectedTracks,
           results: outputs.value,
         }, null, 2)], { type: 'application/json' }),
@@ -266,6 +272,7 @@ onBeforeUnmount(() => cleanup())
             <button v-if="subtitle" type="button" class="ct-icon-btn" aria-label="移除外挂字幕" :disabled="working" @click="subtitle=null"><X :size="16"/></button>
           </div>
         </div>
+        <div v-if="action==='package'&&format==='mkv'" class="ct-option-row"><button type="button" class="secondary-button" :disabled="working||additionalSubtitles.length>=7" @click="addSubtitles">添加更多字幕轨</button></div><div v-for="(sub,i) in additionalSubtitles" :key="i" class="ct-file-note">{{sub.file.name}} <input v-model="sub.language" maxlength="3" :disabled="working" aria-label="附加字幕语言代码"/><button type="button" :disabled="working" class="secondary-button" @click="additionalSubtitles.splice(i,1)">移除</button></div>
         <div v-if="subtitle && action==='package'" class="ct-file-note">{{ subtitle.name }} · {{ humanBytes(subtitle.size) }} <span>语言代码：<input v-model="language" :disabled="working" maxlength="3" aria-label="字幕 ISO 639 语言代码"/></span></div>
         <div class="ct-warning">
           <AlertTriangle :size="17"/><div><strong>轨道保留范围</strong>
@@ -295,6 +302,7 @@ onBeforeUnmount(() => cleanup())
       <div v-for="out in outputs" :key="out.filename" class="ct-output"><CheckCircle2 :size="17"/><strong>{{ out.filename }}</strong><span>{{ humanBytes(out.bytes) }} · {{ out.subtitleTrackAdded ? '字幕轨已写入' : '轨道已校验' }}</span></div>
     </div>
     <div v-if="error" class="ct-error" role="alert"><AlertTriangle :size="16"/>{{ error }}</div>
+    <MediaEditWorkspace/>
     <div class="ct-footer"><ShieldCheck :size="14"/>本地处理，不上传视频；已输出文件会重新检查轨道数量、编码与时长。</div>
   </div>
 </template>

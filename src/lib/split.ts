@@ -8,7 +8,7 @@ import {
   StreamTarget,
 } from 'mediabunny'
 import { baseName, checkCanceled } from './format'
-import { planGroups, planGroupsByDuration,planManualGroups } from './planning.mjs'
+import { planGroups, planGroupsByDuration,planManualGroups,selectGopRange } from './planning.mjs'
 import { emptyCoverage, addCoverage, sumCoverage, assertCoverage, assertGopOrder, isLeadingAacPreroll } from './coverage.mjs'
 import type { ResumeJournal } from '../core/resume'
 import type { PacketCoverage } from './coverage.mjs'
@@ -52,6 +52,7 @@ export interface SplitOptions {
   planOnly?: boolean
   resume?:ResumeJournal
   manualCuts?:number[]
+  range?:{start:number;end:number}
   onPlan?: (entries: SplitPlanEntry[]) => void
   signal: AbortSignal
   onProgress: (fraction: number, label: string) => void
@@ -163,17 +164,18 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
         group.bytes += packet.byteLength
       }
     }
-    const packed = options.manualCuts?.length ? planManualGroups(groups,options.manualCuts) : maxSeconds === undefined
+    const range=options.range?selectGopRange(groups,duration,options.range.start,options.range.end):null
+    const packed = range?[range.groups]:options.manualCuts?.length ? planManualGroups(groups,options.manualCuts) : maxSeconds === undefined
       ? planGroups(groups, maxBytes)
       : planGroupsByDuration(groups, duration, maxSeconds)
     const segments: Segment[] = packed.map((section, index) => {
-      const nextStart = packed[index + 1]?.[0] ?? null
+      const nextStart = range?range.end:packed[index + 1]?.[0] ?? null
       return { start: section[0], end: nextStart,
         estimatedBytes: section.reduce((sum, g) => sum + g.bytes, 0),
         video: sumCoverage(section.map(g=>g.video)), audio:sumCoverage(section.map(g=>g.audio)) }
     })
-    if(options.manualCuts?.length&&segments.some(s=>s.estimatedBytes>maxBytes*.95))throw Error('手动片段预计超过文件大小限制，请增加切割点或提高上限')
-    options.onPlan?.(segments.map((s,i)=>({start:s.start.time,end:s.end?.time??duration,estimatedBytes:s.estimatedBytes,videoPackets:s.video.packets,audioPackets:s.audio.packets,...(i===0&&excludedPreroll.packets?{excludedPreroll}: {})})))
+    if((range||options.manualCuts?.length)&&segments.some(s=>s.estimatedBytes>maxBytes*.95))throw Error('手动片段预计超过文件大小限制，请增加切割点或提高上限')
+    options.onPlan?.(segments.map((s,i)=>({start:s.start.time,end:s.end?.time??duration,estimatedBytes:s.estimatedBytes,videoPackets:s.video.packets,audioPackets:s.audio.packets,...(i===0&&(!range||range.groups[0]===groups[0])&&excludedPreroll.packets?{excludedPreroll}: {})})))
     if (options.planOnly) return []
     if (!folder) throw Error('必须选择输出目录。')
     report(0.12, `已找到 ${segments.length} 个片段；开始无损封装…`, true)
@@ -306,7 +308,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
           expectedAudio: sourceAudioFingerprint?.digest(),
         })
         checkCanceled(signal)
-        const result: SplitResult = { filename, size: finalFile.size, start: startTime, end: endTime, verification, ...(i===0&&excludedPreroll.packets?{excludedPreroll}:{}) }
+        const result: SplitResult = { filename, size: finalFile.size, start: startTime, end: endTime, verification, ...(i===0&&(!range||range.groups[0]===groups[0])&&excludedPreroll.packets?{excludedPreroll}:{}) }
         await options.resume?.commit(filename,result)
         results.push(result)
         committed = true

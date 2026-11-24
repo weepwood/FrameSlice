@@ -66,3 +66,6 @@ export function planManualGroups(groups,cuts){
  for(const cut of requested){const i=indexes.get(cut);if(!Number.isFinite(cut)||i===undefined||i<=start)throw Error('手动切割点不是有效关键帧边界');result.push(groups.slice(start,i));start=i}
  result.push(groups.slice(start));return result
 }
+
+/** Exact start/end boundaries, end is exclusive. */
+export function selectGopRange(groups,duration,start,end){if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>duration)throw Error('截取区间无效');const i=groups.findIndex(g=>g.time===start),j=end===duration?groups.length:groups.findIndex(g=>g.time===end);if(i<0||j<=i)throw Error('起点和终点必须是实际 GOP 边界（终点也可为视频结束）');return {groups:groups.slice(i,j),end:groups[j]??null}}
