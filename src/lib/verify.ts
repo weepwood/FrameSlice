@@ -90,7 +90,7 @@ async function verifyCoverage(sink:EncodedPacketSink,expected:PacketCoverage,sig
   assertCoverage(expected,actual,label)
 }
 
-async function fingerprintTrack(sink: EncodedPacketSink, signal: AbortSignal): Promise<PacketDigest> {
+export async function fingerprintTrack(sink: EncodedPacketSink, signal: AbortSignal): Promise<PacketDigest> {
   const checksum = new PacketFingerprint()
   let packets = 0
   for await (const packet of sink.packets()) {
@@ -105,7 +105,7 @@ async function fingerprintTrack(sink: EncodedPacketSink, signal: AbortSignal): P
   return checksum.digest()
 }
 
-function compareFingerprints(expected: PacketDigest | undefined, actual: PacketDigest, label: string) {
+export function compareFingerprints(expected: PacketDigest | undefined, actual: PacketDigest, label: string) {
   if (!expected || expected.packets !== actual.packets ||
       expected.bytes !== actual.bytes || expected.crc32 !== actual.crc32) {
     throw new Error(`深度校验失败：${label}的媒体包数、字节数或 CRC32 与原始数据不一致。`)

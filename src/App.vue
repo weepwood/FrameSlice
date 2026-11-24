@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
-  FileVideo, Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
+  Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
   LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
   Upload, X, Zap, AlertTriangle, Monitor, Film, HardDrive, Settings2,
 } from 'lucide-vue-next'
@@ -20,8 +20,9 @@ import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import MediaTimeline from './components/MediaTimeline.vue'
-import PanelResize from './components/PanelResize.vue'
+import {SplitterGroup,SplitterPanel,SplitterResizeHandle} from 'reka-ui'
 import MediaResourceLibrary from './components/MediaResourceLibrary.vue'
+import MediaResults from './components/MediaResults.vue'
 import WorkbenchButton from './components/WorkbenchButton.vue'
 import {version} from '../package.json'
 import JobCenter from './components/JobCenter.vue'
@@ -59,8 +60,11 @@ const mediaLibrary=ref<File[]>([])
 const leftWidth=ref(232),rightWidth=ref(288),inspectorOpen=ref(true)
 try{const p=JSON.parse(localStorage.getItem('frameslice.layout')??'{}');if(Number.isFinite(p.left))leftWidth.value=Math.min(320,Math.max(190,p.left));if(Number.isFinite(p.right))rightWidth.value=Math.min(400,Math.max(240,p.right));if(typeof p.inspector==='boolean')inspectorOpen.value=p.inspector}catch{}
 function saveLayout(){try{localStorage.setItem('frameslice.layout',JSON.stringify({left:leftWidth.value,right:rightWidth.value,inspector:inspectorOpen.value}))}catch{}}
-function resizeLeft(n:number){leftWidth.value=n;saveLayout()}
-function resizeRight(n:number){rightWidth.value=n;saveLayout()}
+const mediaQuery=window.matchMedia('(min-width:1141px)')
+const wideLayout=ref(mediaQuery.matches)
+function onViewport(e:MediaQueryListEvent){wideLayout.value=e.matches}
+onMounted(()=>mediaQuery.addEventListener('change',onViewport))
+onBeforeUnmount(()=>mediaQuery.removeEventListener('change',onViewport))
 function importMedia(){const input=document.createElement('input');input.type='file';input.multiple=true;input.accept='video/*,.mp4,.mov,.mkv,.webm';input.onchange=()=>{const files=Array.from(input.files??[]).slice(0,50);for(const item of files)if(mediaLibrary.value.length<50)mediaLibrary.value.push(item);if(!file.value&&files[0])void loadFile(files[0])};input.click()}
 function removeMedia(item:File){if(file.value===item)clearFile();mediaLibrary.value=mediaLibrary.value.filter(f=>f!==item)}
 const info = ref<VideoInfo | null>(null)
@@ -546,8 +550,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell fs-workbench" :class="{ 'caption-active': mode === 'captions'&&!showJobs, 'jobs-active':showJobs, 'inspector-hidden':!inspectorOpen }" :style="{'--fs-left-width':leftWidth+'px','--fs-right-width':rightWidth+'px'}">
-    <aside class="sidebar">
+  <SplitterGroup id="frameslice-workbench" direction="horizontal" auto-save-id="frameslice-workbench-v2" :keyboard-resize-by="1" class="app-shell fs-workbench fs-reka-workbench" :class="{ 'caption-active': mode === 'captions'&&!showJobs, 'jobs-active':showJobs, 'inspector-hidden':!inspectorOpen }" :style="{'--fs-left-width':leftWidth+'px','--fs-right-width':rightWidth+'px'}">
+    <SplitterPanel id="frameslice-resources" :order="1" size-unit="px" :default-size="leftWidth" :min-size="190" :max-size="320" as="aside" class="sidebar">
       <div class="identity">
         <div class="mark"><span></span><span></span><span></span></div>
         <div class="brand-lockup"><strong>FrameSlice</strong><small>MEDIA UTILITY</small></div>
@@ -564,7 +568,7 @@ onBeforeUnmount(() => {
         <button type="button" class="nav-item" :class="{active:showJobs}" @click="showJobs=true;jobsVisited=true"><Layers2 :size="18"/><span>任务中心</span><span class="nav-index">04</span></button>
       </nav>
       <MediaResourceLibrary :assets="mediaLibrary" :current="file" :disabled="status==='running'||containerBusy" @import="importMedia" @select="loadFile" @remove="removeMedia"/>
-      <PanelResize class="fs-left-resize" label="调整资源栏宽度" :value="leftWidth" :min="190" :max="320" side="left" @change="resizeLeft"/>
+
       <details class="fs-job-history">
         <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>
         <div v-if="!recentJobs.length" class="fs-job-empty">暂无任务</div>
@@ -584,9 +588,9 @@ onBeforeUnmount(() => {
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
         <WorkbenchButton :label="inspectorOpen?'隐藏检查器':'显示检查器'" @click="inspectorOpen=!inspectorOpen;saveLayout()">{{inspectorOpen?'隐藏检查器':'显示检查器'}}</WorkbenchButton><div class="sidebar-version">FRAMESLICE / V{{version}}</div>
       </div>
-    </aside>
-
-    <main class="workspace">
+    </SplitterPanel>
+    <SplitterResizeHandle id="frameslice-resource-handle" class="fs-reka-handle" aria-label="调整资源栏宽度" :disabled="!wideLayout"/>
+    <SplitterPanel id="frameslice-editor" :order="2" :min-size="30" as="main" class="workspace">
       <header class="topbar">
         <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ showJobs?'任务中心':mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
         <div class="top-actions"><span class="privacy-indicator"><span></span> LOCAL ONLY</span><span class="header-separator"></span><span class="browser-label"><Monitor :size="14"/> Desktop</span></div>
@@ -742,7 +746,7 @@ onBeforeUnmount(() => {
         <section v-if="status !== 'idle'" class="result-section" aria-live="polite">
           <div class="step-head"><span class="step-number">03</span><h2>任务结果</h2><span class="step-description">{{ status === 'running' ? '处理中' : status === 'done' ? '处理完毕' : '状态信息' }}</span></div>
           <div class="status-card" :class="{ success: status === 'done', failure: status === 'error' }"><div class="status-card-head"><div class="status-icon"><BadgeCheck v-if="status === 'done'" :size="19"/><AlertTriangle v-else-if="status === 'error'" :size="19"/><CircleHelp v-else-if="status === 'canceled'" :size="19"/><RotateCcw v-else :size="19" class="rotating"/></div><div class="status-details"><strong>{{ status === 'running' ? '正在处理' : status === 'done' ? '任务完成' : status === 'canceled' ? '任务已取消' : '处理失败' }}</strong><span>{{ progressLabel }}</span></div><div class="status-percent">{{ progressPercent }}%</div></div><div class="progress-track"><div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div></div><p v-if="lastJobFolder" class="output-path">保存目录：{{ lastJobFolder }}</p><p v-if="jobElapsedMs > 0" class="output-path">后台处理耗时：{{ (jobElapsedMs / 1000).toFixed(1) }} 秒</p><p v-if="errorText" class="status-error">{{ errorText }}</p><button v-if="status === 'error' || status === 'canceled'" type="button" class="text-button" @click="retry">重新配置任务 <ArrowRight :size="14"/></button></div>
-          <div v-if="parts.length" class="result-list"><div v-for="item in parts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div>
+          <MediaResults :parts="parts" :frames="frames" @save="savePreview"/>
           <div v-if="status === 'done' && (exportReportJson || frames.length)" class="fs-result-tools">
             <button v-if="exportReportJson" type="button" class="fs-tool-button" @click="downloadManifest">
               <ArrowDownToLine :size="15"/> 导出处理报告 JSON
@@ -756,16 +760,17 @@ onBeforeUnmount(() => {
           <p v-if="filteredCount" class="fs-analysis-disclaimer">已主动过滤 {{filteredCount}} 张相似或无明显场景变化的候选画面，不计为遗漏。</p>
           <p v-if="missedFrames.length" class="fs-analysis-warning">有 {{missedFrames.length}} 个时间点重试后仍无画面，详见 JSON 报告：{{missedFrames.slice(0,10).map(t=>t.toFixed(3)+'s').join('、')}}</p>
           <p v-if="storyboardError" class="fs-analysis-warning">{{ storyboardError }}</p>
-          <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}<small v-if="item.sharpness!==undefined"> · Q {{item.sharpness.toFixed(1)}}</small></span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
+
         </section>
 
         <div v-if="errorText && status === 'idle'" class="inline-error"><AlertTriangle :size="17"/><span>{{ errorText }}</span><button type="button" @click="errorText = ''" aria-label="关闭"><X :size="16"/></button></div>
         </div>
         <footer class="footer"><span>FrameSlice — Process locally, keep control.</span><span><LockKeyhole :size="13"/> 文件始终保留在你的设备上</span></footer>
       </div>
-    </main>
-    <aside v-show="inspectorOpen && !showJobs && mode !== 'captions'" class="right-panel"><PanelResize class="fs-right-resize" label="调整检查器宽度" :value="rightWidth" :min="240" :max="400" side="right" @change="resizeRight"/><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></aside>
-  </div>
+    </SplitterPanel>
+    <SplitterResizeHandle v-if="wideLayout&&inspectorOpen&&!showJobs&&mode!=='captions'" id="frameslice-inspector-handle" class="fs-reka-handle" aria-label="调整检查器宽度"/>
+    <SplitterPanel v-if="wideLayout&&inspectorOpen&&!showJobs&&mode!=='captions'" id="frameslice-inspector" :order="3" size-unit="px" :default-size="rightWidth" :min-size="240" :max-size="400" as="aside" class="right-panel"><div class="right-panel-inner"><div class="right-eyebrow"><Settings2 :size="14"/> WORKFLOW NOTES</div><h3>简洁、快速、<br/>私密的视频工具。</h3><p>视频文件直接从本地读取。你可以处理数 GB 的视频，而不必等待上传。</p><div class="rule"></div><div class="side-section-title">处理流程</div><div class="workflow-step"><span>01</span><div><strong>选择文件</strong><p>浏览器按需读取本地内容</p></div></div><div class="workflow-step"><span>02</span><div><strong>设置参数</strong><p>分割大小或截图时间间隔</p></div></div><div class="workflow-step"><span>03</span><div><strong>直接保存</strong><p>流式写入电脑指定目录</p></div></div><div class="rule"></div><div class="side-tip"><HardDrive :size="19"/><div><strong>大型文件提示</strong><p>处理 12GB 视频时，请预留至少 12GB 以上的输出空间和一定的临时空间，并保持标签页开启。</p></div></div><div class="side-privacy"><LockKeyhole :size="15"/><span>NO UPLOADS. NO ACCOUNTS.</span></div></div></SplitterPanel>
+  </SplitterGroup>
 </template>
 
 <style scoped>

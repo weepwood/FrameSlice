@@ -1,0 +1,28 @@
+name: Reka UI 固定版本依赖预审
+on:
+  pull_request:
+    branches: [feat/v07-media-task-foundation]
+    paths: ['.github/workflows/reka-lock-review.yml']
+permissions:
+  contents: read
+jobs:
+  lock-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 生成候选 lockfile（不修改远端）
+        run: |
+          cp package-lock.json /tmp/frameslice-lock-before.json
+          npm install --package-lock-only --ignore-scripts --save-exact reka-ui@2.11.0
+          npm audit --omit=dev --audit-level=high
+          node --input-type=module -e 'import fs from "node:fs";const a=JSON.parse(fs.readFileSync("/tmp/frameslice-lock-before.json")),b=JSON.parse(fs.readFileSync("package-lock.json"));const changed=Object.fromEntries(Object.entries(b.packages).filter(([k,v])=>JSON.stringify(v)!==JSON.stringify(a.packages[k])));console.log("REKA_LOCK_DELTA "+JSON.stringify({changed,removed:Object.keys(a.packages).filter(k=>!(k in b.packages))}));'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reka-lock-candidate
+          path: |
+            package.json
+            package-lock.json

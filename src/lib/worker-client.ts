@@ -135,7 +135,7 @@ export function runWorkerJob(
         case 'error':
           fail(message.canceled || signal.aborted
             ? new DOMException(message.message, 'AbortError')
-            : new Error(message.message))
+            : new DOMException(message.message,message.errorName||'OperationError'))
           break
       }
     }
@@ -177,7 +177,7 @@ export function inspectWithWorker(file: File, signal: AbortSignal): Promise<Vide
       const message = event.data
       if (message.id !== 1) return
       if (message.kind === 'inspected') settle(() => resolve(message.info))
-      if (message.kind === 'error') settle(() => reject(new Error(message.message)))
+      if (message.kind === 'error') settle(() => reject(new DOMException(message.message,message.errorName||'OperationError')))
     }
     worker.onerror = event => settle(() => reject(new Error('读取媒体信息时处理线程异常：' + event.message)))
     worker.onmessageerror = () => settle(() => reject(new Error('媒体信息在 Worker 与网页之间传输失败。')))
@@ -225,7 +225,7 @@ export function analyzeWithWorker(
         case 'error':
           finish(() => reject(message.canceled || signal.aborted
             ? new DOMException(message.message, 'AbortError')
-            : new Error(message.message)))
+            : new DOMException(message.message,message.errorName||'OperationError')))
           break
       }
     }

@@ -5,6 +5,7 @@ import {
 } from 'mediabunny'
 import type { InputTrack, InputVideoTrack, InputAudioTrack, OutputFormat } from 'mediabunny'
 import {splitVideo} from './split'
+import {inspectMp4Handlers} from './mp4-track-guard'
 import {mergeVideoOnly} from './merge'
 import { openInput } from './media'
 import { baseName, checkCanceled } from './format'
@@ -41,6 +42,7 @@ export interface ContainerOutput {
   verified: true
   subtitleTrackAdded: boolean
   subtitleTrackCount?:number
+  excludedAacPreroll?:{packets:number;bytes:number}
 }
 export interface ContainerOptions {
   file: File
@@ -52,6 +54,7 @@ export interface ContainerOptions {
   subtitles?:{file:File;language:string}[]
   range?:{start:number;end:number}
   mergeFiles?:File[]
+  allowAacPreroll?:boolean
   language?: string
   acknowledgeUnlisted: boolean
   signal: AbortSignal
@@ -113,6 +116,10 @@ export async function inspectContainer(file: File): Promise<ContainerInspection>
       if (mkv.attachments) warnings.push('检测到 MKV 附件；此版本重封装不会保留附件。')
       if (mkv.chapters) warnings.push('检测到章节；此版本重封装不会保留章节。')
     }
+    if (/\.(mp4|mov|m4v|m4a)$/i.test(file.name)) {
+    try{const handlers=await inspectMp4Handlers(file);for(const [i,handler] of handlers.entries())if(handler!=='vide'&&handler!=='soun')result.push({id:'mp4-handler:'+i,kind:'subtitle',codec:handler,codecLabel:handler,language:'und',name:'',detail:'内嵌字幕或其他轨道：尚不能复制',selectable:false});if(handlers.some(h=>h!=='vide'&&h!=='soun'))warnings.push('MP4 包含尚不支持的内嵌字幕或其他轨道，重封装不会保留。')}
+    catch{warnings.push('无法独立验证 MP4 轨道表，请谨慎处理。')}
+  }
     if (!Number.isFinite(duration) || duration <= 0) warnings.push('媒体时长无法确认，请谨慎操作。')
     return { name: file.name, size: file.size, duration, tracks: result, mkv, warnings }
   } finally {
@@ -272,7 +279,7 @@ async function exportOne(
 export async function executeContainerTask(options: ContainerOptions): Promise<ContainerOutput[]> {
   const { file, selectedIds, action, format, signal, onProgress, onOutput } = options
   if (!options.folder) throw Error('必须选择本地输出目录。')
-  if(action==='merge'){const result=await mergeVideoOnly(options.mergeFiles??[],options.folder,signal,onProgress,options.onFileStart);const out:ContainerOutput={...result,trackIds:['video'],verified:true,subtitleTrackAdded:false};onOutput(out);return [out]}
+  if(action==='merge'){const result=await mergeVideoOnly(options.mergeFiles??[],options.folder,signal,onProgress,options.onFileStart,options.allowAacPreroll===true);const out:ContainerOutput={...result,trackIds:result.trackIds,verified:true,subtitleTrackAdded:false};onOutput(out);return [out]}
   if(action==='trim'){if(!options.range)throw Error('缺少截取区间');const results=await splitVideo({file,folder:options.folder,maxBytes:Number.MAX_SAFE_INTEGER,range:options.range,verificationLevel:'deep',signal,onProgress,onFileStart:options.onFileStart,onSegment:()=>{}});return results.map(part=>{const out:ContainerOutput={filename:part.filename,bytes:part.size,trackIds:['原音视频轨'],verified:true,subtitleTrackAdded:false};onOutput(out);return out})}
   if (!Array.isArray(selectedIds) || selectedIds.length === 0 || selectedIds.length > 64 ||
       new Set(selectedIds).size !== selectedIds.length) throw Error('请选择有效的媒体轨道。')
@@ -290,6 +297,7 @@ export async function executeContainerTask(options: ContainerOptions): Promise<C
   const input = openInput(file)
   try {
   const available: InputTrack[] = await input.getTracks()
+  if(/\.(mp4|mov|m4v|m4a)$/i.test(file.name)&&!options.acknowledgeUnlisted){const handlers=await inspectMp4Handlers(file);if(handlers.length!==available.length||handlers.some(h=>h!=='vide'&&h!=='soun'))throw Error('MP4 存在未支持轨道，必须明确确认不保留。')}
   const selected = available.filter(t => selectedIds.includes(trackId(t)))
   if (selected.length !== selectedIds.length ||
     selected.some(t => t.type !== 'video' && t.type !== 'audio')) {

@@ -25,7 +25,7 @@ export function loadResumeSession(id:string){return read<ResumeSession>('session
 export async function authorizeResumeFolder(folder:FileSystemDirectoryHandle):Promise<void>{
  const h=folder as FileSystemDirectoryHandle & {queryPermission?:(o:{mode:'readwrite'})=>Promise<PermissionState>;requestPermission?:(o:{mode:'readwrite'})=>Promise<PermissionState>}
  if(!h.queryPermission||await h.queryPermission({mode:'readwrite'})==='granted')return
- if(!h.requestPermission||await h.requestPermission({mode:'readwrite'})!=='granted')throw Error('原输出目录授权已失效')
+ if(!h.requestPermission||await h.requestPermission({mode:'readwrite'})!=='granted')throw new DOMException('原输出目录授权已失效，请重新授权','NotAllowedError')
 }
 export class ResumeJournal {
  constructor(private session:ResumeSession,private signal:AbortSignal){}
@@ -50,4 +50,26 @@ export class ResumeJournal {
   const file=await (await this.session.folder.getFileHandle(name)).getFile()
   await write('outputs',[this.session.id,name],{name,bytes:file.size,digest:await fullFingerprint(file,this.signal),part})
  }
+}
+
+/** Deletes only metadata and persisted handle references; never calls removeEntry on user folders. */
+export async function forgetResumeSession(id:string):Promise<void>{
+ if(!navigator.locks)throw Error('浏览器不支持安全清理互斥锁')
+ await navigator.locks.request('frameslice-resume-'+id,{ifAvailable:true},async lock=>{
+  if(!lock)throw Error('任务仍在执行，不能清除检查点')
+  const db=await open()
+  try{await new Promise<void>((resolve,reject)=>{
+   const tx=db.transaction(['sessions','outputs'],'readwrite')
+   tx.objectStore('sessions').delete(id)
+   const req=tx.objectStore('outputs').openCursor(IDBKeyRange.bound([id],[id,[]],false,true))
+   req.onsuccess=()=>{const cursor=req.result;if(cursor){cursor.delete();cursor.continue()}}
+   req.onerror=()=>tx.abort()
+   tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error??Error('检查点清理中止'))
+  })}finally{db.close()}
+ })
+}
+export async function resumePermission(id:string):Promise<PermissionState|'missing'>{
+ const session=await loadResumeSession(id);if(!session)return 'missing'
+ const h=session.folder as FileSystemDirectoryHandle & {queryPermission?:(o:{mode:'readwrite'})=>Promise<PermissionState>}
+ return h.queryPermission?await h.queryPermission({mode:'readwrite'}):'granted'
 }

@@ -189,3 +189,25 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(
 .fs-workbench .sidebar,.fs-workbench .right-panel{position:relative}.fs-workbench .sidebar{position:sticky;overflow-y:auto;overflow-x:hidden}.fs-media-library{min-height:0;max-height:26vh;overflow:auto;margin:12px 0;font-size:12px}.fs-media-library .fs-analysis-header{padding:4px 6px}.fs-library-row{display:flex;align-items:center;border-radius:var(--fs-radius);gap:4px;margin:2px 0;padding:3px;color:var(--fs-text)}.fs-library-row.selected,.fs-library-row:hover{background:var(--fs-selected)}.fs-library-row button{background:none;border:0;color:inherit;cursor:pointer;min-width:0;padding:6px;display:flex;align-items:center;gap:6px;text-align:left}.fs-library-row button:first-child{flex:1}.fs-library-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fs-library-row small{display:block;color:var(--fs-muted);font-size:10px}.fs-panel-resize{display:none;position:absolute;top:0;bottom:0;width:7px;z-index:10;cursor:col-resize;touch-action:none}.fs-panel-resize:hover,.fs-panel-resize:focus-visible{background:var(--fs-focus);opacity:.55}.fs-left-resize{right:0}.fs-right-resize{left:0}.fs-workbench .fs-job-history{flex-shrink:0}.fs-workbench .workspace{min-width:0}.fs-workbench .sidebar-bottom{gap:8px}.fs-timeline-toolbar input[type=number]{width:90px;background:var(--fs-input);color:var(--fs-text);border:1px solid var(--fs-border);border-radius:var(--fs-radius);padding:5px}.frame-caption small{color:var(--fs-muted)}
 @media(min-width:1141px){.fs-workbench:not(.caption-active):not(.jobs-active):not(.inspector-hidden){grid-template-columns:var(--fs-left-width) minmax(0,1fr) var(--fs-right-width)}.fs-workbench.caption-active,.fs-workbench.jobs-active,.fs-workbench.inspector-hidden{grid-template-columns:var(--fs-left-width) minmax(0,1fr)}.fs-panel-resize{display:block}}
 @media(max-width:720px){.fs-media-library{max-height:130px}.fs-workbench .sidebar{position:static}}
+
+/* Real screenshot review: replace light-only execution/results surfaces. */
+.execution,.status-card.success,.status-card.failure,.frame-tile,.frame-caption,.execution-summary{background:var(--fs-surface);color:var(--fs-text);border-color:var(--fs-border)}
+.execution-summary>div+div,.config-row{border-color:var(--fs-border)}
+.status-card.failure .status-icon{color:var(--fs-danger);background:var(--fs-selected)}
+.status-icon,.setting-icon,.result-file-icon,.frame-download{background:var(--fs-selected);color:var(--fs-accent)}
+.status-percent,.frame-caption span,.result-size{color:var(--fs-text)}
+.progress-track{background:var(--fs-selected)}
+@media(max-width:720px){.fs-workbench .sidebar-nav{flex-wrap:wrap}.fs-workbench .sidebar-bottom{display:flex;flex-wrap:wrap}.fs-workbench .sidebar-bottom .fs-job-history{display:none}.fs-workbench .sidebar-bottom .fs-theme-select{width:100%}}
+
+/* Remaining white strip in dark frame settings: native form and inline config surfaces. */
+.fs-workbench :is(.config-footnote,.config-panel input:not([type=range]):not([type=checkbox]),.config-panel select,.number-input,.select-wrap){background:var(--fs-input);color:var(--fs-text);border-color:var(--fs-border)}
+.fs-workbench .config-footnote{background:var(--fs-surface);color:var(--fs-muted)}
+
+.fs-reka-workbench{display:flex!important;min-height:100vh;height:auto!important;overflow:visible!important;align-items:stretch}
+.fs-reka-workbench>.sidebar{overflow:auto!important;min-width:0;flex-shrink:0}
+.fs-reka-workbench>.workspace,.fs-reka-workbench>.right-panel{overflow:visible!important;min-width:0}
+.fs-reka-handle{flex:0 0 6px;background:transparent;cursor:col-resize;outline:0;touch-action:none;position:relative;z-index:10}
+.fs-reka-handle:after{content:'';position:absolute;inset:0 2px;background:var(--fs-border)}
+.fs-reka-handle:hover:after,.fs-reka-handle:focus-visible:after,.fs-reka-handle[data-state=drag]:after{inset:0;background:var(--fs-focus)}
+@media(max-width:1140px){.fs-reka-workbench{display:grid!important;grid-template-columns:205px minmax(0,1fr)!important}.fs-reka-workbench>.fs-reka-handle{display:none!important}.fs-reka-workbench>.sidebar,.fs-reka-workbench>.workspace{flex:none!important;min-width:0!important;max-width:none!important;width:auto!important;overflow:visible!important}}
+@media(max-width:800px){.fs-reka-workbench{display:block!important}.fs-reka-workbench>.sidebar{height:auto!important;min-height:0!important;position:static!important}}

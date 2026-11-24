@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import {
-  Input, BlobSource, ALL_FORMATS, Conversion, Output, BufferTarget, MkvOutputFormat,
+  Input, BlobSource, ALL_FORMATS, Conversion, Output, BufferTarget, MkvOutputFormat, Mp4OutputFormat, EncodedPacket, EncodedPacketSink, EncodedVideoPacketSource, EncodedAudioPacketSource,
 } from 'mediabunny'
 import { probeMatroska } from '../src/lib/mkv-probe.mjs'
 import { normalizeSubtitleText } from '../src/lib/subtitle-track.mjs'
@@ -143,5 +143,29 @@ test('external SRT is written as MKV WebVTT track and verified', { timeout: 75_0
  const subtitle=(name,text)=>new File(['1\n00:00:00,000 --> 00:00:01,000\n'+text+'\n'],name)
  const result=await executeContainerTask({...options,subtitles:[{file:subtitle('en.srt','Hello'),language:'eng'},{file:subtitle('zh.srt','你好'),language:'zho'}]})
  assert.equal(result[0].subtitleTrackCount,2)
- await assert.rejects(executeContainerTask({...options,action:'merge',mergeFiles:[mp4,mp4]}),/无音轨/)
+ await assert.rejects(executeContainerTask({...options,action:'merge',mergeFiles:[mp4,mp4]}),/前置包|负时间戳|时间区间|音频存在|首帧时间/)
+})
+
+test('strict multi-audio merge preserves real encoded packets and track counts', {timeout:75000},async t=>{
+ const original=await fixture(),input=new Input({source:new BlobSource(original),formats:ALL_FORMATS})
+ const target=new BufferTarget(),output=new Output({format:new Mp4OutputFormat(),target})
+ try{
+  const v=await input.getPrimaryVideoTrack(),a=await input.getPrimaryAudioTrack()
+  const vp=await new EncodedPacketSink(v).getFirstPacket(),ap=await new EncodedPacketSink(a).getFirstPacket()
+  const vs=new EncodedVideoPacketSource(await v.getCodec()),as1=new EncodedAudioPacketSource(await a.getCodec()),as2=new EncodedAudioPacketSource(await a.getCodec())
+  output.addVideoTrack(vs);output.addAudioTrack(as1,{languageCode:'eng'});output.addAudioTrack(as2,{languageCode:'zho'})
+  await output.start()
+  const d=ap.duration
+  assert.ok(d>0);assert.equal(vp.type,'key')
+  // Build an aligned one-frame clip from actual compressed H.264/AAC packets.
+  await Promise.all([vs.add(new EncodedPacket(vp.data,'key',0,d,0,vp.byteLength,vp.sideData),{decoderConfig:await v.getDecoderConfig()}).then(()=>vs.close()),... [as1,as2].map(async source=>{await source.add(new EncodedPacket(ap.data,ap.type,0,d,0,ap.byteLength,ap.sideData),{decoderConfig:await a.getDecoderConfig()});source.close()})])
+  await output.finalize()
+ }finally{input.dispose()}
+ const clip=new File([target.buffer],'aligned.mp4',{type:'video/mp4'}),out=join(process.cwd(),'.frameslice-merge-'+process.pid+'.mjs');t.after(()=>rm(out,{force:true}))
+ await build({entryPoints:['src/lib/container-ops.ts'],bundle:true,platform:'node',format:'esm',packages:'external',outfile:out})
+ const {executeContainerTask}=await import(pathToFileURL(out).href),folder=directoryMock()
+ const result=await executeContainerTask({file:clip,folder,action:'merge',format:'mp4',selectedIds:[],mergeFiles:[clip,clip],acknowledgeUnlisted:false,signal:new AbortController().signal,onProgress(){},onFileStart(){},onOutput(){}})
+ assert.equal(result[0].trackIds.length,3)
+ const merged=new Input({source:new BlobSource(new File([folder.files.get(result[0].filename).bytes],'merged.mp4')),formats:ALL_FORMATS})
+ try{assert.equal((await merged.getAudioTracks()).length,2);assert.equal((await merged.getVideoTracks()).length,1)}finally{merged.dispose()}
 })
