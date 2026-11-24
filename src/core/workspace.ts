@@ -53,7 +53,7 @@ export class WorkspaceRuntime {
   constructor(private storage?: StoragePort, journal?:JobJournal) {
     this.journal=journal
     try {
-      this.journalTimestamp=Number(storage?.getItem(HISTORY_KEY+'.timestamp')??0)||0
+      this.journalTimestamp=journal?0:Number(storage?.getItem(HISTORY_KEY+'.timestamp')??0)||0
       const saved: unknown = JSON.parse(storage?.getItem(HISTORY_KEY) ?? '[]')
       if (Array.isArray(saved)) this.jobs = saved.filter(j => j && typeof j.id === 'string' && typeof j.asset?.name === 'string' && typeof j.status === 'string').slice(0, 100).map(j => active(j.status) ? {...j, status:'interrupted', endedAt:Date.now(), label:'上次页面关闭时任务未完成'} : j)
     } catch { /* storage is optional */ }

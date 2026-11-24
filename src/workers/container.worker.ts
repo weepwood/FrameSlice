@@ -12,7 +12,7 @@ type Reply =
   | { kind: 'started'; id: number; filename: string }
   | { kind: 'output'; id: number; result: ContainerOutput }
   | { kind: 'done'; id: number; count: number }
-  | { kind: 'error'; id: number; canceled: boolean; message: string }
+  | { kind: 'error'; id: number; canceled: boolean; message: string; errorName?:string }
 
 const scope = self as unknown as {
   postMessage: (message: Reply) => void
@@ -47,7 +47,7 @@ scope.onmessage = (event: MessageEvent<Command>) => {
       }
     } catch (error) {
       send({ kind: 'error', id: message.id, canceled: abort.signal.aborted,
-        message: error instanceof Error ? error.message : String(error) })
+        message: error instanceof Error ? error.message : String(error),errorName:error instanceof Error?error.name:undefined })
     } finally {
       current = null
     }

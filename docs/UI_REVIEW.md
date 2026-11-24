@@ -11,3 +11,5 @@ Reka UI (https://reka-ui.com/docs/components/splitter) 的 Splitter 提供 Vue �
 CI 45404008942 / artifact 14924508651：中文显示恢复，主字幕面板已采用深色，但字幕时间轴尺、轨道、步骤区仍有明显浅色块，抽帧设置下方也残留浅色条；本轮继续修复，不批准整套旧图为正式基线。Reka UI 2.11.0 先通过只读 CI 生成固定版本 lockfile 与依赖审计，随后迁移面板；不得用未锁定 CDN 脚本。
 
 Reka 2.11.0 依赖预审 45404736217 通过，生产依赖审计零漏洞。桌面采用 SplitterGroup/Panel/ResizeHandle 像素约束与自动保存，窄屏 CSS 降级，保持编辑器挂载。键盘、检查器显隐和移动端待浏览器回归。
+
+- 首批 Reka Select/Slider/Dialog 迁移后补充键盘滑块及确认对话框回归；正式基线需新截图审核，暂不自动批准。

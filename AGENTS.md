@@ -48,3 +48,5 @@
 - MKV 内嵌字幕提取限有明确 BlockDuration 的 S_TEXT/UTF8，仅读必要 EBML 头与字幕文本，拒绝不支持变体；不把 VTT 文本导出称为样式/轨道无损复制。
 
 - 批量检查点清理必须先取得全部 session 锁并单一 IDB 事务删除，不清理用户文件；localStorage 摘要与 IDB 无跨存储原子性。Reka Dialog 必须保留确认和焦点语义。
+
+- 媒体兼容专项脚本 media-compat-real.mjs；必须区分解码成功、逐包一致、AAC 接缝逐采样一致和明确拒绝。真实跨标签页历史 E2E 需验证清理与刷新。

@@ -96,3 +96,5 @@
 
 - Reka Select（大小单位）、Slider（图片质量）、Dialog（批次清理）首批迁移；其余原生选择器暂保留。批次检查点先获取全部 session locks，再一次 IndexedDB 事务清理，localStorage 批次摘要随后清除（跨存储非原子）。
 - 12GB 专项增加连续两次深度 CRC32、真实运行中取消、显式低 OPFS 配额写入失败；每轮独立记录，待实际 CI。
+
+- 复杂媒体专项用 FFmpeg 生成真实 HEVC、AV1、VFR+B 帧、MKV UTF-8、AAC 媒体，逐包 CRC 与独立 FFmpeg 解码；AAC 不兼容则明确报告拒绝而非通过接缝验收。真实跨标签页历史 UI 合并/清除/刷新和清理锁冲突 E2E。实际系统目录权限撤销仍需原生选择器环境。

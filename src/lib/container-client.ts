@@ -10,7 +10,7 @@ type Reply =
   | { kind: 'started'; id: number; filename: string }
   | { kind: 'output'; id: number; result: ContainerOutput }
   | { kind: 'done'; id: number; count: number }
-  | { kind: 'error'; id: number; canceled: boolean; message: string }
+  | { kind: 'error'; id: number; canceled: boolean; message: string; errorName?:string }
 
 export function scanContainerInWorker(file: File, signal: AbortSignal): Promise<ContainerInspection> {
   if (signal.aborted) return Promise.reject(new DOMException('已取消', 'AbortError'))
@@ -29,7 +29,7 @@ export function scanContainerInWorker(file: File, signal: AbortSignal): Promise<
       if (e.data.id !== 1 || settled) return
       const msg = e.data
       if (msg.kind === 'scanDone' && close()) resolve(msg.data)
-      if (msg.kind === 'error' && close()) reject(new Error(msg.message))
+      if (msg.kind === 'error' && close()) reject(new DOMException(msg.message,msg.errorName||'OperationError'))
     }
     worker.onerror = e => { if (close()) reject(new Error(e.message || '轨道分析 Worker 运行失败。')) }
     worker.onmessageerror = () => { if (close()) reject(new Error('轨道分析消息不可读取。')) }
@@ -95,7 +95,7 @@ export function runContainerInWorker(
           break
         case 'error':
           fail(message.canceled || signal.aborted ?
-            new DOMException(message.message, 'AbortError') : new Error(message.message))
+            new DOMException(message.message, 'AbortError') : new DOMException(message.message,message.errorName||'OperationError'))
           break
       }
     }
