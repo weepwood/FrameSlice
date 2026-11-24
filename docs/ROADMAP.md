@@ -104,3 +104,5 @@
 ## 下一轮媒体质量专项
 - 复杂编码从单片段升级为真实关键帧边界多片段切割，逐包 CRC32 并独立解码；AAC PCM 与两段独立解码拼接基准逐采样比较，报告最大/RMS/接缝 RMS 误差，不伪称无损。
 - MKV ASS 有界提取：CodecPrivate 样式头、BlockDuration 与 ReadOrder 重建原 ASS 事件；不复制字体附件，时间按 ASS 厘秒精度输出。参考 IETF Matroska Codec 规范 draft-ietf-cellar-codec-21 §SSA/ASS。待 CI。
+
+- MP4 非分片单描述 tx3g 文本提取，限定 stsz/stsc/stts/stco/co64 与简单 edit list，核对 mdat 边界，拒绝复杂时间表或加密。仅 VTT 文本，不保留样式；FFmpeg mov_text 样本待验收。
