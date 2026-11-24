@@ -9,6 +9,7 @@ interface WorkerBase {
   id: number
   file: File
   folder: FileSystemDirectoryHandle | null
+  resumeId?:string
 }
 
 export type WorkerStart =

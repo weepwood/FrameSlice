@@ -1,3 +1,4 @@
+import { ResumeJournal } from '../core/resume'
 import { splitVideo } from '../lib/split'
 import { extractFrames } from '../lib/frames'
 import { inspectVideo } from '../lib/media'
@@ -19,6 +20,8 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
   const begin = performance.now()
   try {
     let count = 0
+    const {kind:_,id:__,file:___,folder:____,resumeId, ...config}=message
+    const resume=resumeId&&folder?await ResumeJournal.prepare(resumeId,folder,file,JSON.stringify([file.name,config]),controller.signal,n=>send({kind:'progress',id,fraction:0,label:'正在校验完整源文件 '+Math.round(n*100)+'%'})):undefined
     if (message.mode === 'split') {
       if (!folder && !message.planOnly) throw new Error('视频分割必须有授权的本地输出目录。')
       const results = await splitVideo({
@@ -26,6 +29,7 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         folder,
         maxBytes: message.maxBytes,
         planOnly: message.planOnly,
+        resume,
         onPlan: entries=>send({kind:'plan',id,entries}),
         maxSeconds: message.maxSeconds,
         verificationLevel: message.verificationLevel,
@@ -43,6 +47,7 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         file,
         folder,
         duration: message.duration,
+        resume,
         interval: message.interval,
         startTime: message.startTime,
         endTime: message.endTime,

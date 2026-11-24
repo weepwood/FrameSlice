@@ -8,3 +8,5 @@
 - 统一任务核心使用 [docs/JOB_CORE.md](docs/JOB_CORE.md)；各媒体 Worker 必须经过统一调度，不能并行启动高负载操作。
 - 共享语义样式 Token 位于 src/assets/tokens.css，Vue 主文档提供变量，React Shadow DOM 继承；不要为同一控件另建硬编码主题。
 - 当前进度与后续优先级见 [docs/ROADMAP.md](docs/ROADMAP.md)。每次交接更新真实状态，明确未验收项。
+
+- 续作规则：仅完整源指纹、参数、目录身份、输出指纹均匹配才允许跳过；禁止覆盖未知历史输出。参考 src/core/resume.ts。

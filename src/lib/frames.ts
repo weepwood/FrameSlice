@@ -1,3 +1,4 @@
+import type { ResumeJournal } from '../core/resume'
 import { CanvasSink } from 'mediabunny'
 import { baseName, checkCanceled, fileTime, frameTimes } from './format'
 import { openInput } from './media'
@@ -36,6 +37,7 @@ export interface FramesOptions {
   onSaved?: (filename: string) => void
   onFileStart?: (filename: string) => void
   onMissed?: (timestamp: number) => void
+  resume?:ResumeJournal
 }
 
 async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: FrameFormat, quality: number): Promise<Blob> {
@@ -58,7 +60,7 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
       !Number.isFinite(quality) || quality < 0.1 || quality > 1) {
     throw new Error('截图格式、分辨率或质量参数无效。')
   }
-  const timestamps = frameTimes(duration, interval, startTime, endTime)
+  let timestamps = frameTimes(duration, interval, startTime, endTime)
   // Without a folder picker, retain only a small, bounded set of downloadable frames.
   if (!folder && timestamps.length > 30) {
     throw new Error('当前未选择保存目录。为防止浏览器内存过高，最多支持生成 30 张预览图。请使用 Chrome / Edge 并选择输出目录。')
@@ -83,11 +85,13 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
     const extension = format === 'image/png' ? 'png' : format === 'image/webp' ? 'webp' : 'jpg'
     let completed = 0
     let saved = 0
+    const nameFor=(timestamp:number)=>`${baseName(file.name)}_${fileTime(timestamp)}.${extension}`
+    if(options.resume){const remaining:number[]=[];for(const t of timestamps){checkCanceled(signal);const name=nameFor(t);if(await options.resume.previous(name)){saved++;onSaved?.(name)}else remaining.push(t)}timestamps=remaining;if(!timestamps.length){onProgress(1,'所有历史图片均已验证');return saved}}
     const missed:number[]=[]
     const save=async (canvas: HTMLCanvasElement | OffscreenCanvas,timestamp:number,index:number) => {
-      const name = `${baseName(file.name)}_${fileTime(timestamp)}.${extension}`
+      const name = nameFor(timestamp)
       const blob=await toBlob(canvas,format,quality)
-      if(folder){onFileStart?.(name);await saveBlob(folder,name,blob,signal);onSaved?.(name)}
+      if(folder){onFileStart?.(name);await saveBlob(folder,name,blob,signal);await options.resume?.commit(name);onSaved?.(name)}
       saved++
       if(!folder||index<12||index%Math.max(1,Math.ceil(timestamps.length/12))===0)onPreview({name,timestamp,blob})
     }
