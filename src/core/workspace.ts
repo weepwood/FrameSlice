@@ -4,7 +4,7 @@ export type JobType = 'inspect' | 'analyze' | 'split' | 'frames' | 'container-sc
 export type JobStatus = 'queued' | 'running' | 'canceling' | 'completed' | 'partial' | 'failed' | 'canceled' | 'interrupted'
 export interface JobError { code: 'aborted' | 'permission' | 'quota' | 'unsupported' | 'engine'; message: string }
 export interface MediaAsset { id: string; name: string; bytes: number; lastModified: number; mime: string }
-export type RetryParameters = {mode:'split';maxBytes:number;maxSeconds?:number;verificationLevel:'quick'|'deep'} | {mode:'frames';interval:number;startTime:number;endTime:number;format:'image/jpeg'|'image/png'|'image/webp';width:0|1280|1920|3840;quality:number}
+export type RetryParameters = {mode:'split';maxBytes:number;maxSeconds?:number;manualCuts?:number[];verificationLevel:'quick'|'deep'} | {mode:'frames';interval:number;startTime:number;endTime:number;format:'image/jpeg'|'image/png'|'image/webp';width:0|1280|1920|3840;quality:number;strategy?:'interval'|'keyframes'|'sharpest'|'scene';deduplicate?:boolean}
 export interface RetrySpec { fingerprint:string; parameters:RetryParameters; resumeId?:string }
 export interface MediaJob {
   id: string; type: JobType; asset: MediaAsset; status: JobStatus; progress: number; label: string

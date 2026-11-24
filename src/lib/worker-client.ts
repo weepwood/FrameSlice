@@ -15,6 +15,7 @@ export interface WorkerCallbacks {
   onSaved?: (filename: string) => void
   onPlan?: (entries:SplitPlanEntry[])=>void
   onMissed?: (timestamp:number)=>void
+  onFiltered?:(timestamp:number,reason:string)=>void
 }
 
 export interface JobSummary {
@@ -114,6 +115,9 @@ export function runWorkerJob(
           break
         case 'plan':
           callbacks.onPlan?.(message.entries)
+          break
+        case 'filtered':
+          callbacks.onFiltered?.(message.timestamp,message.reason)
           break
         case 'missed':
           callbacks.onMissed?.(message.timestamp)

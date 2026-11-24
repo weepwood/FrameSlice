@@ -29,6 +29,7 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         folder,
         maxBytes: message.maxBytes,
         planOnly: message.planOnly,
+        manualCuts:message.manualCuts,
         resume,
         onPlan: entries=>send({kind:'plan',id,entries}),
         maxSeconds: message.maxSeconds,
@@ -54,6 +55,8 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         format: message.format,
         width: message.width,
         quality: message.quality,
+        strategy:message.strategy,deduplicate:message.deduplicate,
+        onFiltered:(timestamp,reason)=>send({kind:'filtered',id,timestamp,reason}),
         signal: controller.signal,
         onFileStart: filename => send({ kind: 'fileStarted', id, filename }),
         onSaved: filename => send({ kind: 'saved', id, filename }),
@@ -118,5 +121,11 @@ scope.onmessage = (event: MessageEvent<WorkerCommand>) => {
   running = { id: message.id, controller }
   if (message.kind === 'inspect') void inspect(message.id, message.file, controller)
   else if (message.kind === 'analyze') void analyze(message.id, message.file, controller)
-  else void run(message, controller)
+  else if(message.resumeId){
+    if(!navigator.locks){send({kind:'error',id:message.id,message:'浏览器不支持续作互斥锁',canceled:false});running=null;return}
+    void navigator.locks.request('frameslice-resume-'+message.resumeId,{ifAvailable:true},async lock=>{
+      if(!lock){send({kind:'error',id:message.id,message:'该续作任务正在另一个标签页运行',canceled:false});running=null;return}
+      await run(message,controller)
+    }).catch(error=>{send({kind:'error',id:message.id,message:String(error),canceled:false});running=null})
+  }else void run(message, controller)
 }
