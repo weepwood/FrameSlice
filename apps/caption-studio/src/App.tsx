@@ -7,6 +7,7 @@ import {useTranscriber} from './hooks/useTranscriber';
 import {chunksToCues,defaultStyle,fmt,lintCue,mergeNext,parseSubtitles,parseTime,round3,shiftCues,shortTime,sorted,splitCue,toSRT,toVTT,uid,type CaptionStyle,type Chunk,type Cue,type Issue} from './lib/captions';
 import {clearProject,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
 import type {Device} from './workers/transcribe.worker';
+import {workspace} from '../../../src/core/workspace';
 
 const MODELS=[
   {id:'onnx-community/whisper-tiny',title:'Tiny · 快速',size:'~40 MB'},
@@ -128,6 +129,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   },[hydrated,projectName,file,originalMediaName,effectiveDuration,cues,style]);
 
   const loadMedia=(f:File)=>{
+    renderAbort.current?.abort();
     if(!f.type.startsWith('video/')&&!f.type.startsWith('audio/')&&!/\.(mp4|mov|webm|m4v|mp3|m4a|wav|ogg|flac|aac)$/i.test(f.name)){
       setError('请选择音频或视频文件');return;
     }
@@ -156,6 +158,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     }catch(e){setError(`字幕导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const importProject=async(f:File)=>{
+    renderAbort.current?.abort();
     try{
       const p=verifyProject(JSON.parse(await f.text()));
       transcriber.stop();setFile(null);setPeaks([]);setTime(0);
@@ -164,6 +167,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     }catch(e){setError(`项目导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const reset=async()=>{
+    renderAbort.current?.abort();
     transcriber.stop();resetCues([]);setFile(null);setPeaks([]);setProjectName('未命名项目');
     setOriginalMediaName('');setDuration(0);setTime(0);setSelectedId(null);setStyle(defaultStyle);setError('');
     try{await clearProject()}catch{/* next autosave will replace */}
@@ -217,7 +221,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     const controller=new AbortController();renderAbort.current=controller;
     try{
       const {burnVideo}=await import('./lib/burn');
-      const out=await burnVideo({file,duration,width:video.current?.videoWidth??0,height:video.current?.videoHeight??0,cues,style,font:font??undefined,signal:controller.signal,onProgress:p=>setRenderState({phase:'working',progress:p,message:'正在编码视频…'})});
+      const width=video.current?.videoWidth??0,height=video.current?.videoHeight??0;
+      const out=await workspace.run('burn',file,controller.signal,ctx=>burnVideo({file,duration,width,height,cues,style,font:font??undefined,signal:controller.signal,onProgress:p=>{setRenderState({phase:'working',progress:p,message:'正在编码视频…'});ctx.progress(p,'正在编码视频')}}));
       download(out,`${baseName(projectName)}-captioned.mp4`);
       setRenderState({phase:'idle',progress:0,message:'视频已导出'});
     }catch(e){setRenderState({phase:'error',progress:0,message:controller.signal.aborted?'已取消渲染':String(e instanceof Error?e.message:e)})}

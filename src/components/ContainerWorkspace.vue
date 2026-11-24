@@ -9,6 +9,7 @@ import type { ContainerInspection, ContainerTrack, ContainerOutput, ContainerAct
 import { scanContainerInWorker, runContainerInWorker } from '../lib/container-client'
 import { chooseFolder, supportsFolderWrite, saveBlob } from '../lib/storage'
 import { baseName, friendlyError, humanBytes, humanTime } from '../lib/format'
+import { workspace } from '../core/workspace'
 
 const props = defineProps<{
   initialFile?: File | null
@@ -67,7 +68,9 @@ async function loadFile(next: File | null) {
   statusMessage.value = '正在读取容器和轨道元信息…'
   scanController = new AbortController()
   try {
-    const result = await scanContainerInWorker(next, scanController.signal)
+    const signal = scanController.signal
+    const result = workspace.cached<ContainerInspection>(next,'container-info') ?? await workspace.run('container-scan',next,signal,()=>scanContainerInWorker(next,signal))
+    workspace.cache(next,'container-info',result)
     if (revision !== currentRevision) return
     report.value = result
     selectedIds.value = result.tracks.filter(t => t.selectable).map(t => t.id)
@@ -141,7 +144,7 @@ async function start() {
     outputPath.value = `${folder.value.name}/${taskFolder.name}`
     const current = media.value
     const selectedTracks = [...selectedIds.value]
-    const count = await runContainerInWorker({
+    const count = await workspace.run(action.value === 'extract' ? 'extract-tracks' : 'remux',current,controller.signal,ctx=>runContainerInWorker({
       file: current,
       folder: taskFolder,
       action: action.value,
@@ -153,10 +156,10 @@ async function start() {
     }, controller.signal, {
       onProgress: (fraction, message) => {
         progress.value = Math.max(0, Math.min(1, fraction))
-        statusMessage.value = message
+        statusMessage.value = message; ctx.progress(fraction,message)
       },
-      onOutput: item => outputs.value.push(item),
-    })
+      onOutput: item => { outputs.value.push(item); ctx.checkpoint(item.filename) },
+    }))
     if (controller.signal.aborted) throw new DOMException('已取消任务', 'AbortError')
     progress.value = 1
     stage.value = 'done'
