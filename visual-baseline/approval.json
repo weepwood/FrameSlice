@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "chrome": "158.0.8127.88",
-  "commit": "384c5cfd86f75c472d835d01ed82b40eb6a601de",
+  "commit": "030e645151f528b86b0de7df93760e1970d01b05",
   "images": [
     {
       "name": "split-light-1440.png",
@@ -23,7 +23,7 @@
     },
     {
       "name": "jobs-light-1440.png",
-      "sha256": "4f6f495b0c88e32ecb716a8d0d6903f6fddb0a2136d75c8c080cbc37564303e4",
+      "sha256": "1e215b4f360b964b3cdc4f0aaf9b5cdca31942d14c7b4e176154348f49921aee",
       "width": 1440,
       "height": 900
     },
@@ -47,7 +47,7 @@
     },
     {
       "name": "jobs-dark-1440.png",
-      "sha256": "bd85ca26a0cb153b0eda5cc27b3b9e95b619f96c430a972b5370a80838ea08a7",
+      "sha256": "4f92cc000f60fabeaa10898e82abb3a6f56ab67e06b886b1ed91fef83c2d3792",
       "width": 1440,
       "height": 900
     },
@@ -71,7 +71,7 @@
     },
     {
       "name": "jobs-light-390.png",
-      "sha256": "8bf8e098c8a53089222c003ff25839b3728d62995f96a0a258ce568dc176b785",
+      "sha256": "f83b45691ebd1d54fe98dd2d899aedbc86a9f48048bd0e40134baffa11e264c9",
       "width": 390,
       "height": 844
     },
@@ -95,18 +95,18 @@
     },
     {
       "name": "jobs-dark-390.png",
-      "sha256": "9d20c3b6e5ea434fbd731701c70d28c4e20053cb70b4fa3f9322b197e84330de",
+      "sha256": "bd512b8a4c3151d2e745778b7397ec5db19c149ba6d22c9a4ec69567f666f3b4",
       "width": 390,
       "height": 844
     }
   ],
-  "head": "66d12ed60af960f9cff6e608775116ebb977f6f3",
-  "runId": 45440899864,
+  "head": "ae606e69dcb308b5fe9d1d37ecfbda225d91bfa8",
+  "runId": 45457879669,
   "runAttempt": 1,
-  "artifactId": 14943621179,
-  "artifactDigest": "sha256:9b3d38a7d71b54565117bc1fc31af2d670610436ebe4f8c10b2c80795f829eb8",
+  "artifactId": 14950528942,
+  "artifactDigest": "sha256:0b3db0d9f5b35a44417855271f88a1bb7a79da1bc7d22e415b05787ca6b06f37",
   "releaseTag": "v0.7.1",
-  "assetName": "visual-baseline-ui-pr16-66d12ed.zip",
+  "assetName": "visual-baseline-ui-pr17-ae606e6.zip",
   "reviewedOn": "2026-11-25",
-  "scope": "PR #16 组件库迁移：四工作区、深浅主题、1440×900/390×844 的16张固定空态截图。逐张核对SHA-256与尺寸，审核菜单、转录、确认弹窗、载入媒体及字幕补充截图；动态配额真实DOM遮罩不属于缺陷。移动检查器需纵向滚动；不代表跨浏览器全面验收。保留旧清单及发布资产，不调整2%门禁。"
+  "scope": "PR #17：16张固定视口候选逐一核验SHA-256与尺寸，12张与上版完全一致，仅4张任务中心发生预期结构变化（6.68%至8.99%）。审核桌面/窄屏双主题任务中心和真实抽帧画廊、全图预览。32×32黑色视频为测试源；动态存储遮罩不是缺陷。保持2%门禁及历史发布资产。补充短样本四帧连续导航测试，不覆盖全部交互或跨浏览器。"
 }

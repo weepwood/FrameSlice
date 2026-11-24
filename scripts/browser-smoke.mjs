@@ -119,9 +119,10 @@ try {
   }
 
   await page.locator('button.nav-item').nth(1).click()
+  await page.getByLabel('抽帧间隔秒数').fill('1')
   await page.getByRole('button', { name: /开始提取图片/ }).click()
   await awaitResult('frame Worker')
-  if (await page.locator('.frame-tile img').count() < 1) {
+  if (await page.locator('.frame-tile img').count() < 2) {
     throw new Error('Frame Worker did not return any image previews')
   }
   const tile=page.locator('.frame-preview-button').first()
@@ -131,7 +132,20 @@ try {
   const galleryDialog=page.getByRole('dialog')
   await galleryDialog.getByRole('img',{name:/完整截图/}).waitFor()
   await galleryDialog.getByRole('img',{name:/完整截图/}).evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw Error('full frame preview not decoded')})
+  const firstFrame=await galleryDialog.getByRole('heading').innerText()
+  const prev=galleryDialog.getByRole('button',{name:'上一张',exact:true}),next=galleryDialog.getByRole('button',{name:'下一张',exact:true})
+  if(!await prev.isDisabled()||await next.isDisabled())throw Error('gallery first-frame boundary failed')
+  await page.keyboard.press('ArrowRight')
+  if(await galleryDialog.getByRole('heading').innerText()===firstFrame)throw Error('gallery keyboard next failed')
+  await galleryDialog.getByRole('img',{name:/完整截图/}).evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw Error('second frame not decoded')})
   await page.screenshot({path:'visual-regression/loaded-frame-preview.png',animations:'disabled'})
+  await prev.click()
+  if(await galleryDialog.getByRole('heading').innerText()!==firstFrame)throw Error('gallery previous button failed')
+  const count=await page.locator('.frame-tile').count()
+  for(let i=1;i<count;i++)await next.click()
+  if(!await next.isDisabled())throw Error('gallery last-frame boundary failed')
+  await page.keyboard.press('ArrowLeft')
+  if(await next.isDisabled())throw Error('gallery keyboard previous failed')
   await page.keyboard.press('Escape')
   await galleryDialog.waitFor({state:'hidden'})
   if(!await tile.evaluate(el=>document.activeElement===el))throw Error('gallery did not restore focus')
