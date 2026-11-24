@@ -1,6 +1,7 @@
 import { JobJournal } from './job-journal'
 /** Framework-neutral shared runtime. Separate Vue/React bundles use the same per-page instance. */
 export type JobType = 'inspect' | 'analyze' | 'split' | 'frames' | 'container-scan' | 'extract-tracks' | 'remux' | 'waveform' | 'transcribe' | 'burn'
+export type JobPriority = 'normal'|'high'|'background'
 export type JobStatus = 'queued' | 'running' | 'canceling' | 'completed' | 'partial' | 'failed' | 'canceled' | 'interrupted'
 export interface JobError { code: 'aborted' | 'permission' | 'quota' | 'unsupported' | 'engine'; message: string }
 export interface MediaAsset { id: string; name: string; bytes: number; lastModified: number; mime: string }
@@ -11,6 +12,7 @@ export interface MediaJob {
   createdAt: number; startedAt?: number; endedAt?: number; error?: JobError
   checkpoint?: { count: number; lastOutput: string; updatedAt: number }
   retry?: RetrySpec
+  priority?:JobPriority
 }
 export interface JobContext { progress(value: number, label?: string): void; checkpoint(output: string): void; partial(label:string):void }
 const active = (status: JobStatus) => status === 'queued' || status === 'running' || status === 'canceling'
@@ -26,7 +28,7 @@ export class WorkspaceRuntime {
   private metadata = new WeakMap<File, Map<string, unknown>>()
   private jobs: MediaJob[] = []
   private listeners = new Set<(jobs: MediaJob[]) => void>()
-  private queue: Array<() => void> = []
+  private queue: Array<{execute:()=>void;priority:JobPriority;queuedAt:number}> = []
   private running = false
   private journalRevision=0
   private journalTimestamp=0
@@ -84,11 +86,13 @@ export class WorkspaceRuntime {
   }
   private drain(): void {
     if (this.running) return
-    this.queue.shift()?.()
+    const rank=(item:typeof this.queue[number])=>Math.min(2,({background:0,normal:1,high:2}[item.priority])+Math.floor((Date.now()-item.queuedAt)/30000))
+    let next=0;for(let i=1;i<this.queue.length;i++)if(rank(this.queue[i])>rank(this.queue[next]))next=i
+    this.queue.splice(next,1)[0]?.execute()
   }
-  run<T>(type: JobType, file: File, signal: AbortSignal, work: (ctx: JobContext) => Promise<T>, retry?:RetrySpec): Promise<T> {
+  run<T>(type: JobType, file: File, signal: AbortSignal, work: (ctx: JobContext) => Promise<T>, retry?:RetrySpec, priority:JobPriority='normal'): Promise<T> {
     if (signal.aborted) return Promise.reject(abortError())
-    const job: MediaJob = {id:crypto.randomUUID(),type,asset:this.asset(file),status:'queued',progress:0,label:'等待资源',createdAt:Date.now(),retry}
+    const job: MediaJob = {id:crypto.randomUUID(),type,asset:this.asset(file),status:'queued',progress:0,label:'等待资源',createdAt:Date.now(),retry,priority}
     this.jobs.unshift(job)
     this.jobs = [...this.jobs.filter(j => active(j.status)), ...this.jobs.filter(j => !active(j.status)).slice(0,100)]
     return new Promise<T>((resolve,reject) => {
@@ -101,7 +105,7 @@ export class WorkspaceRuntime {
       }
       const onAbort = () => {
         if(job.status==='queued'){
-          this.queue=this.queue.filter(fn=>fn!==execute);finish('canceled',abortError());reject(abortError());this.drain()
+          this.queue=this.queue.filter(item=>item.execute!==execute);finish('canceled',abortError());reject(abortError());this.drain()
         } else if(job.status==='running'){job.status='canceling';job.label='正在取消';this.publish(true)}
       }
       const ctx: JobContext = {
@@ -132,7 +136,7 @@ export class WorkspaceRuntime {
         })()
       }
       signal.addEventListener('abort',onAbort,{once:true})
-      this.queue.push(execute);this.publish(true);this.drain()
+      this.queue.push({execute,priority,queuedAt:Date.now()});this.publish(true);this.drain()
     })
   }
 }

@@ -18,3 +18,5 @@
 - v0.6 工作台使用指南见 docs/WORKBENCH.md；正式发布必须等待生产部署及浏览器门禁成功，CHANGELOG 必须明确真实 12GB 等未验收事项。
 
 - 部署必须核对线上 frameslice-version.json 的 SHA；Pages 产物暂不可见可有限重试，不能跳过浏览器门禁。短样本报告 qualifies12GB=false，不算 12GB 验收。
+
+- 批次恢复不得凭元数据跳过旧结果：必须通过 ResumeJournal 完整文件指纹与 Web Locks；本地存储诊断不得自动删除用户文件。
