@@ -605,10 +605,6 @@ onBeforeUnmount(() => {
 
       <JobCenter v-if="jobsVisited" v-show="showJobs" :jobs="recentJobs" :labels="jobLabels" :states="jobStates" @retry="job=>{showJobs=false;requestRetry(job)}" @clear="workspace.clearHistory()"/>
       <div v-if="captionVisited" v-show="!showJobs && mode === 'captions'" class="caption-page">
-        <div class="page-head">
-          <h1>字幕工作台</h1>
-          <p>语音转录、字幕校对与时间轴编辑。</p>
-        </div>
         <CaptionWorkspace />
       </div>
 

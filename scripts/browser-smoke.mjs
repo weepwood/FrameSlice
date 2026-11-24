@@ -183,6 +183,8 @@ try {
   }
   await caption.getByRole('button', { name: /打开工程/ }).waitFor()
   await caption.getByRole('button', { name: /导入字幕/ }).waitFor()
+  await caption.getByRole('tab',{name:'转录'}).click()
+  const backend=caption.getByRole('combobox',{name:'计算后端'});await backend.focus();await backend.press('Enter');await backend.press('End');await backend.press('Enter');if(!(await backend.innerText()).includes('CPU / WASM'))throw Error('caption keyboard selection failed');await backend.press('Enter');await backend.press('Escape');if(await backend.getAttribute('aria-expanded')!=='false')throw Error('caption Escape failed');await caption.getByRole('tab',{name:'字幕'}).click()
   await caption.locator('input[accept=".srt,.vtt"]').setInputFiles({
     name: 'integration.srt', mimeType: 'text/plain',
     buffer: Buffer.from(['1','00:00:01,000 --> 00:00:03,000','FrameSlice 字幕合并测试',''].join(String.fromCharCode(10)), 'utf8'),

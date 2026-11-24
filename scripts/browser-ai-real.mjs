@@ -1,3 +1,4 @@
+import {selectOption} from './select-option.mjs'
 /** Opt-in real inference + actual FFmpeg WASM burn on production-built app. */
 import {chromium} from 'playwright-core'
 import {writeFile,stat} from 'node:fs/promises'
@@ -18,13 +19,15 @@ try{
  await panel.locator('.caption-action-toolbar').waitFor({timeout:30000})
  await panel.locator('input[accept^="video/*"]').setInputFiles(media)
  await panel.locator('video').evaluate(v=>v.readyState>=1?Promise.resolve():new Promise((resolve,reject)=>{v.addEventListener('loadedmetadata',resolve,{once:true});v.addEventListener('error',reject,{once:true})}))
- await panel.locator('.transcribe-panel select').nth(0).selectOption('onnx-community/whisper-tiny.en')
- await panel.locator('.transcribe-panel select').nth(2).selectOption('wasm')
+ await panel.getByRole('tab',{name:'转录'}).click();await selectOption(page,'识别模型','Tiny · 仅英语 (~40 MB)',panel)
+ await selectOption(page,'计算后端','CPU / WASM',panel)
  async function infer(){
+  await panel.getByRole('tab',{name:'转录'}).click()
   const start=Date.now()
   await panel.getByRole('button',{name:/开始自动转录|重新生成字幕/}).click()
   await panel.locator('.transcribe-panel .task-status.done,.transcribe-panel .task-status.failed').waitFor({timeout:600000})
   if(await panel.locator('.transcribe-panel .task-status.failed').count())throw Error(await panel.locator('.transcribe-panel .task-status.failed').innerText())
+  await panel.getByRole('tab',{name:'字幕'}).click()
   const text=(await panel.locator('.cue-row textarea').evaluateAll(nodes=>nodes.map(n=>n.value))).join(' ')
   if(!/hello|world|frameslice/i.test(text))throw Error('真实推理未生成预期测试词：'+text)
   return {elapsedMs:Date.now()-start,text}
