@@ -24,6 +24,7 @@ import MediaTimeline from './components/MediaTimeline.vue'
 import {SplitterGroup,SplitterPanel,SplitterResizeHandle,SliderRoot,SliderTrack,SliderRange,SliderThumb,CollapsibleRoot,CollapsibleTrigger,CollapsibleContent} from 'reka-ui'
 import MediaResourceLibrary from './components/MediaResourceLibrary.vue'
 import WorkbenchCheckbox from './components/WorkbenchCheckbox.vue'
+import WorkbenchProgress from './components/WorkbenchProgress.vue'
 import WorkbenchSelect from './components/WorkbenchSelect.vue'
 import MediaResults from './components/MediaResults.vue'
 import WorkbenchButton from './components/WorkbenchButton.vue'
@@ -585,7 +586,7 @@ onBeforeUnmount(() => {
         <div v-for="job in recentJobs.slice(0, 8)" :key="job.id" class="fs-job-row" :title="job.error?.message || job.asset.name">
           <strong>{{ jobLabels[job.type] }} · {{ jobStates[job.status] }}</strong>
           <small>{{ job.asset.name }}</small>
-          <progress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" max="1" />
+          <WorkbenchProgress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" :max="1" label="任务进度" />
           <small v-if="job.checkpoint">已写入 {{ job.checkpoint.count }} 项</small>
           <button v-if="job.retry && (job.retry.resumeId || ['failed','canceled','interrupted','partial'].includes(job.status))" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
         </div>
@@ -801,7 +802,7 @@ onBeforeUnmount(() => {
         <section class="fs-inspector-section">
           <h3>任务状态</h3>
           <p class="fs-inspector-state"><span :class="['fs-state-dot',status]"/>{{status==='running'?'正在处理':status==='done'?'已完成':status==='error'?'处理失败':status==='canceled'?'已取消':loading?'读取媒体':info?'等待开始':'等待导入'}}</p>
-          <template v-if="status==='running'"><progress :value="progressPercent" max="100" aria-label="当前任务进度"/><p>{{progressLabel}}</p></template>
+          <template v-if="status==='running'"><WorkbenchProgress :value="progressPercent" label="当前任务进度"/><p>{{progressLabel}}</p></template>
           <p v-if="status==='error'" class="fs-danger">{{errorText}}</p>
         </section>
         <p class="fs-inspector-note"><ShieldCheck :size="15"/> 源媒体在本机读取和处理。</p>

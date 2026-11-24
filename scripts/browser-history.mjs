@@ -14,6 +14,14 @@ try{
  await Promise.all([a,b].map(p=>p.locator('.file-codec').waitFor({timeout:30000})))
  await Promise.all([a,b].map(p=>p.getByRole('button',{name:'任务中心'}).click()))
  for(const p of [a,b])for(const name of ['history-a.mp4','history-b.mp4'])await p.locator('.fs-job-center .fs-center-job').filter({hasText:name}).first().waitFor({timeout:30000})
+ for(const p of [a,b]){
+  const meters=p.locator('.fs-center-job').getByRole('progressbar')
+  if(!await meters.count())throw Error('job progress missing')
+  for(const meter of await meters.all()){
+   if(await meter.evaluate(el=>el.tagName==='PROGRESS'||el.getBoundingClientRect().height!==7||!el.querySelector('.fs-workbench-progress-fill')))throw Error('job progress is not shared styled component')
+   if(Number(await meter.getAttribute('aria-valuenow'))!==1)throw Error('completed job progress incorrect')
+  }
+ }
  await a.evaluate(async()=>{const c=await caches.open('transformers-cache');await c.put('https://huggingface.co/onnx-community/whisper-tiny/resolve/main/config.json',new Response('{}'));await c.put('https://huggingface.co/other/model/resolve/main/config.json',new Response('{}'));const other=await caches.open('unrelated-app');await other.put('/unrelated',new Response('preserved'));localStorage.setItem('unrelated-app-pref','keep');const root=await navigator.storage.getDirectory();const h=await root.getFileHandle('preserved-output.mp4',{create:true});const w=await h.createWritable();await w.write('preserved');await w.close()})
  await a.locator('.fs-storage-diagnostics').getByRole('button',{name:'刷新'}).click();await a.getByRole('button',{name:'清除模型缓存'}).click();await a.getByRole('dialog').getByRole('button',{name:'确认清理'}).click();await a.getByText(/已清除 1 项模型缓存/).waitFor();if(!await a.evaluate(async()=>{const c=await caches.open('transformers-cache');const root=await navigator.storage.getDirectory();return !(await c.match('https://huggingface.co/onnx-community/whisper-tiny/resolve/main/config.json'))&&!!(await c.match('https://huggingface.co/other/model/resolve/main/config.json'))&&!!(await (await caches.open('unrelated-app')).match('/unrelated'))&&localStorage.getItem('unrelated-app-pref')==='keep'&&(await (await (await root.getFileHandle('preserved-output.mp4')).getFile()).text())==='preserved'}))throw Error('cache cleanup crossed its allowed scope')
  await a.getByRole('button',{name:'清除本地任务记录'}).click();await a.getByRole('dialog').getByRole('button',{name:'确认清理'}).click()

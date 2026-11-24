@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import {ref,computed,onMounted} from 'vue'
-import {DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle,DialogDescription,DialogClose,ProgressRoot,ProgressIndicator} from 'reka-ui'
+import {ref,onMounted} from 'vue'
+import {DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle,DialogDescription,DialogClose} from 'reka-ui'
+import WorkbenchProgress from './WorkbenchProgress.vue'
 import {humanBytes} from '../lib/format'
 import {workspace} from '../core/workspace'
 import {clearWhisperCache,countWhisperCache} from '../lib/model-cache'
@@ -8,7 +9,6 @@ import {consumeResetResult,requestStorageReset} from '../lib/reset-storage'
 const props=defineProps<{busy:boolean}>()
 const emit=defineEmits<{'clear-history':[]}>()
 const usage=ref(0),quota=ref(0),persistent=ref(false),message=ref(consumeResetResult()),cacheCount=ref(0),cacheAvailable=ref(typeof caches!=='undefined')
-const storagePercent=computed(()=>quota.value>0?Math.min(100,Math.max(0,usage.value/quota.value*100)):0)
 const open=ref(false),cleaning=ref(false),kind=ref<'cache'|'history'|'all'>('cache')
 async function refresh(){try{const estimate=await navigator.storage.estimate();usage.value=estimate.usage??0;quota.value=estimate.quota??0;persistent.value=await navigator.storage.persisted()}catch{message.value='当前浏览器无法读取存储信息'}try{cacheCount.value=await countWhisperCache()}catch{cacheAvailable.value=false}}
 async function persist(){try{persistent.value=await navigator.storage.persist();message.value=persistent.value?'已启用持久存储':'浏览器未授予持久存储'}catch{message.value='持久存储请求失败'}await refresh()}
@@ -19,7 +19,7 @@ onMounted(refresh)
 <template><section class="fs-analysis fs-storage-diagnostics">
 <div class="fs-analysis-header"><strong>本地存储</strong><div class="fs-inline-field"><button type="button" class="secondary-button" :disabled="cleaning" @click="refresh">刷新</button><button type="button" class="secondary-button fs-danger" :disabled="busy||cleaning" @click="confirm('all')">清除本地存储</button></div></div>
 <div class="fs-storage-summary"><span class="fs-storage-label" title="浏览器同源站点配额，不代表磁盘剩余空间">站点配额</span><span class="fs-storage-values"><strong>{{humanBytes(usage)}}</strong> / {{quota>0?humanBytes(quota):'未知'}}</span></div>
-<ProgressRoot class="fs-storage-meter fs-storage-values" :model-value="quota>0?storagePercent:null" :max="100" aria-label="站点存储使用量" :aria-valuetext="quota>0?humanBytes(usage)+' / '+humanBytes(quota):'配额未知'"><ProgressIndicator class="fs-storage-meter-fill" :style="{width:storagePercent+'%'}"/></ProgressRoot>
+<WorkbenchProgress class="fs-storage-meter fs-storage-values" :value="quota>0?usage:null" :max="Math.max(quota,1)" label="站点存储使用量" :value-text="quota>0?humanBytes(usage)+' / '+humanBytes(quota):'配额未知'"/>
 <div class="fs-storage-row"><div><strong>语音模型缓存</strong><small>{{cacheAvailable?cacheCount+' 项':'不可读取'}}</small></div><button type="button" class="secondary-button" :disabled="busy||cleaning||!cacheAvailable||!cacheCount" @click="confirm('cache')">清除模型缓存</button></div>
 <div class="fs-storage-row"><div><strong>任务历史</strong><small>已结束任务</small></div><button type="button" class="secondary-button" :disabled="busy||cleaning" @click="confirm('history')">清除本地任务记录</button></div>
 <div class="fs-storage-row"><div><strong>持久存储</strong><small>{{persistent?'已启用':'未启用'}}</small></div><button type="button" class="secondary-button" :disabled="persistent||cleaning" @click="persist">请求持久存储</button></div><p v-if="message&&!open" role="status" class="fs-storage-message">{{message}}</p>

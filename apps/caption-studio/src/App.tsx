@@ -3,6 +3,7 @@ import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,Chevro
 import {Tabs} from '@base-ui/react/tabs';
 import {Checkbox} from '@base-ui/react/checkbox';
 import {ProjectMenu} from './components/ProjectMenu';
+import {CaptionProgress} from './components/CaptionProgress';
 import {CaptionSelect} from './components/CaptionSelect';
 import {Timeline} from './components/Timeline';
 import {ReviewTools} from './components/ReviewTools';
@@ -358,9 +359,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               </div>
               <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>首次转录需下载模型。</span></div>
                 {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
-              {transcriber.state.phase==='loading'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在准备模型 {Math.round(transcriber.state.progress)}% <progress value={transcriber.state.progress} max="100"/></div>}
-              {transcriber.state.phase==='extracting'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在从媒体分段提取音轨 · {Math.round(transcriber.state.progress)}% <progress value={transcriber.state.progress} max="100"/></div>}
-              {transcriber.state.phase==='running'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在使用 {transcriber.state.device==='webgpu'?'WebGPU':'WASM'} 分段识别 · {Math.round(transcriber.state.progress)}% · {transcriber.state.segments} 段完成 <progress value={transcriber.state.progress} max="100"/> {transcriber.state.partial&&<span className="transcript-snippet">{transcriber.state.partial}</span>}</div>}
+              {transcriber.state.phase==='loading'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在准备模型 {Math.round(transcriber.state.progress)}% <CaptionProgress value={transcriber.state.progress} label="转录进度"/></div>}
+              {transcriber.state.phase==='extracting'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在从媒体分段提取音轨 · {Math.round(transcriber.state.progress)}% <CaptionProgress value={transcriber.state.progress} label="转录进度"/></div>}
+              {transcriber.state.phase==='running'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在使用 {transcriber.state.device==='webgpu'?'WebGPU':'WASM'} 分段识别 · {Math.round(transcriber.state.progress)}% · {transcriber.state.segments} 段完成 <CaptionProgress value={transcriber.state.progress} label="转录进度"/> {transcriber.state.partial&&<span className="transcript-snippet">{transcriber.state.partial}</span>}</div>}
               {transcriber.state.phase==='done'&&<div className="task-status done"><Check size={15}/>处理完成 · {transcriber.state.segments} 个识别分段 · {transcriber.state.seconds.toFixed(1)} 秒</div>}
               {transcriber.state.phase==='error'&&<div className="task-status failed"><AlertTriangle size={15}/>{transcriber.state.message}</div>}
             </section>
@@ -400,7 +401,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <button className="btn outline full" onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</button>
               <div className="section-subheading render-heading"><strong>烧录字幕到视频</strong><small>实验功能 · 适合短视频</small></div>
               <button className="file-pick" onClick={()=>fontInput.current?.click()}><Languages size={17}/>{font?.name||'选择中文字体 .ttf / .otf（推荐）'}<ChevronDown size={14}/></button>
-              {renderState.phase==='working'?<div className="render-progress"><progress value={renderState.progress} max={1}/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><button className="btn outline full" onClick={()=>renderAbort.current?.abort()}>取消烧录</button></div>:<button className="btn primary full" disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</button>}
+              {renderState.phase==='working'?<div className="render-progress"><CaptionProgress value={renderState.progress} max={1} label="烧录进度"/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><button className="btn outline full" onClick={()=>renderAbort.current?.abort()}>取消烧录</button></div>:<button className="btn primary full" disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</button>}
               {renderState.phase==='error'&&<div className="style-note warning">{renderState.message}</div>}
               {renderState.message&&renderState.phase==='idle'&&<div className="task-status done"><Check size={15}/>{renderState.message}</div>}
               <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>

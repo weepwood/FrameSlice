@@ -1,112 +1,112 @@
 {
   "schema": 1,
   "chrome": "158.0.8127.88",
-  "commit": "030e645151f528b86b0de7df93760e1970d01b05",
+  "commit": "622a5bf32188c4ef2b973f71aec42b5f660097af",
   "images": [
     {
       "name": "split-light-1440.png",
-      "sha256": "4a6abf7d3f08ffa9f706cf3eef6117dbc6322645339c1275f4eaa428272105a8",
+      "sha256": "d93bd608f5c513c5ef7ed0e85603d819bc8e362acca1ccbd2c3dc074e48e34ff",
       "width": 1440,
       "height": 900
     },
     {
       "name": "frames-light-1440.png",
-      "sha256": "84c121383ee0afada77a170b727acc5368fdf7a50e488a340ae263ede400142b",
+      "sha256": "863dfb574afacc41e418eb1f482ee6fef02ff807bd25ea1d6859290b69684cf9",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-light-1440.png",
-      "sha256": "fe7bd37419a582c2499018b1bbbf1fdf831645516524d4d8a1335c35beb0630b",
+      "sha256": "c1790698c0a4c99015b8f36dafe13ea53bc4ab35d41de1a5dcc08e0096612ff5",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-light-1440.png",
-      "sha256": "1e215b4f360b964b3cdc4f0aaf9b5cdca31942d14c7b4e176154348f49921aee",
+      "sha256": "26f2e7fd5c6e8698436ac291d359410b8bce34ccd508e99f6ef984b2cbc39a32",
       "width": 1440,
       "height": 900
     },
     {
       "name": "split-dark-1440.png",
-      "sha256": "13bd5694772cb7f6de3d632294e3469bc2621f4927f6ec34ca7bff33751632f3",
+      "sha256": "618934e1023462cb9a088748ef5cf3c77a2bbab5286ea1e74c5ac8b280460c39",
       "width": 1440,
       "height": 900
     },
     {
       "name": "frames-dark-1440.png",
-      "sha256": "480df451be13b63f3c0730afd4a563c2edcbf3279ecc8e9f6dc36f587d8b02b9",
+      "sha256": "cfe56cd0bc1a7d0d536326f0d5571d86800be0cf51c08c04a26d5d41096381b3",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-dark-1440.png",
-      "sha256": "5c6057d960c8abc33aa542e10bc825cb7307ab29c2e8ff314807aa61beb79dd6",
+      "sha256": "4a920f2d782f536520778fad486293e83ec76c9d2a2a238308ba62f8a171e1a2",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-dark-1440.png",
-      "sha256": "4f92cc000f60fabeaa10898e82abb3a6f56ab67e06b886b1ed91fef83c2d3792",
+      "sha256": "3c35a24ca744f584861d5129fc2b70eb1d15e17e8d3ce0015955a8a114941937",
       "width": 1440,
       "height": 900
     },
     {
       "name": "split-light-390.png",
-      "sha256": "b9a87b78647f7116f6fa640b1b39bc3f6d607d402d34d8c0f85e21b0b60da513",
+      "sha256": "2327e45a38b315e62f7e598126b746330f26ab9667035d93e95eed11c01820de",
       "width": 390,
       "height": 844
     },
     {
       "name": "frames-light-390.png",
-      "sha256": "644f6e6521398274699cb0b30f13647338b64729543e878c5a2d8c43aaa8d1a5",
+      "sha256": "8eeea5064727b2d3cc676574e225eeb760d5c347d3c5f5047c4b4bc68c6fc445",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-light-390.png",
-      "sha256": "c370c32b9cf05dc49292991515d0fd048c218c7527ede6f519a43165fd60d6d7",
+      "sha256": "dac4905d04a796f6dccf1f451388e79abb63a434f6f079ca28b4e92434985f9b",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-light-390.png",
-      "sha256": "f83b45691ebd1d54fe98dd2d899aedbc86a9f48048bd0e40134baffa11e264c9",
+      "sha256": "f91028de88a23b61b50dcbc8a0e60217359c81582100a357baa4a65434879202",
       "width": 390,
       "height": 844
     },
     {
       "name": "split-dark-390.png",
-      "sha256": "4bfb940b2b234ad6c206a2ac2c74c40f9c7d317a9e5bb379e8e81cd86e50e56b",
+      "sha256": "36b0819f7d182297e78a40689f288d1b16df5fbd808a70da48960c38a35b232b",
       "width": 390,
       "height": 844
     },
     {
       "name": "frames-dark-390.png",
-      "sha256": "abda57eab2c84addd8534dd9c5d6528e1304ade961a88bba54312c2f347184dd",
+      "sha256": "506618da10dcf07398d22a2b961168e9222527e7d9a3c9eff3a4a916e763883e",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-dark-390.png",
-      "sha256": "a3d7510631d74ac019775da321f5980c2cf1dea8bf2c6f7939241e2486d5bd96",
+      "sha256": "f6b6fe44db8e1762ffbb90655e7c11507c9a6a449d14a4e7259eff2b7d01855e",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-dark-390.png",
-      "sha256": "bd512b8a4c3151d2e745778b7397ec5db19c149ba6d22c9a4ec69567f666f3b4",
+      "sha256": "e64daa5cb300fb9303b0b8e1fbc4e6563e7d0351286dea5c9a2460367d78cfa0",
       "width": 390,
       "height": 844
     }
   ],
-  "head": "ae606e69dcb308b5fe9d1d37ecfbda225d91bfa8",
-  "runId": 45457879669,
+  "head": "52f48f66d1bbe06b497d980ea2717d63bf347030",
+  "runId": 45473929237,
   "runAttempt": 1,
-  "artifactId": 14950528942,
-  "artifactDigest": "sha256:0b3db0d9f5b35a44417855271f88a1bb7a79da1bc7d22e415b05787ca6b06f37",
+  "artifactId": 14959330626,
+  "artifactDigest": "sha256:58d4a5e59f239e9dc6d5828e540ad1f2881e1bd662ca6231281377a2e005bb18",
   "releaseTag": "v0.7.1",
-  "assetName": "visual-baseline-ui-pr17-ae606e6.zip",
+  "assetName": "visual-baseline-ui-pr18-52f48f6.zip",
   "reviewedOn": "2026-11-25",
-  "scope": "PR #17：16张固定视口候选逐一核验SHA-256与尺寸，12张与上版完全一致，仅4张任务中心发生预期结构变化（6.68%至8.99%）。审核桌面/窄屏双主题任务中心和真实抽帧画廊、全图预览。32×32黑色视频为测试源；动态存储遮罩不是缺陷。保持2%门禁及历史发布资产。补充短样本四帧连续导航测试，不覆盖全部交互或跨浏览器。"
+  "scope": "用户反馈专项：16张固定视口候选SHA-256与尺寸逐一验证，4工作区双主题及桌面/移动端审核，另看真实窄屏工程菜单及未遮罩存储区；旧基线4.38%–24.57%为预期紧凑布局变化。批准该空态范围，保留2%阈值。后续公共进度条抽象在Mac Edge的16张候选像素文件哈希均未变化，仍待正式Chrome复验。"
 }
