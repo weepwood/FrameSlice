@@ -3,6 +3,7 @@ import {openInput} from './media'
 import {checkCanceled} from './format'
 import {PacketFingerprint,includePacketTime,fingerprintTrack,compareFingerprints} from './verify'
 import type {TrackTimeline} from './verify'
+import {isLeadingAacPreroll} from './coverage.mjs'
 import {assertAvOnly} from './mp4-track-guard'
 function signature(config:VideoDecoderConfig|AudioDecoderConfig){const {description,...rest}=config;const bytes=description?Array.from(ArrayBuffer.isView(description)?new Uint8Array(description.buffer,description.byteOffset,description.byteLength):new Uint8Array(description)):[];return JSON.stringify([Object.entries(rest).sort(([a],[b])=>a.localeCompare(b)),bytes])}
 const epsilon=.001
@@ -10,7 +11,7 @@ const timeline=():TrackTimeline=>({start:Infinity,end:-Infinity,maxPacketDuratio
 /** Strict AV concatenation: every input has the same track topology, config and metadata.
  * Audio priming, gaps, overlapping packets, and unsupported tracks are rejected.
  */
-export async function mergeVideoOnly(files:File[],folder:FileSystemDirectoryHandle,signal:AbortSignal,onProgress:(n:number,label:string)=>void,onFileStart:(name:string)=>void){
+export async function mergeVideoOnly(files:File[],folder:FileSystemDirectoryHandle,signal:AbortSignal,onProgress:(n:number,label:string)=>void,onFileStart:(name:string)=>void,allowAacPreroll=false){
  if(files.length<2||files.length>50)throw Error('请选择 2–50 个 MP4/MOV 视频')
  const inputs=files.map(openInput)
  try{
@@ -21,7 +22,7 @@ export async function mergeVideoOnly(files:File[],folder:FileSystemDirectoryHand
    await assertAvOnly(files[i],videos.length,audios.length)
    const video=videos[0],codec=await video.getCodec(),config=await video.getDecoderConfig(),rotation=await video.getRotation(),sink=new EncodedPacketSink(video),first=await sink.getFirstPacket()
    if(!codec||!config||!first||first.type!=='key'||Math.abs(first.timestamp)>epsilon)throw Error('输入编码配置或首帧时间边界不兼容')
-   const audio=await Promise.all(audios.map(async a=>{const codec=await a.getCodec(),config=await a.getDecoderConfig(),languageCode=await a.getLanguageCode(),name=await a.getName();if(!codec||!config)throw Error('音轨编码配置缺失');return {codec,config,languageCode:languageCode||'und',name:name||'',sink:new EncodedPacketSink(a)}}))
+   const audio=await Promise.all(audios.map(async a=>{const codec=await a.getCodec(),config=await a.getDecoderConfig(),languageCode=await a.getLanguageCode(),name=await a.getName();if(!codec||!config)throw Error('音轨编码配置缺失');return {codec,config,languageCode:languageCode||'und',name:name||'',sink:new EncodedPacketSink(a),preroll:null as {timestamp:number;duration:number;bytes:number}|null}}))
    return {codec,config,rotation,duration,sink,audio}
   }))
   const first=segments[0]
@@ -29,9 +30,14 @@ export async function mergeVideoOnly(files:File[],folder:FileSystemDirectoryHand
   // Preflight all track timelines without loading packet bytes; no output until all inputs are accepted.
   for(const s of segments){
    for(const [i,sink] of [s.sink,...s.audio.map(a=>a.sink)].entries()){
-    const time=timeline();let count=0,previousEnd=0
+    const time=timeline();let count=0,previousEnd=0,scanned=0
     for await(const p of sink.packets(undefined,undefined,{metadataOnly:true})){
-     checkCanceled(signal);includePacketTime(time,p)
+     checkCanceled(signal)
+     if(scanned++===0&&i>0&&isLeadingAacPreroll(s.audio[i-1].codec,p,0)){
+      if(!allowAacPreroll)throw Error('检测到 AAC 编码前置包；如接受剔除播放区间外的完整包，请显式开启兼容选项')
+      s.audio[i-1].preroll={timestamp:p.timestamp,duration:p.duration,bytes:p.byteLength};continue
+     }
+     includePacketTime(time,p)
      if(p.timestamp < -epsilon||p.timestamp+p.duration>s.duration+epsilon)throw Error('输入包含负时间戳、编码前置包或越界媒体包')
      if(i>0&&Math.abs(p.timestamp-previousEnd)>epsilon)throw Error('音频存在间隙或重叠，无法安全无损合并')
      previousEnd=p.timestamp+p.duration;if((++count&1023)===0)await new Promise<void>(r=>setTimeout(r,0))
@@ -49,7 +55,7 @@ export async function mergeVideoOnly(files:File[],folder:FileSystemDirectoryHand
    const digests=Array.from({length:1+audio.length},()=>new PacketFingerprint()),times=digests.map(timeline),seq=digests.map(()=>0)
    // Each producer traverses the whole sequence independently to avoid blocking interleaved mux queues at clip boundaries.
    const pumpVideo=async()=>{let offset=0;for(const s of segments){for await(const p of s.sink.packets()){checkCanceled(signal);const packet=new EncodedPacket(p.data,p.type,offset+p.timestamp,p.duration,seq[0]++,p.byteLength,p.sideData);await video.add(packet,seq[0]===1?{decoderConfig:first.config}:undefined);digests[0].add(p.data);includePacketTime(times[0],packet);if((seq[0]&1023)===0)await new Promise<void>(r=>setTimeout(r,0))}offset+=s.duration;onProgress(.8*offset/segments.reduce((n,s)=>n+s.duration,0),'正在合并视频轨')}video.close()}
-   const pumps=[pumpVideo(),...audio.map(async(source,i)=>{let offset=0;for(const s of segments){for await(const p of s.audio[i].sink.packets()){checkCanceled(signal);const packet=new EncodedPacket(p.data,p.type,offset+p.timestamp,p.duration,seq[i+1]++,p.byteLength,p.sideData);await source.add(packet,seq[i+1]===1?{decoderConfig:first.audio[i].config}:undefined);digests[i+1].add(p.data);includePacketTime(times[i+1],packet);if((seq[i+1]&1023)===0)await new Promise<void>(r=>setTimeout(r,0))}offset+=s.duration}source.close()})]
+   const pumps=[pumpVideo(),...audio.map(async(source,i)=>{let offset=0;for(const s of segments){let packetIndex=0;for await(const p of s.audio[i].sink.packets()){checkCanceled(signal);const expected=s.audio[i].preroll;if(packetIndex++===0&&expected){if(p.timestamp!==expected.timestamp||p.duration!==expected.duration||p.byteLength!==expected.bytes)throw Error('AAC 前置包与预检不一致');continue}const packet=new EncodedPacket(p.data,p.type,offset+p.timestamp,p.duration,seq[i+1]++,p.byteLength,p.sideData);await source.add(packet,seq[i+1]===1?{decoderConfig:first.audio[i].config}:undefined);digests[i+1].add(p.data);includePacketTime(times[i+1],packet);if((seq[i+1]&1023)===0)await new Promise<void>(r=>setTimeout(r,0))}offset+=s.duration}source.close()})]
    try{await Promise.all(pumps)}catch(e){await output.cancel().catch(()=>{});await Promise.allSettled(pumps);throw e}
    await output.finalize();checkCanceled(signal);const file=await handle.getFile(),readback=openInput(file)
    try{
@@ -63,7 +69,7 @@ export async function mergeVideoOnly(files:File[],folder:FileSystemDirectoryHand
      compareFingerprints(digests[i].digest(),await fingerprintTrack(sink,signal),'轨道 '+(i+1))
     }
    }finally{readback.dispose()}
-   complete=true;onProgress(1,'合并及逐轨深度校验完成');return {filename,bytes:file.size,trackIds:['video',...audio.map((_,i)=>'audio:'+(i+1))]}
+   const excludedAacPreroll=segments.flatMap(s=>s.audio.flatMap(a=>a.preroll?[a.preroll]:[]));complete=true;onProgress(1,'合并及逐轨深度校验完成');return {filename,bytes:file.size,trackIds:['video',...audio.map((_,i)=>'audio:'+(i+1))],excludedAacPreroll:{packets:excludedAacPreroll.length,bytes:excludedAacPreroll.reduce((n,p)=>n+p.bytes,0)}}
   }finally{if(!complete){await output?.cancel().catch(()=>{});await folder.removeEntry(filename).catch(()=>{})}}
  }finally{for(const input of inputs)input.dispose()}
 }
