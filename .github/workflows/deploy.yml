@@ -118,14 +118,37 @@ jobs:
           test -s visual-baseline/approval.json
           bash scripts/fetch-approved-visual.sh /tmp/frameslice-approved
           python3 scripts/verify-approved-visual.py /tmp/frameslice-approved
-          python3 -c 'import pathlib,zipfile; p=pathlib.Path("/tmp/frameslice-approved"); z=zipfile.ZipFile("/tmp/visual-baseline-v0.7.1.zip","w",zipfile.ZIP_DEFLATED); [z.write(f,f.name) for f in sorted(p.glob("*.png"))]; z.write("visual-baseline/approval.json","approval.json");z.close()'
+          ASSET=$(python3 -c 'import json; a=json.load(open("visual-baseline/approval.json")); print(a.get("assetName","visual-baseline-"+a["releaseTag"]+".zip"))')
+          [[ "$ASSET" =~ ^visual-baseline-[a-zA-Z0-9._-]+\.zip$ ]]
+          python3 - "$ASSET" <<'PY'
+          import pathlib, zipfile, sys
+          p=pathlib.Path("/tmp/frameslice-approved")
+          with zipfile.ZipFile("/tmp/"+sys.argv[1],"w",zipfile.ZIP_DEFLATED) as z:
+              for f in sorted(p.glob("*.png")): z.write(f,f.name)
+              z.write("visual-baseline/approval.json","approval.json")
+          PY
           if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             if test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = false; then
-              gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx 'visual-baseline-v0.7.1.zip'; exit 0
+              # Preserve the original release asset. Archive a reviewed UI revision separately, never clobber.
+              gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx 'visual-baseline-v0.7.1.zip'
+              if ! gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"; then
+                gh release upload "v$VERSION" "/tmp/$ASSET"
+              fi
+              gh release download "v$VERSION" --pattern "$ASSET" --dir /tmp/frameslice-release-check
+              mkdir -p /tmp/frameslice-release-images
+              python3 - "$ASSET" <<'PY'
+          import pathlib, zipfile, sys
+          with zipfile.ZipFile("/tmp/frameslice-release-check/"+sys.argv[1]) as z:
+              for n in z.namelist():
+                  if n.endswith(".png") and pathlib.Path(n).name == n:
+                      pathlib.Path("/tmp/frameslice-release-images",n).write_bytes(z.read(n))
+          PY
+              python3 scripts/verify-approved-visual.py /tmp/frameslice-release-images
+              exit 0
             fi
           else
             gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "FrameSlice v$VERSION" --notes-file /tmp/frameslice-release-notes.md --draft
           fi
-          gh release upload "v$VERSION" /tmp/visual-baseline-v0.7.1.zip --clobber
+          gh release upload "v$VERSION" "/tmp/$ASSET" --clobber
           gh release edit "v$VERSION" --draft=false
-          gh release view "v$VERSION" --json tagName,isDraft,assets | jq -e '.tagName=="v0.7.1" and .isDraft==false and any(.assets[];.name=="visual-baseline-v0.7.1.zip")'
+          gh release view "v$VERSION" --json tagName,isDraft,assets | jq -e --arg asset "$ASSET" '.tagName=="v0.7.1" and .isDraft==false and any(.assets[];.name==$asset)'

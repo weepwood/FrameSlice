@@ -291,3 +291,75 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded :is(.media-info,.notice-banner,.review-notice,.style-note,.transcribe-bottom,.transcribe-helper,.shortcut-grid kbd){background:var(--fs-surface,#fff);color:var(--fs-muted,#68736a);border-color:var(--fs-border,#e4e9e1)}
 .app-shell.embedded .media-info>div{color:var(--fs-text,#292d27)}
 .app-shell.embedded .style-note.warning,.app-shell.embedded .notice-banner{color:var(--fs-warning,#8c632b)}
+
+/* Embedded editor follows the host's media-workbench density. Standalone styles unchanged. */
+.app-shell.embedded {font-family:var(--fs-font,inherit)}
+.app-shell.embedded :is(.surface,.caption-action-toolbar,.workflow-step) {border-radius:var(--fs-radius,6px);box-shadow:none}
+.app-shell.embedded .caption-action-toolbar {padding:9px 10px;margin-bottom:12px;gap:6px}
+.app-shell.embedded .caption-action-toolbar .btn {font-size:12px;min-height:34px}
+.app-shell.embedded .workflow-strip {gap:6px;margin-bottom:14px}
+.app-shell.embedded .workflow-step {padding:8px;min-height:46px}
+.app-shell.embedded .workflow-step small,.app-shell.embedded .subtle {color:var(--fs-muted,#566371)}
+.app-shell.embedded .workflow-step>span {color:var(--fs-muted,#566371)}
+.app-shell.embedded .workflow-step.current {border-color:var(--fs-accent,#305fb1)}
+.app-shell.embedded .video-frame {background:var(--fs-preview,#171e29)}
+.app-shell.embedded .empty-icon {background:transparent;color:#b7c3d2;border-color:#465365}
+.app-shell.embedded .empty-actions .btn.outline {background:#252e3c;border-color:#465365;color:#e5eaf1}
+.app-shell.embedded .empty-media {color:#bbc6d4}
+.app-shell.embedded .empty-media h2 {color:#f1f4f8}
+.app-shell.embedded .section-title {padding-inline:12px}
+.app-shell.embedded .chip {color:var(--fs-accent,#305fb1);border-color:var(--fs-border,#dce1e7)}
+.app-shell.embedded .btn.primary:hover:not(:disabled) {background:var(--fs-accent,#305fb1);filter:brightness(.94)}
+.app-shell.embedded .timeline-ruler span,.app-shell.embedded .cue-row-bottom,.app-shell.embedded .time-input,.app-shell.embedded .shift-controls {color:var(--fs-muted,#566371)}
+.app-shell.embedded .cue-bar {background:var(--fs-wave,#537cae);border-color:var(--fs-wave,#537cae);color:#101722}
+.app-shell.embedded .cue-bar.selected {background:var(--fs-accent,#305fb1);border-color:var(--fs-accent,#305fb1);color:var(--fs-on-accent,#fff)}
+.app-shell.embedded .cue-row.playing {box-shadow:inset 2px 0 0 var(--fs-accent,#305fb1)}
+.app-shell.embedded .playhead,.app-shell.embedded .playhead:before {border-color:#d79a42;background:#d79a42}
+.app-shell.embedded .playhead {background:transparent}
+.app-shell.embedded :is(button,a,input,select,textarea):focus-visible {outline-color:var(--fs-focus,#4678ce)}
+@media(max-width:600px) {.app-shell.embedded .caption-action-toolbar {padding:8px}.app-shell.embedded .caption-action-toolbar .btn {font-size:11px}.app-shell.embedded .workflow-step {padding:6px}}
+
+/* Put the timeline directly beneath the viewer, not after transcription settings. */
+.app-shell.embedded .main-column {gap:12px}
+.app-shell.embedded .timeline {margin-top:0}
+.app-shell.embedded .video-frame {max-height:clamp(220px,40vh,390px);display:grid;place-items:center;background:var(--fs-preview,#171e29)}
+.app-shell.embedded .empty-media {width:100%;height:100%;min-height:0;background:var(--fs-preview,#171e29);padding:12px}
+.app-shell.embedded .empty-icon {width:38px;height:38px;border-radius:6px;margin-bottom:7px}
+.app-shell.embedded .empty-media h2 {font-size:15px}
+.app-shell.embedded .empty-media p {margin-bottom:10px}
+.app-shell.embedded .empty-media .text-button {color:#bcc8d6}
+.app-shell.embedded .side-panel {min-height:0;align-self:start}
+.app-shell.embedded .side-tabs {height:42px}
+.app-shell.embedded .side-tabs button {color:var(--fs-muted)}
+.app-shell.embedded .side-tabs button.active {color:var(--fs-accent)}
+.app-shell.embedded .cue-list {min-height:180px;max-height:clamp(200px,55vh,640px);padding:0 9px}
+.app-shell.embedded .cue-row {border-radius:var(--fs-radius);margin-bottom:5px;padding:9px}
+.app-shell.embedded .cue-row textarea {line-height:1.6;font-size:13px}
+.app-shell.embedded .cue-row-actions button {min-width:26px;min-height:26px;color:var(--fs-muted)}
+.app-shell.embedded .cue-row.selected {border-color:var(--fs-accent)}
+.app-shell.embedded .section-title {height:40px}
+.app-shell.embedded .playback-controls {gap:7px}
+.app-shell.embedded .playback-time {color:var(--fs-text);font-variant-numeric:tabular-nums}
+.app-shell.embedded .timeline-ruler,.app-shell.embedded .timeline-track {margin-inline:10px}
+.app-shell.embedded .timeline-ruler {height:24px}
+.app-shell.embedded .timeline-track {height:118px;border:1px solid var(--fs-border)}
+.app-shell.embedded .waveform {height:70px}
+.app-shell.embedded .cue-track {top:76px;border-color:var(--fs-border)}
+.waveform-empty {position:absolute;top:22px;left:0;right:0;text-align:center;pointer-events:none;font-size:12px;color:var(--fs-muted,#566371)}
+.app-shell.embedded .timeline-scroll {margin-inline:10px}
+.app-shell.embedded .timeline-foot {font-size:11px}
+.app-shell.embedded .workflow-step {min-width:0}
+@media(max-width:600px) {
+ .app-shell.embedded .workflow-strip {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:4px}
+ .app-shell.embedded .workflow-step {min-width:0;width:100%;padding:6px;gap:5px}
+ .app-shell.embedded .workflow-step+.workflow-step:before {display:none}
+ .app-shell.embedded .workflow-step small {white-space:normal}
+ .app-shell.embedded .video-frame {max-height:none;min-height:210px}
+ .app-shell.embedded .empty-media {height:auto}
+ .app-shell.embedded .timeline-top {height:auto;min-height:44px;flex-wrap:wrap;padding-block:7px}
+ .app-shell.embedded .timeline-actions {flex-wrap:wrap}
+}
+
+/* Explicit width avoids the aspect-ratio/max-height combination shrinking the viewer. */
+.app-shell.embedded .video-frame {width:100%;min-width:0}
+.app-shell.embedded .empty-media {position:absolute;inset:0;width:auto;height:auto}

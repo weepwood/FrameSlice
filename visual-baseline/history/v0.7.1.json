@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "chrome": "158.0.8127.88",
+  "commit": "7abc36a4935a66894d95d36ed97be702fc7c283b",
+  "head": "714583455214ad41c6e433137f3fd9df482eb596",
+  "runId": 45413632372,
+  "artifactId": 14932560127,
+  "releaseTag": "v0.7.1",
+  "reviewedOn": "2026-11-24",
+  "scope": "固定视口、空工作台、双主题；动态配额值遮罩；不覆盖完整滚动页面或所有交互态",
+  "images": [
+    {
+      "name": "split-light-1440.png",
+      "sha256": "95d6c3fc84c154b200e57639975e3436c4cecc61b18c60dbecf38028c61c7fd8",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "frames-light-1440.png",
+      "sha256": "94645eb5766e4405051b3e97a66d7703e15583aaaed021748c9e31d6717fa7dd",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "captions-light-1440.png",
+      "sha256": "9d0256798a90130d614200fabe2d2accd384538c60790126737b4a5f25697d84",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "jobs-light-1440.png",
+      "sha256": "da360a1130bae03835aa7caf5983be66048151fdce346a6913ad1a144ee3f2e0",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "split-dark-1440.png",
+      "sha256": "cc94a8489b8b3c2c21ae98d7046c8e8627e611dec2b1c8b72f4d18a6adf591c8",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "frames-dark-1440.png",
+      "sha256": "0c304cf4f80b721e2b53bbd9acf769ab746fca8565ac1d0230fc3deb12164033",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "captions-dark-1440.png",
+      "sha256": "1021089ab306ed59a464b90d0dde1c3b3a0500ab970b4f68768c0a5bbd0b48c7",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "jobs-dark-1440.png",
+      "sha256": "02f7028d697d0ea116eafd5edaf346c8d1ed094a46aeeacd09264ea9985ee3da",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "split-light-390.png",
+      "sha256": "a29f8dc440ef8a191428c19ff89174d2ae617d5e0df6a30dc75acd9697904ea9",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "frames-light-390.png",
+      "sha256": "a4e23a7a94417c467c7cf7e0f1ee8c5649cec410983a00cc0d5eed1927f449a1",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "captions-light-390.png",
+      "sha256": "3274cc43bee67a3ef30496e5a862288c438d67f97461856cac5585e223abe546",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "jobs-light-390.png",
+      "sha256": "4c87488adc7db68968169f5d984cb0a565cd27d8f8c579dd4a5ef260f5a759f6",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "split-dark-390.png",
+      "sha256": "8b85190d4cb3c20596fcdfa4f968b559d35e8538ace870096f6ef7b30527ade3",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "frames-dark-390.png",
+      "sha256": "9da749448235498696536aeae13ed63e7ef26f6b24f9c26c80353b69ad2dabbd",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "captions-dark-390.png",
+      "sha256": "13c48d95042df7ce5580d6a9ac907e9af06d34fff386fc6bede01580be475a3a",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "jobs-dark-390.png",
+      "sha256": "c82fd6a6ac7ad22d5f0db912f80712b188f54e3e9bc84938b8876e56bf693e2d",
+      "width": 390,
+      "height": 844
+    }
+  ]
+}

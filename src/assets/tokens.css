@@ -1,4 +1,29 @@
-/* Single semantic palette shared with the independently built React island. */
-:root{--fs-bg:#f8f8f6;--fs-surface:#fff;--fs-raised:#fafaf8;--fs-input:#fff;--fs-text:#292d27;--fs-muted:#68736a;--fs-border:#e4e9e1;--fs-accent:#455f49;--fs-on-accent:#fff;--fs-selected:#e8ede6;--fs-focus:#729574;--fs-danger:#a34c3c;--fs-warning:#8c632b;--fs-radius:8px;--fs-wave:#6d9476;--fs-wave-bg:#e8eeec;color-scheme:light}
-:root[data-fs-theme="dark"]{--fs-bg:#151916;--fs-surface:#1c231e;--fs-raised:#202923;--fs-input:#252f28;--fs-text:#e5ece6;--fs-muted:#a1b0a4;--fs-border:#354238;--fs-accent:#a1c5aa;--fs-on-accent:#142519;--fs-selected:#31463a;--fs-focus:#a6d0b0;--fs-danger:#efaa9e;--fs-warning:#e2bf86;--fs-wave:#91b99b;--fs-wave-bg:#29372e;color-scheme:dark}
-@media(prefers-color-scheme:dark){:root:not([data-fs-theme="light"]){--fs-bg:#151916;--fs-surface:#1c231e;--fs-raised:#202923;--fs-input:#252f28;--fs-text:#e5ece6;--fs-muted:#a1b0a4;--fs-border:#354238;--fs-accent:#a1c5aa;--fs-on-accent:#142519;--fs-selected:#31463a;--fs-focus:#a6d0b0;--fs-danger:#efaa9e;--fs-warning:#e2bf86;--fs-wave:#91b99b;--fs-wave-bg:#29372e;color-scheme:dark}}
+/* Shared semantic tokens for Vue and the embedded React subtitle editor. */
+:root {
+  --fs-bg:#f5f6f8; --fs-surface:#ffffff; --fs-raised:#eef0f3;
+  --fs-input:#ffffff; --fs-text:#242b35; --fs-muted:#566371;
+  --fs-border:#dce1e7; --fs-accent:#305fb1; --fs-on-accent:#fff;
+  --fs-selected:#e8effb; --fs-focus:#4678ce; --fs-danger:#a43d39;
+  --fs-warning:#805919; --fs-success:#28734e; --fs-radius:6px;
+  --fs-wave:#537cae; --fs-wave-bg:#e6edf6; --fs-preview:#171e29;
+  --fs-font: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+  color-scheme:light;
+}
+:root[data-fs-theme="dark"] {
+  --fs-bg:#171b22; --fs-surface:#20252e; --fs-raised:#292f39;
+  --fs-input:#252b35; --fs-text:#e5eaf1; --fs-muted:#aab5c3;
+  --fs-border:#39424f; --fs-accent:#93b8fa; --fs-on-accent:#142542;
+  --fs-selected:#2b3d58; --fs-focus:#a4c4ff; --fs-danger:#f2a5a0;
+  --fs-warning:#e5c18a; --fs-success:#8ed1a8; --fs-wave:#88aee4;
+  --fs-wave-bg:#293749; --fs-preview:#11161e; color-scheme:dark;
+}
+@media(prefers-color-scheme:dark) {
+  :root:not([data-fs-theme="light"]) {
+    --fs-bg:#171b22; --fs-surface:#20252e; --fs-raised:#292f39;
+    --fs-input:#252b35; --fs-text:#e5eaf1; --fs-muted:#aab5c3;
+    --fs-border:#39424f; --fs-accent:#93b8fa; --fs-on-accent:#142542;
+    --fs-selected:#2b3d58; --fs-focus:#a4c4ff; --fs-danger:#f2a5a0;
+    --fs-warning:#e5c18a; --fs-success:#8ed1a8; --fs-wave:#88aee4;
+    --fs-wave-bg:#293749; --fs-preview:#11161e; color-scheme:dark;
+  }
+}

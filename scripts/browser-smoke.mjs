@@ -4,7 +4,7 @@
  * operating-system picker to verify structured cloning into Web Workers.
  */
 import { chromium } from 'playwright-core'
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { readFile, mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -45,6 +45,32 @@ try {
   }
   await page.locator('input[type=file]').setInputFiles(sample)
   await page.locator('.file-codec').waitFor({ timeout: 30_000 })
+  const inspector = page.getByRole('complementary', { name: '媒体检查器' })
+  await inspector.getByText('源媒体', { exact: true }).waitFor()
+  if (!(await inspector.locator('.fs-inspector-filename').innerText()).trim()) throw Error('Inspector filename missing')
+  await page.getByRole('button', { name: '隐藏检查器' }).click()
+  if (await inspector.count()) throw Error('Inspector should be hidden')
+  await page.getByRole('button', { name: '显示检查器' }).click()
+  await inspector.getByText('当前输出', { exact: true }).waitFor()
+  await inspector.getByRole('region',{name:'输出设置'}).waitFor()
+  await page.getByRole('button',{name:'隐藏检查器'}).click()
+  await page.locator('.workspace').getByRole('region',{name:'输出设置'}).waitFor()
+  await page.getByRole('button',{name:'显示检查器'}).click()
+  await inspector.getByRole('region',{name:'输出设置'}).waitFor()
+  const preview=page.getByRole('region',{name:'视频预览'}).locator('video')
+  await preview.waitFor()
+  // Verify the native decoder actually presents the local fixture before visual capture.
+  await preview.evaluate(async v=>{await v.play();v.pause()})
+  await page.waitForFunction(()=>{const v=document.querySelector('.fs-preview-panel video');return v&&v.readyState>=2&&!v.seeking},{},{timeout:15000})
+  const action=page.getByRole('button',{name:/开始分割视频/});await action.waitFor()
+  if(await action.count()!==1||!await page.locator('.topbar').getByRole('button',{name:/开始分割视频/}).isVisible())throw Error('Desktop primary action not uniquely available in toolbar')
+  await page.setViewportSize({width:390,height:844});await page.locator('.execution').getByRole('button',{name:/开始分割视频/}).waitFor()
+  await page.setViewportSize({width:1440,height:900});await page.locator('.topbar').getByRole('button',{name:/开始分割视频/}).waitFor()
+  await page.getByRole('slider',{name:'时间轴缩放'}).fill('2')
+  await page.getByRole('button',{name:'定位到播放位置'}).click()
+  await page.getByRole('slider',{name:'时间轴缩放'}).fill('1')
+  await page.getByRole('slider',{name:'定位播放位置'}).fill('1')
+  await page.waitForFunction(()=>{const v=document.querySelector('.fs-preview-panel video');return v&&Math.abs(v.currentTime-1)<.05&&!v.seeking&&v.readyState>=2},{},{timeout:15000})
 
   await page.getByRole('button', { name: '分析视频' }).click()
   await page.locator('.fs-analysis-metrics').waitFor({ timeout: 30_000 })
@@ -67,7 +93,11 @@ try {
   await page.getByText(/1 个片段 · 下列为媒体包估算/).waitFor({timeout:30000})
   await page.getByRole('combobox',{name:'主题'}).selectOption('dark')
   if(await page.locator('html').getAttribute('data-fs-theme')!=='dark')throw Error('theme switch failed')
+  await mkdir('visual-regression',{recursive:true})
+  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-split-dark.png',animations:'disabled'})
   await page.getByRole('combobox',{name:'主题'}).selectOption('light')
+  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-split-light.png',animations:'disabled'})
+  await page.getByRole('region',{name:'媒体时间轴'}).scrollIntoViewIfNeeded();await page.screenshot({path:'visual-regression/loaded-timeline-light.png',animations:'disabled'})
   await page.getByRole('button', { name: /开始分割视频/ }).click()
   await awaitResult('split Worker')
   if (await page.locator('.result-list .result-item').count() !== 1) {
@@ -156,6 +186,8 @@ try {
     name: 'integration.srt', mimeType: 'text/plain',
     buffer: Buffer.from(['1','00:00:01,000 --> 00:00:03,000','FrameSlice 字幕合并测试',''].join(String.fromCharCode(10)), 'utf8'),
   })
+  await caption.getByRole('textbox',{name:'第 1 条字幕'}).waitFor()
+  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-caption-light.png',animations:'disabled'})
   await caption.getByRole('tab', { name: /导出/ }).click()
   const [subtitleDownload] = await Promise.all([
     page.waitForEvent('download', { timeout: 30_000 }),
