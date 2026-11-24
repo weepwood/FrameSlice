@@ -231,7 +231,7 @@ try {
     throw new Error('Container inspector did not identify H.264 video and AAC audio')
   }
   await containerPanel.locator('.ct-choice').first().click()
-  await containerPanel.locator('.ct-ack input').check()
+  await containerPanel.locator('.ct-ack').getByRole('checkbox').check()
   await containerPanel.getByRole('button', { name: /开始提取所选轨道/ }).click()
   await page.waitForFunction(() => {
     const panel = document.querySelector('.ct-workspace')
@@ -286,7 +286,7 @@ try {
   if (await containerPanel.locator('.ct-unavailable').count() < 1) {
     throw new Error('MKV inspector silently omitted an embedded subtitle track')
   }
-  await containerPanel.locator('.ct-ack input').check()
+  await containerPanel.locator('.ct-ack').getByRole('checkbox').check()
   await selectOption(page,'封装目标格式','MP4',containerPanel)
   await containerPanel.getByRole('button', { name: /开始无损重新封装/ }).click()
   await page.waitForFunction(() => {

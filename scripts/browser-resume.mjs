@@ -15,7 +15,7 @@ try{
  await page.locator('.file-codec').waitFor()
  await page.getByRole('button',{name:'定时抽帧'}).click()
  await page.getByRole('spinbutton',{name:'抽帧间隔秒数'}).fill('0.5')
- await page.getByLabel(/启用断点续作/).check()
+ await page.getByRole('checkbox',{name:/启用断点续作/}).check()
  await page.getByRole('button',{name:/开始提取图片/}).click()
  async function done(){try{await page.locator('.status-card.success').waitFor({timeout:60000})}catch(e){const failure=page.locator('.status-card.failure');throw Error('未观察到新任务成功状态：'+(await failure.count()?await failure.innerText():String(e)))}}
  await done()
@@ -51,7 +51,7 @@ try{
  await page.getByRole('button',{name:/开始提取图片/}).click();await done()
  console.log('Cross-tab lock and same-size output corruption refusal verified')
  await page.getByRole('button',{name:'新建任务'}).count() // optional session was cleared on successful completion
- await page.getByLabel(/启用断点续作/).uncheck()
+ await page.getByRole('checkbox',{name:/启用断点续作/}).uncheck()
  await page.getByRole('combobox',{name:'抽帧策略'}).click();await page.getByRole('option',{name:'最清晰帧'}).click()
  await page.getByRole('button',{name:/开始提取图片/}).click();await done()
  await page.locator('.frame-tile img').first().waitFor({timeout:60000})

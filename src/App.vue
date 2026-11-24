@@ -21,8 +21,9 @@ import CaptionWorkspace from './components/CaptionWorkspace.vue'
 import {readResetResult} from './lib/reset-storage'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import MediaTimeline from './components/MediaTimeline.vue'
-import {SplitterGroup,SplitterPanel,SplitterResizeHandle,SliderRoot,SliderTrack,SliderRange,SliderThumb} from 'reka-ui'
+import {SplitterGroup,SplitterPanel,SplitterResizeHandle,SliderRoot,SliderTrack,SliderRange,SliderThumb,CollapsibleRoot,CollapsibleTrigger,CollapsibleContent} from 'reka-ui'
 import MediaResourceLibrary from './components/MediaResourceLibrary.vue'
+import WorkbenchCheckbox from './components/WorkbenchCheckbox.vue'
 import WorkbenchSelect from './components/WorkbenchSelect.vue'
 import MediaResults from './components/MediaResults.vue'
 import WorkbenchButton from './components/WorkbenchButton.vue'
@@ -578,8 +579,8 @@ onBeforeUnmount(() => {
       </nav>
       <MediaResourceLibrary :assets="mediaLibrary" :current="file" :disabled="status==='running'||containerBusy" @import="importMedia" @select="loadFile" @remove="removeMedia"/>
 
-      <details class="fs-job-history">
-        <summary>任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></summary>
+      <CollapsibleRoot class="fs-job-history">
+        <CollapsibleTrigger class="fs-history-trigger">任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></CollapsibleTrigger><CollapsibleContent>
         <div v-if="!recentJobs.length" class="fs-job-empty">暂无任务</div>
         <div v-for="job in recentJobs.slice(0, 8)" :key="job.id" class="fs-job-row" :title="job.error?.message || job.asset.name">
           <strong>{{ jobLabels[job.type] }} · {{ jobStates[job.status] }}</strong>
@@ -590,7 +591,7 @@ onBeforeUnmount(() => {
         </div>
         <p v-if="retryNotice" role="status">{{retryNotice}}</p>
         <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
-      </details>
+      </CollapsibleContent></CollapsibleRoot>
       <div class="sidebar-bottom">
         <div class="fs-theme-select"><span>外观</span><WorkbenchSelect v-model="theme" label="主题" :options="([{value:'system',label:'跟随系统'},{value:'light',label:'浅色'},{value:'dark',label:'深色'}] as const)" @update:model-value="applyTheme"/></div>
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
@@ -720,7 +721,7 @@ onBeforeUnmount(() => {
           <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong><span>最清晰：每窗口可调候选；场景检测：采样直方图；关键帧：编码索引</span></div></div><WorkbenchSelect v-model="frameStrategy" label="抽帧策略" :disabled="status==='running'" :options="([{value:'interval',label:'定时抽帧'},{value:'sharpest',label:'最清晰帧'},{value:'scene',label:'场景变化'},{value:'keyframes',label:'关键帧'}] as const)"/></div>
           <div v-if="frameStrategy==='sharpest'" class="config-row"><label>每窗口候选数 <input type="number" v-model.number="candidateCount" min="1" max="12" :disabled="status==='running'"/></label><label>最低清晰度 <input type="number" v-model.number="minSharpness" min="0" max="260100" step="10" :disabled="status==='running'"/></label></div>
           <div v-if="frameStrategy==='scene'" class="config-row"><label>场景差异阈值 {{sceneThreshold.toFixed(2)}} <input type="range" v-model.number="sceneThreshold" min="0" max="1" step=".01" :disabled="status==='running'"/></label></div>
-          <div class="config-row"><label><input v-model="deduplicate" type="checkbox" :disabled="status==='running'"/> 过滤最近 64 张近似重复画面</label></div>
+          <div class="config-row"><WorkbenchCheckbox v-model="deduplicate" :disabled="status==='running'">过滤最近 64 张近似重复画面</WorkbenchCheckbox></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong><span>从 00:00 开始，每隔指定秒数提取画面</span></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong><span>只处理所选区间，避免无关帧与磁盘开销</span></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong><span>选择导出的图片编码格式</span></div></div><WorkbenchSelect v-model="imageFormat" label="图片格式" :disabled="status==='running'" :options="([{value:'image/jpeg',label:'JPEG'},{value:'image/png',label:'PNG'},{value:'image/webp',label:'WebP'}] as const)"/></div>
@@ -739,7 +740,7 @@ onBeforeUnmount(() => {
           <p v-if="visiblePlan[0]?.excludedPreroll" class="fs-analysis-warning">首段不复制 {{visiblePlan[0].excludedPreroll.packets}} 个 AAC 前置包（完全位于视频开始之前），将写入报告。</p>
           <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
         </section>
-        <section v-if="file && info" class="fs-analysis"><label><input type="checkbox" v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))"/> 启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</label><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
+        <section v-if="file && info" class="fs-analysis"><WorkbenchCheckbox v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))">启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</WorkbenchCheckbox><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
         <section class="execution" v-if="file && info">
           <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">保存位置</span><strong class="fs-output-location" :title="resumeSession?.folder.name || selectedFolderName || '未指定'">{{resumeSession?.folder.name || selectedFolderName || '未指定'}}</strong></div></div>
           <Teleport :to="actionTarget || 'body'" :disabled="!actionInToolbar"><button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>
@@ -816,8 +817,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .fs-job-history{margin:12px 12px 0;font-size:11px;min-height:0;max-height:36vh;overflow:auto;color:inherit}
-.fs-job-history summary{cursor:pointer;font-weight:600;padding:8px 4px;display:flex;justify-content:space-between;gap:4px}
-.fs-job-history summary span,.fs-job-row small,.fs-job-empty{opacity:.7;font-weight:400}
+.fs-job-history .fs-history-trigger{cursor:pointer;font-weight:600;padding:8px 4px;display:flex;justify-content:space-between;gap:4px}
+.fs-job-history .fs-history-trigger span,.fs-job-row small,.fs-job-empty{opacity:.7;font-weight:400}
 .fs-job-row{display:flex;flex-direction:column;gap:4px;padding:8px 4px;border-bottom:1px solid rgba(128,128,128,.16)}
 .fs-job-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fs-job-row progress{width:100%;height:4px;accent-color:#729e82}

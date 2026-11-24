@@ -5,6 +5,7 @@ import {
   FileVideo, Folder, FolderOpen, LoaderCircle, PackageOpen, Play, Subtitles,
   X, ShieldCheck,
 } from 'lucide-vue-next'
+import WorkbenchCheckbox from './WorkbenchCheckbox.vue'
 import WorkbenchSelect from './WorkbenchSelect.vue'
 import MediaEditWorkspace from './MediaEditWorkspace.vue'
 import type { ContainerInspection, ContainerTrack, ContainerOutput, ContainerAction, ContainerFormat } from '../lib/container-ops'
@@ -282,8 +283,8 @@ onBeforeUnmount(() => cleanup())
             <p v-for="warning in report.warnings" :key="warning">{{ warning }}</p>
           </div>
         </div>
-        <label class="ct-ack"><input v-model="confirmed" type="checkbox" :disabled="working"/>
-          我已确认只保留所选轨道，其他轨道及附件可能丢失</label>
+        <WorkbenchCheckbox class="ct-ack" v-model="confirmed" :disabled="working">
+          我已确认只保留所选轨道，其他轨道及附件可能丢失</WorkbenchCheckbox>
         <div class="ct-option-row ct-last">
           <div><strong>输出位置</strong><small>{{ folder?.name || '请指定本地文件夹，每次任务独立子目录' }}</small></div>
           <button type="button" class="secondary-button" :disabled="working" @click="pickFolder"><Folder :size="15"/>{{ folder ? '更换目录' : '选择目录' }}</button>
