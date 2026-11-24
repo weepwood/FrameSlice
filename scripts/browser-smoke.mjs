@@ -209,7 +209,25 @@ try {
       await caption.locator('.topbar').count() !== 0) {
     throw new Error('Embedded subtitle workspace still has a duplicate navbar/topbar')
   }
-  await caption.getByRole('button', { name: /打开工程/ }).waitFor()
+  const projectMenu=caption.getByRole('button',{name:'工程操作'})
+  await projectMenu.click()
+  await caption.getByRole('menuitem',{name:'打开工程',exact:true}).waitFor()
+  await caption.getByRole('menuitem',{name:'导出工程',exact:true}).waitFor()
+  await caption.getByRole('menuitem',{name:'新建工程',exact:true}).waitFor()
+  await page.keyboard.press('Escape')
+  await caption.getByRole('menu').waitFor({state:'hidden'})
+  for(const width of [1440,1024,768,390]){
+    await page.setViewportSize({width,height:900})
+    await caption.locator('.caption-action-toolbar').evaluate(el=>{
+      const r=el.getBoundingClientRect(),style=getComputedStyle(el);
+      for(const child of el.querySelectorAll('input,button')){
+        const c=child.getBoundingClientRect();
+        if(c.width&&c.height&&(c.left<r.left+parseFloat(style.paddingLeft)-1||c.right>r.right-parseFloat(style.paddingRight)+1))throw Error('caption toolbar control clipped')
+      }
+      if(el.scrollWidth>el.clientWidth+1)throw Error('caption toolbar horizontal overflow')
+    })
+  }
+  await page.setViewportSize({width:1440,height:900})
   await caption.getByRole('button', { name: /导入字幕/ }).waitFor()
   await caption.getByRole('tab',{name:'转录'}).click()
   const backend=caption.getByRole('combobox',{name:'计算后端'});
@@ -251,7 +269,8 @@ try {
   // Caption editor to soft subtitle mux: reuse the already loaded media File,
   // transfer generated SRT in-memory; no redundant SRT export/reimport step.
   await caption.locator('input[accept^="video/*"]').setInputFiles(sample)
-  await caption.getByRole('button', { name: /封装软字幕/ }).click()
+  await projectMenu.click()
+  await caption.getByRole('menuitem', { name: /封装软字幕/ }).click()
   await page.locator('.ct-file-note').waitFor({ timeout: 30_000 })
   if (!((await page.locator('.ct-file-note').innerText()).includes('caption-export.srt')) ||
       !((await page.locator('.ct-choice.active').innerText()).includes('重新封装')) ||

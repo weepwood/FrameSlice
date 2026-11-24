@@ -4,7 +4,7 @@ import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, CircleHelp, Clock3,
   Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
   LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
-  Upload, X, Zap, AlertTriangle, Film, PanelRight,
+  Upload, X, AlertTriangle, Film, PanelRight,
 } from 'lucide-vue-next'
 import { humanBytes, humanTime, plannedFrameCount, friendlyError, baseName } from './lib/format'
 import type { VideoInfo } from './lib/media'
@@ -594,7 +594,7 @@ onBeforeUnmount(() => {
       </CollapsibleContent></CollapsibleRoot>
       <div class="sidebar-bottom">
         <div class="fs-theme-select"><span>外观</span><WorkbenchSelect v-model="theme" label="主题" :options="([{value:'system',label:'跟随系统'},{value:'light',label:'浅色'},{value:'dark',label:'深色'}] as const)" @update:model-value="applyTheme"/></div>
-        <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
+        <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong></div></div>
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
         <div class="sidebar-version">FRAMESLICE / V{{version}}</div>
       </div>
@@ -614,7 +614,6 @@ onBeforeUnmount(() => {
       <div v-show="!showJobs && mode !== 'captions'" class="content">
         <div class="page-head">
           <h1>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : '定时抽帧' }}</h1>
-          <p>{{ mode === 'split' ? (videoTool === 'container' ? '识别 MKV 等媒体轨道，提取音轨或无损重新封装，支持附加软字幕。' : '将大型视频拆分成独立可播放的 MP4 文件，无需重新编码。') : '按设定时间间隔提取视频画面，批量导出为高质量图片。' }}</p>
         </div>
 
         <div v-if="mode === 'split'" class="video-tool-switch" role="group" aria-label="视频工具操作">
@@ -623,7 +622,7 @@ onBeforeUnmount(() => {
         </div>
         <ContainerWorkspace v-if="containerVisited" v-show="mode === 'split' && videoTool === 'container'" :initial-file="file" :handoff="subtitleHandoff" @busy="containerBusy = $event"/>
         <div v-show="mode !== 'split' || videoTool === 'split'">
-        <div class="step-head"><h2>源视频</h2><span class="step-description">本地文件</span></div>
+        <div class="step-head"><h2>源视频</h2></div>
         <input ref="fileInput" type="file" accept="video/*,.mp4,.m4v,.mov,.mkv,.webm" class="visually-hidden" @change="onInputChange" />
         <section v-if="!file" class="drop-zone" :class="{ dragging }" tabindex="0" role="button" aria-label="选择视频文件" @click="selectFile" @keydown.enter="selectFile" @keydown.space.prevent="selectFile" @dragover="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
           <div class="drop-icon"><Upload :size="25" :stroke-width="1.6"/></div>
@@ -691,44 +690,40 @@ onBeforeUnmount(() => {
         <Teleport :to="settingsTarget || 'body'" :disabled="!settingsInInspector"><section class="fs-output-settings" aria-label="输出设置"><div class="step-head step-two"><h2>输出设置</h2></div>
         <section class="config-panel" v-if="mode === 'split'">
           <div class="config-row">
-            <div class="setting-copy"><div class="setting-icon"><Scissors :size="19"/></div><div><strong>分割方式</strong><span>按文件容量或视频时长分割</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><Scissors :size="19"/></div><div><strong>分割方式</strong></div></div>
             <WorkbenchSelect v-model="splitStrategy" label="分割方式" :disabled="status==='running'" :options="([{value:'size',label:'按文件大小'},{value:'duration',label:'按视频时长'}] as const)"/>
           </div>
           <div v-if="splitStrategy === 'size'" class="config-row">
-            <div class="setting-copy"><div class="setting-icon"><Layers2 :size="19"/></div><div><strong>单个文件大小</strong><span>根据关键帧位置自动选择切割点</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><Layers2 :size="19"/></div><div><strong>单个文件大小</strong></div></div>
             <div class="config-control"><input type="number" v-model.number="size" :disabled="status === 'running'" min="0.032" step="0.1" class="number-input" aria-label="每份目标大小"/><WorkbenchSelect v-model="sizeUnit" label="单位" :disabled="status==='running'" :options="([{value:'GB',label:'GB'},{value:'GiB',label:'GiB'}] as const)"/></div>
           </div>
           <div v-else class="config-row">
-            <div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>每段视频时长</strong><span>以关键帧对齐；超出间隔时将提示无法无损分割</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>每段视频时长</strong></div></div>
             <div class="config-control"><input type="number" v-model.number="splitMinutes" :disabled="status === 'running'" min="0.01" max="100000" step="0.5" class="number-input" aria-label="每段时长（分钟）"/><span class="input-suffix">分钟</span></div>
           </div>
           <div class="config-row">
-            <div class="setting-copy"><div class="setting-icon"><Zap :size="19"/></div><div><strong>无损快速分割</strong><span>复制压缩数据，尽可能保持原始画质</span></div></div>
-            <span class="setting-tag">无需转码</span>
-          </div>
-          <div class="config-row">
-            <div class="setting-copy"><div class="setting-icon"><ShieldCheck :size="19"/></div><div><strong>输出完整性校验</strong><span>快速模式检查封装、轨道、时长与关键帧；深度模式还逐包对比 CRC32，读取量更大</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><ShieldCheck :size="19"/></div><div><strong>输出完整性校验</strong><span>深度校验额外逐包读取 CRC32</span></div></div>
             <WorkbenchSelect v-model="verificationLevel" label="视频输出校验等级" :disabled="status==='running'" :options="([{value:'quick',label:'快速校验（推荐）'},{value:'deep',label:'逐包深度校验'}] as const)"/>
           </div>
           <div class="config-row last">
             <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || '请指定本地输出目录' }}</span></div></div>
             <button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button>
           </div>
-          <div class="config-footnote"><Info :size="16"/><span>按大小分割保留封装余量；按时长分割在关键帧位置切割，两者都不能保证精确均分。仅支持单视频轨、最多一条音轨。</span></div>
+          <div class="config-footnote"><Info :size="16"/><span>无损切割按关键帧对齐，不能精确均分。支持单视频轨、最多一条音轨。</span></div>
         </section>
 
         <section class="config-panel" v-else>
-          <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong><span>最清晰：每窗口可调候选；场景检测：采样直方图；关键帧：编码索引</span></div></div><WorkbenchSelect v-model="frameStrategy" label="抽帧策略" :disabled="status==='running'" :options="([{value:'interval',label:'定时抽帧'},{value:'sharpest',label:'最清晰帧'},{value:'scene',label:'场景变化'},{value:'keyframes',label:'关键帧'}] as const)"/></div>
+          <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong></div></div><WorkbenchSelect v-model="frameStrategy" label="抽帧策略" :disabled="status==='running'" :options="([{value:'interval',label:'定时抽帧'},{value:'sharpest',label:'最清晰帧'},{value:'scene',label:'场景变化'},{value:'keyframes',label:'关键帧'}] as const)"/></div>
           <div v-if="frameStrategy==='sharpest'" class="config-row"><label>每窗口候选数 <input type="number" v-model.number="candidateCount" min="1" max="12" :disabled="status==='running'"/></label><label>最低清晰度 <input type="number" v-model.number="minSharpness" min="0" max="260100" step="10" :disabled="status==='running'"/></label></div>
           <div v-if="frameStrategy==='scene'" class="config-row"><label>场景差异阈值 {{sceneThreshold.toFixed(2)}} <input type="range" v-model.number="sceneThreshold" min="0" max="1" step=".01" :disabled="status==='running'"/></label></div>
           <div class="config-row"><WorkbenchCheckbox v-model="deduplicate" :disabled="status==='running'">过滤最近 64 张近似重复画面</WorkbenchCheckbox></div>
-          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong><span>从 00:00 开始，每隔指定秒数提取画面</span></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
-          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong><span>只处理所选区间，避免无关帧与磁盘开销</span></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
-          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong><span>选择导出的图片编码格式</span></div></div><WorkbenchSelect v-model="imageFormat" label="图片格式" :disabled="status==='running'" :options="([{value:'image/jpeg',label:'JPEG'},{value:'image/png',label:'PNG'},{value:'image/webp',label:'WebP'}] as const)"/></div>
-          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>输出分辨率</strong><span>保持纵横比；小于设置值的视频不会放大</span></div></div><WorkbenchSelect v-model="imageWidth" label="最大输出宽度" :disabled="status==='running'" :options="([{value:0,label:'原始尺寸'},{value:1280,label:'1280 px'},{value:1920,label:'1920 px'},{value:3840,label:'3840 px'}] as const)"/></div>
-          <div v-if="imageFormat !== 'image/png'" class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>图片压缩质量</strong><span>JPEG / WebP 输出质量，越高文件通常越大</span></div></div><div class="range-control"><SliderRoot class="fs-slider" :model-value="[jpegQuality]" :min="0.5" :max="1" :step="0.05" :disabled="status==='running'" @update:model-value="v=>{if(v?.length)jpegQuality=v[0]}"><SliderTrack class="fs-slider-track"><SliderRange class="fs-slider-range"/></SliderTrack><SliderThumb class="fs-slider-thumb" aria-label="截图质量"/></SliderRoot><span>{{ Math.round(jpegQuality * 100) }}%</span></div></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong></div></div><WorkbenchSelect v-model="imageFormat" label="图片格式" :disabled="status==='running'" :options="([{value:'image/jpeg',label:'JPEG'},{value:'image/png',label:'PNG'},{value:'image/webp',label:'WebP'}] as const)"/></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>输出分辨率</strong><span>不放大原图</span></div></div><WorkbenchSelect v-model="imageWidth" label="最大输出宽度" :disabled="status==='running'" :options="([{value:0,label:'原始尺寸'},{value:1280,label:'1280 px'},{value:1920,label:'1920 px'},{value:3840,label:'3840 px'}] as const)"/></div>
+          <div v-if="imageFormat !== 'image/png'" class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>图片压缩质量</strong></div></div><div class="range-control"><SliderRoot class="fs-slider" :model-value="[jpegQuality]" :min="0.5" :max="1" :step="0.05" :disabled="status==='running'" @update:model-value="v=>{if(v?.length)jpegQuality=v[0]}"><SliderTrack class="fs-slider-track"><SliderRange class="fs-slider-range"/></SliderTrack><SliderThumb class="fs-slider-thumb" aria-label="截图质量"/></SliderRoot><span>{{ Math.round(jpegQuality * 100) }}%</span></div></div>
           <div class="config-row last"><div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '未选择目录，最多生成 30 张可下载预览' }}</span></div></div><button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button></div>
-          <div class="config-footnote"><Info :size="16"/><span>图片在本地解码并直接写入磁盘；部分 HEVC、AV1 视频取决于浏览器解码能力。</span></div>
+          <div class="config-footnote"><Info :size="16"/><span>HEVC、AV1 解码取决于浏览器支持。</span></div>
         </section>
 
         </section></Teleport>

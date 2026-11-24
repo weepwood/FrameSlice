@@ -307,3 +307,37 @@
 .fs-jobs-utilities .fs-inline-field{flex-wrap:wrap}
 @media(min-width:1500px){.fs-jobs-utilities{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.fs-frame-results .frame-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.fs-frame-results .frame-gallery.density-large{grid-template-columns:1fr}.fs-gallery-expand{opacity:1}.fs-gallery-dialog-header,.fs-gallery-dialog-footer{padding:10px}.fs-gallery-dialog-footer small{display:none}.fs-gallery-viewer img{max-height:65dvh}}
+
+/* Shared spacing rhythm and restrained surfaces. */
+.fs-workbench .content,.fs-workbench .caption-page{min-width:0;padding:20px clamp(16px,2vw,28px) 20px;box-sizing:border-box}
+.fs-workbench .page-head{margin-bottom:16px}
+.fs-workbench .page-head h1{font-size:24px;font-weight:650;letter-spacing:-.02em}
+.fs-workbench .step-head{margin-bottom:10px}
+.fs-workbench .config-row{min-height:48px;gap:12px;padding-block:8px}
+.fs-workbench .setting-icon{width:28px;height:28px;background:none;color:var(--fs-muted)}
+.fs-workbench .setting-icon svg{width:16px;height:16px}
+.fs-workbench .setting-copy{gap:8px}
+.fs-workbench .setting-copy strong{font-size:13px;font-weight:550}
+.fs-workbench .setting-copy>div:last-child{gap:3px}
+.fs-workbench .setting-copy span{font-size:11px}
+.fs-workbench .config-footnote{background:transparent;padding:10px 12px}
+.fs-workbench .config-footnote span{font-size:11px}
+.fs-workbench .fs-analysis{padding:14px 16px;margin:12px 0 16px;border-radius:var(--fs-radius)}
+.fs-workbench .fs-analysis-header{gap:12px;align-items:center}
+.fs-workbench .fs-settings-target .config-row{min-height:0;padding:9px 0;gap:6px}
+.fs-workbench .fs-jobs-utilities>.fs-analysis{margin-top:0}
+.fs-workbench .fs-storage-diagnostics .fs-analysis-header{margin-bottom:16px}
+.fs-storage-diagnostics .fs-inline-field{gap:6px}
+.fs-storage-summary{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 8px;color:var(--fs-muted);font-size:12px}
+.fs-storage-summary .fs-storage-values{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fs-storage-summary strong{font-weight:600;color:var(--fs-text)}
+.fs-storage-meter{position:relative;width:100%;height:7px;border:0;border-radius:4px;overflow:hidden;background:var(--fs-raised);margin:0 0 16px}
+.fs-storage-meter-fill{height:100%;border-radius:inherit;background:var(--fs-accent);transition:width 160ms ease}
+.fs-storage-meter[data-state=indeterminate] .fs-storage-meter-fill{width:0!important}
+.fs-workbench .fs-storage-row{padding:10px 0;gap:12px;align-items:center}
+.fs-workbench .fs-storage-row>div{gap:3px}
+.fs-workbench .fs-storage-row strong{font-size:13px;font-weight:550}
+.fs-workbench .fs-storage-row small{font-size:11px}
+.fs-storage-message{margin:8px 0 0;color:var(--fs-muted);font-size:12px}
+@media(max-width:720px){.fs-workbench .content,.fs-workbench .caption-page{padding:16px 12px}.fs-workbench .fs-analysis{padding:12px}.fs-workbench .config-row{min-height:44px}.fs-workbench .fs-storage-row{gap:8px}.fs-storage-summary{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.fs-storage-meter-fill{transition:none}}
