@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: [main, feat/v072-media-visual-recovery]
+    branches: [main]
 
 permissions:
   contents: read
