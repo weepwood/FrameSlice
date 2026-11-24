@@ -14,7 +14,7 @@ export function assertCoverage(expected,actual,label){
  */
 export function isLeadingAacPreroll(codec,packet,start){
  const eps=0.00001
- return codec==='aac'&&Number.isFinite(packet.timestamp)&&Number.isFinite(packet.duration)&&packet.duration>0&&packet.duration<=.1&&packet.timestamp<start&&packet.timestamp+packet.duration<=start+eps&&start-packet.timestamp<=packet.duration+eps
+ return codec==='aac'&&Number.isFinite(packet.timestamp)&&Number.isFinite(packet.duration)&&packet.duration>0&&packet.duration<=.256&&packet.timestamp<start&&packet.timestamp+packet.duration<=start+eps&&start-packet.timestamp<=packet.duration+eps
 }
 export function assertGopOrder(groups,duration){
  if(!groups.length||!Number.isFinite(duration)||duration<=0)throw Error('没有可用的关键帧组')

@@ -16,6 +16,7 @@ test('invalid GOP order rejects both size and duration planning',()=>{
 
 test('only a bounded complete AAC preroll before the first video boundary may be excluded',()=>{
  assert.equal(isLeadingAacPreroll('aac',{timestamp:-.021333,duration:.021333},0),true)
+ assert.equal(isLeadingAacPreroll('aac',{timestamp:-.128,duration:.128},0),true) // 8 kHz AAC, 1024 samples
  assert.equal(isLeadingAacPreroll('aac',{timestamp:-.01,duration:.021333},0),false)
  assert.equal(isLeadingAacPreroll('aac',{timestamp:-.2,duration:.02},0),false)
  assert.equal(isLeadingAacPreroll('opus',{timestamp:-.02,duration:.02},0),false)
