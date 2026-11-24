@@ -86,13 +86,13 @@ jobs:
           set -e
           BASE=${PAGE_URL:-https://weepwood.github.io/FrameSlice/}
           for attempt in $(seq 1 20); do
-            if curl -fsSL --max-time 15 "${BASE%/}/frameslice-version.json?sha=$GITHUB_SHA" | jq -e --arg sha "$GITHUB_SHA" '.sha == $sha' >/dev/null; then exit 0; fi
+            if curl -fsSL --max-time 15 "${BASE%/}/frameslice-version.json?sha=$GITHUB_SHA" | jq -e --arg sha "$GITHUB_SHA" --arg version "$(node -p 'require("./package.json").version')" '.sha == $sha and .version == $version' >/dev/null; then exit 0; fi
             sleep 6
           done
           echo 'Production version marker did not match deployed commit' >&2
           exit 1
 
-  release-v060:
+  release-version:
     if: github.ref == 'refs/heads/main'
     needs: build-and-deploy
     runs-on: ubuntu-latest
@@ -100,11 +100,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: 发布已验收 v0.6.0
+      - name: 发布已验收版本
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          test "$VERSION" = "0.6.0" || exit 0
+          test "$VERSION" = "0.7.0" || exit 0
+          node -e 'const v=require("./package.json").version; for(const p of ["./package-lock.json","./apps/caption-studio/package.json","./apps/caption-studio/package-lock.json"]){const x=require(p);if(x.version!==v||(x.packages&&x.packages[""].version!==v))throw Error("版本不一致 "+p)}'
+          awk '/^## v0\.7\.0$/{p=1;next} /^## /{if(p)exit} p' CHANGELOG.md > /tmp/frameslice-release-notes.md
+          test -s /tmp/frameslice-release-notes.md
           if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 0; fi
-          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "FrameSlice v$VERSION" --notes-file CHANGELOG.md
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "FrameSlice v$VERSION" --notes-file /tmp/frameslice-release-notes.md
