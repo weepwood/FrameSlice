@@ -107,3 +107,5 @@
 - 字幕基础组件使用 Base UI Select/Tabs/Checkbox（MIT，锁定实际 npm 版本），Select Portal 直接进入 ShadowRoot，不自行实现键盘/浮层。Vue 与 React 共享视觉 token，保留业务时间轴与媒体引擎。真实 Shadow DOM 回归通过前不合并。
 
 - Radix Select 在实际嵌入式 Shadow DOM 中出现 document.activeElement 焦点识别错误（CI 45439883461、Mac Edge 本地复现），改用 Base UI 1.9.0，保留键盘选择与 Escape 测试，不能降级为鼠标测试。
+
+- PR #16 Base UI 1.9.0 / Reka UI 2.11.0 实际 Chrome 功能通过；CI 45440899864 / artifact 14943621179 的16张固定视口及交互截图已审核，锁定新 approval，旧 PR13 清单归档于 visual-baseline/history/ui-pr13-00f8fd6.json。待2%门禁与短样本复验通过后合并，部署后归档独立资产。

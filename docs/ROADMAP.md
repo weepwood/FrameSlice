@@ -159,3 +159,5 @@
 - #16 第一轮 Vue 组件迁移构建及 Chrome 功能通过，旧视觉基线差异失败。继续在同一 PR 引入 Radix React Select、Tabs、Checkbox，生成真实锁文件并审核；不运行 12GB。
 
 - #16 Radix 实际键盘选择失败，Mac Edge 复现；更换为 Base UI 1.9.0，真实 npm 锁定，保留 Shadow DOM。
+
+- #16 最新 Chrome 功能已通过，16张固定视口候选审核批准，等待新基线门禁和短样本复验。下一阶段集中优化抽帧结果画廊及公共布局，不改媒体引擎。
