@@ -40,6 +40,9 @@ try{
   return files
  })
  const outputs=report.manifest.outputs
+ report.outputBytes=outputs.reduce((n,o)=>n+o.bytes,0)
+ report.outputCount=outputs.length
+ report.peakMainJsHeapBytes=Math.max(0,...report.samples.map(s=>s.mainJsHeapBytes??0))
  if(!outputs.length||report.manifest.task.status!=='completed'||!outputs.every(o=>o.verification.passed&&report.files.some(f=>f.name===o.filename&&f.bytes===o.bytes)))throw Error('实际文件与校验报告不一致')
  if(report.manifest.input.bytes!==source.size||report.errors.length)throw Error('源媒体大小不一致或浏览器运行错误')
  if(source.size>=12000000000&&outputs.length<2)throw Error('12GB 严格 4GB 分割未产生多个文件')
@@ -47,6 +50,7 @@ try{
 }catch(e){report.errors.push(String(e));process.exitCode=1}
 finally{
  clearInterval(interval);report.elapsedMs=Date.now()-started
+ report.sourceReadMiBPerSecond=source.size/1048576/(report.elapsedMs/1000)
  report.measurementLimit='CDP main renderer JS heap is not total browser/Worker/WASM/GPU memory; OPFS is native browser storage, not OS picker.'
  await browser?.close();await writeFile(reportPath,JSON.stringify(report,null,2));console.log(reportPath,report.status)
 }

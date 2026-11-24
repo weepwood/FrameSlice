@@ -11,6 +11,7 @@ export interface KeyframeStatistics {
   peakWindowMbps: number
   bitrateBins: number[]
   keyframeSamples: number[]
+  keyframeIndex:number[]
   structurallyEligible: boolean
   warnings: string[]
 }

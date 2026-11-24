@@ -8,8 +8,9 @@ import {saveBlob} from '../lib/storage'
 import type {SplitResult} from '../lib/split'
 import type {RetryParameters} from './workspace'
 export interface BatchSettings {mode:'split'|'frames';maxBytes:number;interval:number}
-export interface BatchResult {name:string;status:'waiting'|'running'|'completed'|'partial'|'failed'|'canceled';detail:string}
+export interface BatchResult {name:string;status:'waiting'|'running'|'interrupted'|'completed'|'partial'|'failed'|'canceled';detail:string}
 export async function runBatch(files:File[],folder:FileSystemDirectoryHandle,settings:BatchSettings,signal:AbortSignal,update:(i:number,item:BatchResult)=>void){
+ if(settings.mode==='split'&&(!Number.isSafeInteger(settings.maxBytes)||settings.maxBytes<32*1024*1024)||settings.mode==='frames'&&(!Number.isFinite(settings.interval)||settings.interval<.1))throw Error('批量参数无效')
  if(files.length<1||files.length>50)throw Error('每批支持 1–50 个媒体文件')
  for(let i=0;i<files.length;i++){
   const file=files[i];const send=(status:BatchResult['status'],detail:string)=>update(i,{name:file.name,status,detail})

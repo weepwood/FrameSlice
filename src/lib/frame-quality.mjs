@@ -11,3 +11,5 @@ export function measureFrame(rgba,width,height){
 }
 export function hashDistance(a,b){if(a.length!==64||b.length!==64)throw Error('invalid hash');let n=0;for(let i=0;i<64;i++)if(a[i]!==b[i])n++;return n}
 export function sceneDistance(a,b){if(a.length!==16||b.length!==16)throw Error('invalid histogram');return a.reduce((n,v,i)=>n+Math.abs(v-b[i]),0)/2}
+
+export function candidateTimes(start,end,interval,count){if(!Number.isFinite(start)||!Number.isFinite(end)||!Number.isFinite(interval)||interval<=0||end<=start||!Number.isInteger(count)||count<1||count>12)throw Error('候选参数无效');const span=Math.min(interval,Math.max(0,end-start-.001));return Array.from({length:count},(_,i)=>start+span*i/count)}
