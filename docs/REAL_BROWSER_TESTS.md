@@ -29,3 +29,5 @@ Pages 产物使用 github-pages-${GITHUB_RUN_ATTEMPT}，避免同一运行的重
 
 ## 第四轮通过（2026-11-24）
 CI 45403900533 / artifact 14925370006，63e05c0。12,948,073,305 B 实际 H.264，四个输出共 12,947,966,762 B，处理 85,486 ms（144.44756987 MiB/s），进程树 RSS 峰值采样 1,672,740,864 B，主 JS 堆 4,537,348 B。15GB 显式 CDP 配额；重复编码无音轨、快速验证，不代表普通配额、多轨、深度验证及纯 IO 吞吐。
+
+新增深度专项：STRESS_DEEP=1 STRESS_RUNS=2 连续两次完整源处理，轮间只清理隔离测试 profile 的 OPFS；STRESS_SCENARIO=cancel 在已提交片段后取消；STRESS_SCENARIO=quota 低 CDP 配额实际写入触发失败。均不代表真实物理磁盘耗尽。

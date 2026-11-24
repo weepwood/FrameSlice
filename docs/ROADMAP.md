@@ -93,3 +93,6 @@
 
 ## v0.7.1 质量专项（待验收）
 - 有界 MKV S_TEXT/UTF8 BlockGroup 字幕提取为 VTT，严格要求 BlockDuration、无压缩/时间变换/lacing，不支持 ASS/PGS/MP4 tx3g 或未知长度 Cluster；回读验证，保留原媒体。复杂真实编码样本专项另行验证。
+
+- Reka Select（大小单位）、Slider（图片质量）、Dialog（批次清理）首批迁移；其余原生选择器暂保留。批次检查点先获取全部 session locks，再一次 IndexedDB 事务清理，localStorage 批次摘要随后清除（跨存储非原子）。
+- 12GB 专项增加连续两次深度 CRC32、真实运行中取消、显式低 OPFS 配额写入失败；每轮独立记录，待实际 CI。

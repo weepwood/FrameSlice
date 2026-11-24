@@ -32,7 +32,7 @@ try{
  await waitBatch()
  const after=await listing();if(after.length!==before.length||!before.slice(1).every(x=>after.some(y=>y.dir===x.dir&&y.name===x.name&&y.size===x.size&&y.mtime===x.mtime)))throw Error('batch resume overwrote verified outputs')
  const ids=await page.evaluate(()=>JSON.parse(localStorage.getItem('frameslice.batch.v1')).sessions)
- page.once('dialog',d=>d.accept());await center.getByRole('button',{name:'删除批次检查点（保留文件）'}).click()
+ await center.getByRole('button',{name:'删除批次检查点（保留文件）'}).click();await page.getByRole('dialog').getByRole('button',{name:'确认删除'}).click()
  await page.waitForFunction(()=>!localStorage.getItem('frameslice.batch.v1'),{},{timeout:30000})
  const removed=await page.evaluate(async ids=>{const db=await new Promise((res,rej)=>{const q=indexedDB.open('frameslice-resume-v1',1);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});try{return await Promise.all(ids.map(id=>new Promise((res,rej)=>{const q=db.transaction('sessions').objectStore('sessions').get(id);q.onsuccess=()=>res(q.result===undefined);q.onerror=()=>rej(q.error)})))}finally{db.close()}},ids)
  if(!removed.every(Boolean)||(await listing()).length!==after.length)throw Error('metadata cleanup did not preserve output files')
