@@ -16,7 +16,7 @@ try{
  await page.getByRole('spinbutton',{name:'抽帧间隔秒数'}).fill('0.5')
  await page.getByLabel(/启用断点续作/).check()
  await page.getByRole('button',{name:/开始提取图片/}).click()
- async function done(){await page.locator('.status-card.success,.status-card.failure').waitFor({timeout:60000});if(await page.locator('.status-card.failure').count())throw Error(await page.locator('.status-card.failure').innerText())}
+ async function done(){try{await page.locator('.status-card.success').waitFor({timeout:60000})}catch(e){const failure=page.locator('.status-card.failure');throw Error('未观察到新任务成功状态：'+(await failure.count()?await failure.innerText():String(e)))}}
  await done()
  const before=await page.evaluate(async()=>{const root=await navigator.storage.getDirectory();const items=[];for await(const [dir,h] of root.entries())if(h.kind==='directory')for await(const [name,child] of h.entries())if(child.kind==='file'&&name.endsWith('.jpg')){const f=await child.getFile();items.push({dir,name,bytes:f.size,mtime:f.lastModified})}return items})
  if(before.length<2)throw Error('fixture did not produce multiple frames')
