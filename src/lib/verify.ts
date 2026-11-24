@@ -1,6 +1,8 @@
 import { EncodedPacketSink } from 'mediabunny'
 import { checkCanceled } from './format'
 import { openInput } from './media'
+import { emptyCoverage,addCoverage,assertCoverage } from './coverage.mjs'
+import type { PacketCoverage } from './coverage.mjs'
 import { assertDuration, assertTimeline, timelineTolerance } from './timeline-validation.mjs'
 
 export type VerificationLevel = 'quick' | 'deep'
@@ -58,6 +60,8 @@ export interface VerificationOptions {
   expectedAudio?: PacketDigest
   expectedVideoTime?: TrackTimeline
   expectedAudioTime?: TrackTimeline
+  expectedVideoCoverage?: PacketCoverage
+  expectedAudioCoverage?: PacketCoverage
 }
 
 export interface TrackTimeline { start: number; end: number; maxPacketDuration: number }
@@ -75,6 +79,15 @@ function requirePacket(packet: { byteLength: number } | null, track: string): vo
   if (!packet || !Number.isFinite(packet.byteLength) || packet.byteLength <= 0) {
     throw new Error(`校验失败：${track}缺少完整的首尾媒体包。`)
   }
+}
+
+async function verifyCoverage(sink:EncodedPacketSink,expected:PacketCoverage,signal:AbortSignal,label:string) {
+  const actual=emptyCoverage()
+  for await(const p of sink.packets(undefined,undefined,{metadataOnly:true})){
+    checkCanceled(signal);addCoverage(actual,p)
+    if((actual.packets&1023)===0)await new Promise<void>(r=>setTimeout(r,0))
+  }
+  assertCoverage(expected,actual,label)
 }
 
 async function fingerprintTrack(sink: EncodedPacketSink, signal: AbortSignal): Promise<PacketDigest> {
@@ -150,6 +163,8 @@ export async function verifySegment(options: VerificationOptions): Promise<Verif
         assertTimeline({ start: firstAudio.timestamp, end: lastAudio.timestamp + lastAudio.duration }, options.expectedAudioTime, tolerance)
       }
     }
+    if (options.expectedVideoCoverage) await verifyCoverage(videoSink,options.expectedVideoCoverage,signal,'输出视频轨')
+    if (options.expectedAudioCoverage && audioSink) await verifyCoverage(audioSink,options.expectedAudioCoverage,signal,'输出音频轨')
     let checkedBytes = (firstVideo?.byteLength ?? 0) + (lastVideo?.byteLength ?? 0)
     if (level === 'deep') {
       const actualVideo = await fingerprintTrack(videoSink, signal)
@@ -166,8 +181,8 @@ export async function verifySegment(options: VerificationOptions): Promise<Verif
       level,
       passed: true,
       duration,
-      videoPackets: level === 'deep' ? options.expectedVideo?.packets ?? null : null,
-      audioPackets: level === 'deep' ? options.expectedAudio?.packets ?? null : null,
+      videoPackets: options.expectedVideoCoverage?.packets ?? options.expectedVideo?.packets ?? null,
+      audioPackets: options.expectedAudioCoverage?.packets ?? options.expectedAudio?.packets ?? null,
       checkedBytes,
     }
   } finally {

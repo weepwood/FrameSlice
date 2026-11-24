@@ -20,11 +20,13 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
   try {
     let count = 0
     if (message.mode === 'split') {
-      if (!folder) throw new Error('视频分割必须有授权的本地输出目录。')
+      if (!folder && !message.planOnly) throw new Error('视频分割必须有授权的本地输出目录。')
       const results = await splitVideo({
         file,
         folder,
         maxBytes: message.maxBytes,
+        planOnly: message.planOnly,
+        onPlan: entries=>send({kind:'plan',id,entries}),
         maxSeconds: message.maxSeconds,
         verificationLevel: message.verificationLevel,
         signal: controller.signal,
@@ -50,6 +52,7 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         signal: controller.signal,
         onFileStart: filename => send({ kind: 'fileStarted', id, filename }),
         onSaved: filename => send({ kind: 'saved', id, filename }),
+        onMissed: timestamp=>send({kind:'missed',id,timestamp}),
         onProgress: (fraction, label) => send({ kind: 'progress', id, fraction, label }),
         onPreview: snapshot => send({ kind: 'preview', id, snapshot }),
       })

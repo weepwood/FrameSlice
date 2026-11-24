@@ -8,6 +8,7 @@ export interface ExportManifestOptions {
   parts?: SplitResult[]
   images?: string[]
   completedFrames?: number
+  missedFrames?: number[]
   elapsedMs?: number
   generatedAt?: string
 }

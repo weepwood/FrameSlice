@@ -4,7 +4,7 @@
  */
 export function createExportManifest({
   source, mode, settings, parts = [], images = [], completedFrames = 0,
-  elapsedMs = 0, generatedAt = new Date().toISOString(),
+  missedFrames = [], elapsedMs = 0, generatedAt = new Date().toISOString(),
 }) {
   if (!source || !['split', 'frames'].includes(mode)) {
     throw new Error('无法创建报告：缺少来源文件或任务类型。')
@@ -48,7 +48,7 @@ export function createExportManifest({
     generatedAt,
     task: {
       mode,
-      status: 'completed',
+      status: mode === 'frames' && missedFrames.length ? 'partial' : 'completed',
       elapsedMs: Math.round(elapsedMs),
       settings,
     },
@@ -71,6 +71,7 @@ export function createExportManifest({
       verification: mode === 'split' ? 'per-segment' : 'not-applicable',
     },
     outputs,
+    ...(mode==='frames'?{missedFrames:missedFrames.map(timestamp=>({timestamp,reason:'解码无可用画面，已重试一次'}))}:{}),
     notes: [
       '所有源媒体均在本地处理，报告不含视频文件和本地绝对路径。',
       '快速校验仅核对 MP4 容器、轨道和首尾压缩包。',

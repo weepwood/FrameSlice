@@ -1,4 +1,4 @@
-import type { SplitResult } from '../lib/split'
+import type { SplitResult, SplitPlanEntry } from '../lib/split'
 import type { FrameFormat, FrameSnapshot, FrameWidth } from '../lib/frames'
 import type { VerificationLevel } from '../lib/verify'
 import type { VideoInfo } from '../lib/media'
@@ -17,6 +17,7 @@ export type WorkerStart =
       maxBytes: number
       maxSeconds?: number
       verificationLevel: VerificationLevel
+      planOnly?: boolean
     })
   | (WorkerBase & {
       mode: 'frames'
@@ -37,6 +38,8 @@ export type WorkerReply =
   | { kind: 'progress'; id: number; fraction: number; label: string }
   | { kind: 'fileStarted'; id: number; filename: string }
   | { kind: 'saved'; id: number; filename: string }
+  | { kind: 'plan'; id:number; entries:SplitPlanEntry[] }
+  | { kind: 'missed'; id:number; timestamp:number }
   | { kind: 'segment'; id: number; result: SplitResult }
   | { kind: 'preview'; id: number; snapshot: FrameSnapshot }
   | { kind: 'complete'; id: number; count: number; elapsedMs: number }

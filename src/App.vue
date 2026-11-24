@@ -9,7 +9,7 @@ import {
 import { humanBytes, humanTime, plannedFrameCount, friendlyError, baseName } from './lib/format'
 import type { VideoInfo } from './lib/media'
 import type { FramePreview, FrameSnapshot, FrameFormat, FrameWidth } from './lib/frames'
-import type { SplitResult } from './lib/split'
+import type { SplitResult, SplitPlanEntry } from './lib/split'
 import { chooseFolder, downloadBlob, supportsFolderWrite, saveBlob } from './lib/storage'
 import { inspectWithWorker, runWorkerJob, analyzeWithWorker } from './lib/worker-client'
 import type { WorkerPayload } from './lib/worker-client'
@@ -51,6 +51,12 @@ const lastJobFolder = ref('')
 const parts = ref<SplitResult[]>([])
 const frames = ref<FramePreview[]>([])
 const finishedFrames = ref(0)
+const missedFrames=ref<number[]>([])
+const splitPlan=ref<SplitPlanEntry[]>([])
+const planKey=ref('')
+const planning=ref(false)
+const planError=ref('')
+let planAbort:AbortController|null=null
 const jobElapsedMs = ref(0)
 const mediaAnalysis = ref<KeyframeStatistics | null>(null)
 const analyzing = ref(false)
@@ -78,7 +84,10 @@ const imageWidth = ref<FrameWidth>(1920)
 const jpegQuality = ref(0.9)
 
 const targetBytes = computed(() => Math.floor(size.value * (sizeUnit.value === 'GiB' ? 1024 ** 3 : 1000 ** 3)))
+const currentPlanKey=computed(()=>JSON.stringify([file.value?.name,file.value?.size,file.value?.lastModified,splitStrategy.value,targetBytes.value,splitMinutes.value]))
+const visiblePlan=computed(()=>planKey.value===currentPlanKey.value?splitPlan.value:[])
 const estimatedParts = computed(() => {
+  if(visiblePlan.value.length)return visiblePlan.value.length
   if (!file.value || !info.value) return 0
   if (splitStrategy.value === 'duration') {
     return Number.isFinite(splitMinutes.value) && splitMinutes.value > 0
@@ -99,6 +108,7 @@ async function loadFile(nextFile?: File | null) {
   if (!nextFile || status.value === 'running') return
   if (nextFile.size === 0) { errorText.value = '无法处理空文件。'; return }
   inspectController?.abort()
+  planAbort?.abort();splitPlan.value=[];planKey.value='';planError.value=''
   clearAnalysis()
   inspectController = new AbortController()
   parseRevision += 1
@@ -202,6 +212,7 @@ function resetOutput() {
   frames.value.forEach((item) => URL.revokeObjectURL(item.url))
   frames.value = []
   finishedFrames.value = 0
+  missedFrames.value=[]
   jobElapsedMs.value = 0
   exportReportJson.value = ''
   reportNotice.value = ''
@@ -282,6 +293,12 @@ function addPreview(snapshot: FrameSnapshot) {
     if (old) URL.revokeObjectURL(old.url)
   }
 }
+async function previewSplitPlan(){
+  if(!file.value||!info.value||planning.value||status.value==='running')return
+  const target=file.value,key=currentPlanKey.value,controller=new AbortController();planAbort=controller;planning.value=true;planError.value=''
+  try{await workspace.run('analyze',target,controller.signal,ctx=>runWorkerJob({mode:'split',file:target,folder:null,planOnly:true,maxBytes:targetBytes.value,maxSeconds:splitStrategy.value==='duration'?splitMinutes.value*60:undefined,verificationLevel:verificationLevel.value},controller.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:()=>{},onPlan:entries=>{if(!controller.signal.aborted&&file.value===target&&key===currentPlanKey.value){splitPlan.value=entries;planKey.value=key}}}))}
+  catch(e){if(!controller.signal.aborted)planError.value=friendlyError(e)}finally{if(planAbort===controller){planning.value=false;planAbort=null}}
+}
 async function start() {
   if (!file.value || !info.value || status.value === 'running') return
   if (mode.value === 'split' && splitStrategy.value === 'size' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
@@ -347,12 +364,18 @@ async function start() {
           startTime: frameStart.value, endTime: frameEnd.value,
           format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
         }
-    const summary = await workspace.run(payload.mode, currentFile, controller.signal, ctx => runWorkerJob(payload, controller.signal, {
+    const summary = await workspace.run(payload.mode, currentFile, controller.signal, async ctx => {
+      const result=await runWorkerJob(payload, controller.signal, {
       onProgress: (value, text) => { progress.value = value; progressLabel.value = text; ctx.progress(value, text) },
       onSegment: part => { parts.value.push(part); ctx.checkpoint(part.filename) },
       onPreview: addPreview,
       onSaved: name => { savedFrameNames.value.push(name); ctx.checkpoint(name) },
-    }))
+      onMissed: time=>missedFrames.value.push(time),
+      onPlan: entries=>{splitPlan.value=entries;planKey.value=currentPlanKey.value},
+      })
+      if(missedFrames.value.length)ctx.progress(1,'存在遗漏帧，已重试')
+      return result
+    })
     jobElapsedMs.value = summary.elapsedMs
     if (mode.value === 'frames') finishedFrames.value = summary.count
     // Human-readable JSON alongside the media outputs; no original file paths.
@@ -369,6 +392,7 @@ async function start() {
       parts: parts.value,
       images: jobFolder ? savedFrameNames.value : frames.value.map(item => item.name),
       completedFrames: finishedFrames.value,
+      missedFrames: missedFrames.value,
       elapsedMs: summary.elapsedMs,
     })
     exportReportJson.value = JSON.stringify(report, null, 2)
@@ -385,7 +409,7 @@ async function start() {
     progress.value = 1
     progressLabel.value = mode.value === 'split'
       ? `已封装并校验 ${parts.value.length} 个 MP4 片段`
-      : `已生成 ${finishedFrames.value} 张图片`
+      : `已生成 ${finishedFrames.value} 张图片${missedFrames.value.length?'，仍遗漏 '+missedFrames.value.length+' 张':''}`
   } catch (error) {
     status.value = controller.signal.aborted ? 'canceled' : 'error'
     errorText.value = friendlyError(error)
@@ -432,6 +456,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('frameslice:subtitle-package', acceptSubtitleHandoff)
   inspectController?.abort()
   analysisController?.abort()
+  planAbort?.abort()
   window.removeEventListener('beforeunload', warnOnUnload)
   currentAbort.value?.abort()
   if (videoUrl.value) URL.revokeObjectURL(videoUrl.value)
@@ -605,6 +630,13 @@ onBeforeUnmount(() => {
           <div class="config-footnote"><Info :size="16"/><span>图片在本地解码并直接写入磁盘；部分 HEVC、AV1 视频取决于浏览器解码能力。</span></div>
         </section>
 
+        <section v-if="file && info && mode==='split'" class="fs-analysis">
+          <div class="fs-analysis-header"><strong>GOP 分割规划预览</strong><button v-if="!planning" class="secondary-button" type="button" :disabled="status==='running'" @click="previewSplitPlan">预览分割计划</button><button v-else type="button" class="secondary-button" @click="planAbort?.abort()">取消规划</button></div>
+          <p v-if="planError" class="fs-analysis-warning">{{planError}}</p>
+          <p v-if="visiblePlan.length">{{visiblePlan.length}} 个片段 · 下列为媒体包估算，不含实际容器封装开销。</p>
+          <div v-for="(part,i) in visiblePlan.slice(0,50)" :key="i" class="fs-job-row"><strong>片段 {{i+1}} · {{humanTime(part.start)}} – {{humanTime(part.end)}}</strong><small>{{humanBytes(part.estimatedBytes)}} · 视频 {{part.videoPackets}} 包 / 音频 {{part.audioPackets}} 包</small></div>
+          <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
+        </section>
         <section class="execution" v-if="file && info">
           <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">网络传输</span><strong>0 B <Check :size="14" class="no-upload-check"/></strong></div></div>
           <button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>
@@ -626,6 +658,7 @@ onBeforeUnmount(() => {
             </button>
             <span v-if="reportNotice" class="fs-result-note">{{ reportNotice }}</span>
           </div>
+          <p v-if="missedFrames.length" class="fs-analysis-warning">有 {{missedFrames.length}} 个时间点重试后仍无画面，详见 JSON 报告：{{missedFrames.slice(0,10).map(t=>t.toFixed(3)+'s').join('、')}}</p>
           <p v-if="storyboardError" class="fs-analysis-warning">{{ storyboardError }}</p>
           <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}</span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
         </section>
