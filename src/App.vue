@@ -18,6 +18,7 @@ import type { KeyframeStatistics } from './lib/keyframe-stats.mjs'
 import { createExportManifest } from './lib/manifest.mjs'
 import { createStoryboard } from './lib/storyboard'
 import CaptionWorkspace from './components/CaptionWorkspace.vue'
+import {readResetResult} from './lib/reset-storage'
 import ContainerWorkspace from './components/ContainerWorkspace.vue'
 import MediaTimeline from './components/MediaTimeline.vue'
 import {SplitterGroup,SplitterPanel,SplitterResizeHandle,SliderRoot,SliderTrack,SliderRange,SliderThumb} from 'reka-ui'
@@ -109,7 +110,8 @@ const deduplicate=ref(false)
 const candidateCount=ref(3),minSharpness=ref(0),sceneThreshold=ref(.24)
 const thumbCache=new Map<string,FramePreview[]>()
 const filteredCount=ref(0)
-const showJobs=ref(false),jobsVisited=ref(false)
+const resetResult=Boolean(readResetResult())
+const showJobs=ref(resetResult),jobsVisited=ref(resetResult)
 const settingsTarget=ref<HTMLElement|null>(null)
 const actionTarget=ref<HTMLElement|null>(null)
 const actionInToolbar=computed(()=>Boolean(actionTarget.value&&wideLayout.value&&!showJobs.value&&mode.value!=='captions'&&!(mode.value==='split'&&videoTool.value==='container')))
