@@ -18,11 +18,16 @@ export async function requestStorageReset(){
 }
 // Only exact application stores, never delete an origin's database or directory indiscriminately.
 async function clearStore(database:string,stores:string[],key?:string){
- const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+ const db=await new Promise<IDBDatabase|null>((resolve,reject)=>{
   const req=indexedDB.open(database)
-  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)
-  req.onblocked=()=>reject(Error('本地数据库正在被其他页面使用'))
+  let absent=false,blocked=false
+  // Opening an absent database must not leave an empty v1 schema behind.
+  req.onupgradeneeded=()=>{absent=true;req.transaction?.abort()}
+  req.onsuccess=()=>{if(blocked){req.result.close();return}resolve(req.result)}
+  req.onerror=()=>{if(absent)resolve(null);else reject(req.error)}
+  req.onblocked=()=>{blocked=true;reject(Error('本地数据库正在被其他页面使用'))}
  })
+ if(!db)return
  try{
   const existing=stores.filter(name=>db.objectStoreNames.contains(name))
   if(!existing.length)return
