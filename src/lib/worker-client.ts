@@ -1,4 +1,4 @@
-import type { SplitResult } from './split'
+import type { SplitResult, SplitPlanEntry } from './split'
 import type { FrameSnapshot } from './frames'
 import type { VideoInfo } from './media'
 import type { KeyframeStatistics } from './keyframe-stats.mjs'
@@ -13,6 +13,8 @@ export interface WorkerCallbacks {
   onSegment: (result: SplitResult) => void
   onPreview: (snapshot: FrameSnapshot) => void
   onSaved?: (filename: string) => void
+  onPlan?: (entries:SplitPlanEntry[])=>void
+  onMissed?: (timestamp:number)=>void
 }
 
 export interface JobSummary {
@@ -109,6 +111,12 @@ export function runWorkerJob(
         case 'saved':
           incomplete.delete(message.filename)
           callbacks.onSaved?.(message.filename)
+          break
+        case 'plan':
+          callbacks.onPlan?.(message.entries)
+          break
+        case 'missed':
+          callbacks.onMissed?.(message.timestamp)
           break
         case 'segment':
           incomplete.delete(message.result.filename)

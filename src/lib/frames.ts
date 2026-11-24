@@ -35,6 +35,7 @@ export interface FramesOptions {
   onPreview: (preview: FrameSnapshot) => void
   onSaved?: (filename: string) => void
   onFileStart?: (filename: string) => void
+  onMissed?: (timestamp: number) => void
 }
 
 async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: FrameFormat, quality: number): Promise<Blob> {
@@ -82,29 +83,38 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
     const extension = format === 'image/png' ? 'png' : format === 'image/webp' ? 'webp' : 'jpg'
     let completed = 0
     let saved = 0
-    for await (const result of sink.canvasesAtTimestamps(timestamps)) {
-      checkCanceled(signal)
-      const timestamp = timestamps[completed]
-      if (result) {
-        const name = `${baseName(file.name)}_${fileTime(timestamp)}.${extension}`
-        const blob = await toBlob(result.canvas, format, quality)
-        if (folder) {
-          onFileStart?.(name)
-          await saveBlob(folder, name, blob, signal)
-          onSaved?.(name)
-        }
-        saved++
-        // Preview only a bounded subset of the exported pictures.
-        if (completed < 12 || completed % Math.max(1, Math.ceil(timestamps.length / 12)) === 0) {
-          onPreview({ name, timestamp, blob })
-        } else if (!folder) {
-          // A folder-less job is limited to <=30, so expose all download links.
-          onPreview({ name, timestamp, blob })
-        }
-      }
-      completed++
-      onProgress(completed / timestamps.length, `正在截取第 ${completed} / ${timestamps.length} 张`)
+    const missed:number[]=[]
+    const save=async (canvas: HTMLCanvasElement | OffscreenCanvas,timestamp:number,index:number) => {
+      const name = `${baseName(file.name)}_${fileTime(timestamp)}.${extension}`
+      const blob=await toBlob(canvas,format,quality)
+      if(folder){onFileStart?.(name);await saveBlob(folder,name,blob,signal);onSaved?.(name)}
+      saved++
+      if(!folder||index<12||index%Math.max(1,Math.ceil(timestamps.length/12))===0)onPreview({name,timestamp,blob})
     }
+    for await(const result of sink.canvasesAtTimestamps(timestamps)){
+      checkCanceled(signal)
+      const timestamp=timestamps[completed]
+      if(timestamp===undefined)throw Error('解码器返回了多余的抽帧结果')
+      if(result)await save(result.canvas,timestamp,completed)
+      else missed.push(timestamp)
+      completed++
+      onProgress(.9*completed/timestamps.length,`正在截取第 ${completed} / ${timestamps.length} 张`)
+    }
+    missed.push(...timestamps.slice(completed))
+    if(missed.length){
+      const retrySink=new CanvasSink(video,{width:actualWidth,poolSize:2})
+      let i=0
+      for await(const result of retrySink.canvasesAtTimestamps(missed)){
+        checkCanceled(signal)
+        const time=missed[i]
+        if(time===undefined)throw Error('解码器返回了多余的重试结果')
+        if(result)await save(result.canvas,time,timestamps.indexOf(time))
+        else options.onMissed?.(time)
+        i++;onProgress(.9+.1*i/missed.length,`正在重试遗漏帧 ${i} / ${missed.length}`)
+      }
+      for(const time of missed.slice(i))options.onMissed?.(time)
+    }
+    onProgress(1,`已生成 ${saved} / ${timestamps.length} 张`)
     return saved
   } finally {
     input.dispose()

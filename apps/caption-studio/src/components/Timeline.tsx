@@ -28,9 +28,10 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
       node.width=Math.floor(width*dpr);node.height=Math.floor(height*dpr);
       const ctx=node.getContext('2d');if(!ctx)return;
       ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
-      ctx.fillStyle='#e1e6e9';ctx.fillRect(0,0,width,height);
+      const tokens=getComputedStyle(node);
+      ctx.fillStyle=tokens.getPropertyValue('--fs-wave-bg').trim()||'#e1e6e9';ctx.fillRect(0,0,width,height);
       const center=height/2;
-      ctx.fillStyle='#6d8398';
+      ctx.fillStyle=tokens.getPropertyValue('--fs-wave').trim()||'#6d8398';
       for(let x=0;x<width;x+=2){
         const a=start+x/width*visible,b=start+(x+2)/width*visible;
         const from=Math.floor(a/Math.max(duration,0.01)*peaks.length);
@@ -42,7 +43,9 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
         ctx.fillRect(x,center-h,1.5,2*h);
       }
     };
-    const ro=new ResizeObserver(paint);ro.observe(node);paint();return()=>ro.disconnect();
+    const ro=new ResizeObserver(paint);ro.observe(node);
+    const theme=new MutationObserver(paint);theme.observe(document.documentElement,{attributes:true,attributeFilter:['data-fs-theme']});
+    const scheme=matchMedia('(prefers-color-scheme: dark)');scheme.addEventListener('change',paint);paint();return()=>{ro.disconnect();theme.disconnect();scheme.removeEventListener('change',paint)};
   },[peaks,visible,start,duration]);
   const ticks=useMemo(()=>{
     const step=visible<=30?5:visible<=90?10:visible<=240?30:60;

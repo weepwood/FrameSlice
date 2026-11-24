@@ -4,7 +4,7 @@
  */
 export function createExportManifest({
   source, mode, settings, parts = [], images = [], completedFrames = 0,
-  elapsedMs = 0, generatedAt = new Date().toISOString(),
+  missedFrames = [], elapsedMs = 0, generatedAt = new Date().toISOString(),
 }) {
   if (!source || !['split', 'frames'].includes(mode)) {
     throw new Error('无法创建报告：缺少来源文件或任务类型。')
@@ -29,6 +29,7 @@ export function createExportManifest({
       bytes: part.size,
       startSeconds: part.start,
       endSeconds: part.end,
+      ...(part.excludedPreroll?{excludedPreroll:{...part.excludedPreroll,reason:'AAC 前置包完全位于首个视频边界之前，未复制'}}:{}),
       verification: {
         level: part.verification.level,
         passed: true,
@@ -48,7 +49,7 @@ export function createExportManifest({
     generatedAt,
     task: {
       mode,
-      status: 'completed',
+      status: mode === 'frames' && missedFrames.length ? 'partial' : 'completed',
       elapsedMs: Math.round(elapsedMs),
       settings,
     },
@@ -71,9 +72,10 @@ export function createExportManifest({
       verification: mode === 'split' ? 'per-segment' : 'not-applicable',
     },
     outputs,
+    ...(mode==='frames'?{missedFrames:missedFrames.map(timestamp=>({timestamp,reason:'解码无可用画面，已重试一次'}))}:{}),
     notes: [
       '所有源媒体均在本地处理，报告不含视频文件和本地绝对路径。',
-      '快速校验仅核对 MP4 容器、轨道和首尾压缩包。',
+      '快速校验核对容器、轨道、时间边界及媒体包数量和字节数，不逐包比较压缩内容。',
       '深度 CRC32 为压缩包一致性检查，并非音视频逐帧解码或密码学完整性证明。',
     ],
   }

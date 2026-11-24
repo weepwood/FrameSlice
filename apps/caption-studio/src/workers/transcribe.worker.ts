@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import {pipeline,WhisperTextStreamer,type AutomaticSpeechRecognitionPipeline,type ProgressInfo,type WhisperTokenizer} from '@huggingface/transformers';
+import {env,pipeline,WhisperTextStreamer,type AutomaticSpeechRecognitionPipeline,type ProgressInfo,type WhisperTokenizer} from '@huggingface/transformers';
 import {ALL_FORMATS,AudioSampleSink,BlobSource,Input} from 'mediabunny';
 import type {Chunk} from '../lib/captions';
 import {keepWindowChunk,MonoResampler,PeakCollector,WindowCollector,type AudioWindow} from '../lib/streaming-audio';
@@ -15,6 +15,9 @@ export type WorkerResponse=
  | {type:'segments';jobId:number;chunks:Chunk[]}
  | {type:'done';jobId:number;seconds:number;device:string;segments:number}
  | {type:'error';jobId:number;message:string};
+// Cache downloaded model files across dedicated Worker lifetimes; no media is cached.
+env.useBrowserCache=typeof caches!=='undefined';
+env.allowLocalModels=false;
 const emit=(msg:WorkerResponse)=>self.postMessage(msg);
 let cache:{model:string;device:'webgpu'|'wasm';asr:AutomaticSpeechRecognitionPipeline}|null=null;
 async function canWebGPU(){

@@ -1,12 +1,16 @@
+import { JobJournal } from './job-journal'
 /** Framework-neutral shared runtime. Separate Vue/React bundles use the same per-page instance. */
 export type JobType = 'inspect' | 'analyze' | 'split' | 'frames' | 'container-scan' | 'extract-tracks' | 'remux' | 'waveform' | 'transcribe' | 'burn'
 export type JobStatus = 'queued' | 'running' | 'canceling' | 'completed' | 'failed' | 'canceled' | 'interrupted'
 export interface JobError { code: 'aborted' | 'permission' | 'quota' | 'unsupported' | 'engine'; message: string }
 export interface MediaAsset { id: string; name: string; bytes: number; lastModified: number; mime: string }
+export type RetryParameters = {mode:'split';maxBytes:number;maxSeconds?:number;verificationLevel:'quick'|'deep'} | {mode:'frames';interval:number;startTime:number;endTime:number;format:'image/jpeg'|'image/png'|'image/webp';width:0|1280|1920|3840;quality:number}
+export interface RetrySpec { fingerprint:string; parameters:RetryParameters }
 export interface MediaJob {
   id: string; type: JobType; asset: MediaAsset; status: JobStatus; progress: number; label: string
   createdAt: number; startedAt?: number; endedAt?: number; error?: JobError
   checkpoint?: { count: number; lastOutput: string; updatedAt: number }
+  retry?: RetrySpec
 }
 export interface JobContext { progress(value: number, label?: string): void; checkpoint(output: string): void }
 const active = (status: JobStatus) => status === 'queued' || status === 'running' || status === 'canceling'
@@ -24,12 +28,27 @@ export class WorkspaceRuntime {
   private listeners = new Set<(jobs: MediaJob[]) => void>()
   private queue: Array<() => void> = []
   private running = false
-  constructor(private storage?: StoragePort) {
+  private journalRevision=0
+  private journalTimestamp=0
+  private journal?:JobJournal
+  constructor(private storage?: StoragePort, journal?:JobJournal) {
+    this.journal=journal
     try {
+      this.journalTimestamp=Number(storage?.getItem(HISTORY_KEY+'.timestamp')??0)||0
       const saved: unknown = JSON.parse(storage?.getItem(HISTORY_KEY) ?? '[]')
       if (Array.isArray(saved)) this.jobs = saved.filter(j => j && typeof j.id === 'string' && typeof j.asset?.name === 'string' && typeof j.status === 'string').slice(0, 100).map(j => active(j.status) ? {...j, status:'interrupted', endedAt:Date.now(), label:'上次页面关闭时任务未完成'} : j)
-      this.persist()
     } catch { /* storage is optional */ }
+    if(journal){
+      const revision=this.journalRevision
+      void journal.read().then(snapshot=>{
+        if(revision!==this.journalRevision)return
+        if(snapshot&&snapshot.updatedAt>this.journalTimestamp&&Array.isArray(snapshot.jobs)){
+          this.jobs=(snapshot.jobs as MediaJob[]).filter(j=>j&&typeof j.id==='string'&&typeof j.asset?.name==='string'&&typeof j.status==='string').slice(0,100).map(j=>active(j.status)?{...j,status:'interrupted',endedAt:Date.now(),label:'上次任务未完成'}:j)
+          this.journalTimestamp=snapshot.updatedAt
+        }
+        this.publish(true)
+      }).catch(()=>{})
+    }
   }
   asset(file: File): MediaAsset {
     let item = this.assets.get(file)
@@ -45,7 +64,7 @@ export class WorkspaceRuntime {
     if (!map) { map = new Map(); this.metadata.set(file,map) }
     map.set(key,value)
   }
-  snapshot(): MediaJob[] { return this.jobs.map(job => ({...job, asset:{...job.asset}, error:job.error&&{...job.error}, checkpoint:job.checkpoint&&{...job.checkpoint}})) }
+  snapshot(): MediaJob[] { return this.jobs.map(job => ({...job, asset:{...job.asset}, error:job.error&&{...job.error}, checkpoint:job.checkpoint&&{...job.checkpoint},retry:job.retry&&{fingerprint:job.retry.fingerprint,parameters:{...job.retry.parameters}}})) }
   subscribe(fn: (jobs: MediaJob[]) => void): () => void {
     this.listeners.add(fn); fn(this.snapshot())
     return () => { this.listeners.delete(fn) }
@@ -53,7 +72,10 @@ export class WorkspaceRuntime {
   hasActive(): boolean { return this.jobs.some(job => active(job.status)) }
   clearHistory(): void { this.jobs = this.jobs.filter(job => active(job.status)); this.publish(true) }
   private persist(): void {
-    try { this.storage?.setItem(HISTORY_KEY,JSON.stringify(this.jobs.slice(0,100))) } catch { /* no media bytes or handles persisted */ }
+    this.journalRevision++;this.journalTimestamp=Math.max(Date.now(),this.journalTimestamp+1)
+    const jobs=this.snapshot().slice(0,100)
+    try { this.storage?.setItem(HISTORY_KEY,JSON.stringify(jobs));this.storage?.setItem(HISTORY_KEY+'.timestamp',String(this.journalTimestamp)) } catch { /* no media bytes or handles persisted */ }
+    void this.journal?.write({updatedAt:this.journalTimestamp,jobs}).catch(()=>{})
   }
   private publish(persist = false): void {
     if (persist) this.persist()
@@ -64,9 +86,9 @@ export class WorkspaceRuntime {
     if (this.running) return
     this.queue.shift()?.()
   }
-  run<T>(type: JobType, file: File, signal: AbortSignal, work: (ctx: JobContext) => Promise<T>): Promise<T> {
+  run<T>(type: JobType, file: File, signal: AbortSignal, work: (ctx: JobContext) => Promise<T>, retry?:RetrySpec): Promise<T> {
     if (signal.aborted) return Promise.reject(abortError())
-    const job: MediaJob = {id:crypto.randomUUID(),type,asset:this.asset(file),status:'queued',progress:0,label:'等待资源',createdAt:Date.now()}
+    const job: MediaJob = {id:crypto.randomUUID(),type,asset:this.asset(file),status:'queued',progress:0,label:'等待资源',createdAt:Date.now(),retry}
     this.jobs.unshift(job)
     this.jobs = [...this.jobs.filter(j => active(j.status)), ...this.jobs.filter(j => !active(j.status)).slice(0,100)]
     return new Promise<T>((resolve,reject) => {
@@ -116,4 +138,4 @@ export class WorkspaceRuntime {
 const globalKey = Symbol.for('frameslice.workspace.v1')
 const scope = globalThis as typeof globalThis & { [globalKey]?: WorkspaceRuntime }
 function storage(): StoragePort | undefined { try { return typeof window !== 'undefined' ? window.localStorage : undefined } catch { return undefined } }
-export const workspace = scope[globalKey] ??= new WorkspaceRuntime(storage())
+export const workspace = scope[globalKey] ??= new WorkspaceRuntime(storage(),typeof window!=='undefined'&&typeof indexedDB!=='undefined'?new JobJournal(indexedDB):undefined)

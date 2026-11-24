@@ -6,4 +6,5 @@
 - 安装：`npm ci` 与 `npm ci --prefix apps/caption-studio --ignore-scripts`；测试 `npm test`，构建 `npm run build`。
 - 真实 12GB 浏览器测试不能用逻辑 Blob 或 Node 压测冒充；记录测试样本、平台、浏览器、实际写入及校验结果。
 - 统一任务核心使用 [docs/JOB_CORE.md](docs/JOB_CORE.md)；各媒体 Worker 必须经过统一调度，不能并行启动高负载操作。
+- 共享语义样式 Token 位于 src/assets/tokens.css，Vue 主文档提供变量，React Shadow DOM 继承；不要为同一控件另建硬编码主题。
 - 当前进度与后续优先级见 [docs/ROADMAP.md](docs/ROADMAP.md)。每次交接更新真实状态，明确未验收项。
