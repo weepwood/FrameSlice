@@ -1,3 +1,4 @@
+import {batchCleanupCommitted,finishBatchCleanup,forgetResumeSessions} from './resume'
 import type {BatchResult,BatchSettings} from './batch'
 export interface BatchJournal {id:string;settings:BatchSettings;files:{name:string;bytes:number;lastModified:number}[];rows:BatchResult[];updatedAt:number;sessions?:string[]}
 const KEY='frameslice.batch.v1'
@@ -6,3 +7,14 @@ export function saveBatch(journal:BatchJournal){localStorage.setItem(KEY,JSON.st
 export function clearBatch(){localStorage.removeItem(KEY)}
 export async function withBatchLock<T>(work:()=>Promise<T>):Promise<T>{if(!navigator.locks)throw Error('浏览器不支持批次互斥');return navigator.locks.request('frameslice-batch-v1',{ifAvailable:true},lock=>{if(!lock)throw Error('另一标签页正在执行或管理批次');return work()})}
 export const batchStorageKey=KEY
+
+/** Call while holding the batch lock. IDB is authoritative for a committed deletion. */
+export async function reconcileBatchCleanup():Promise<boolean>{
+ const batch=loadBatch();if(!batch||!await batchCleanupCommitted(batch.id))return false
+ clearBatch();await finishBatchCleanup(batch.id);return true
+}
+export async function clearBatchCheckpoints(batch:BatchJournal):Promise<void>{
+ await forgetResumeSessions(batch.sessions??[],batch.id)
+ // If the localStorage write fails or the tab crashes, the marker remains for recovery.
+ clearBatch();await finishBatchCleanup(batch.id)
+}
