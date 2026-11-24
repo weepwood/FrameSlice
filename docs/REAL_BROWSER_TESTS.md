@@ -13,3 +13,5 @@
 
 ## v0.6 CI 基准与回归
 浏览器门禁使用仓库短 MP4 样本生成 browser-benchmark.json（qualifies12GB=false），并采集 light/dark、桌面及移动端截图。真实 12GB 仍须提供实际源文件和足够磁盘；不可使用短样本替代。输出 mtime、跨标签页锁及篡改拒绝通过真实 Chrome OPFS 测试覆盖。性能指标包含主线程 JS 堆峰值、输出字节和端到端源字节/秒（非纯 IO 吞吐）。
+
+Pages 产物使用 github-pages-${GITHUB_RUN_ATTEMPT}，避免同一运行的重试产物重复；检查必须仅找到一个有效匹配产物。
