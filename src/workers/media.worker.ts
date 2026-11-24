@@ -55,7 +55,7 @@ async function run(message: WorkerStart, controller: AbortController): Promise<v
         format: message.format,
         width: message.width,
         quality: message.quality,
-        strategy:message.strategy,deduplicate:message.deduplicate,
+        strategy:message.strategy,deduplicate:message.deduplicate,candidates:message.candidates,minSharpness:message.minSharpness,sceneThreshold:message.sceneThreshold,
         onFiltered:(timestamp,reason)=>send({kind:'filtered',id,timestamp,reason}),
         signal: controller.signal,
         onFileStart: filename => send({ kind: 'fileStarted', id, filename }),

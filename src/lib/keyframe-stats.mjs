@@ -20,6 +20,7 @@ export class VideoPacketStats {
     this.currentGopStart = null
     this.nonMonotonicKeyframes = 0
     this.keyframeSamples = []
+    this.keyframeIndex = []
   }
 
   add(packet) {
@@ -37,6 +38,7 @@ export class VideoPacketStats {
     if (type === 'key') {
       if (this.keyframes >= 250_000) throw new Error('关键帧数量超过统计安全上限。')
       this.keyframes++
+      this.keyframeIndex.push(timestamp)
       if (this.firstKeyframe === null) this.firstKeyframe = timestamp
       if (this.lastKeyframe !== null) {
         const interval = timestamp - this.lastKeyframe
@@ -81,6 +83,7 @@ export class VideoPacketStats {
       peakWindowMbps: +maxBitrate.toFixed(3),
       bitrateBins,
       keyframeSamples: this.keyframeSamples,
+      keyframeIndex: this.keyframeIndex,
       structurallyEligible: trackCompatible && this.firstKeyframe !== null &&
         this.firstKeyframe <= 0.05 && this.nonMonotonicKeyframes === 0,
       warnings,

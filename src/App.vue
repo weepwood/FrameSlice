@@ -25,6 +25,7 @@ import { workspace } from './core/workspace'
 import type { MediaJob, RetryParameters } from './core/workspace'
 import { createResumeSession,loadResumeSession,authorizeResumeFolder } from './core/resume'
 import type { ResumeSession } from './core/resume'
+import {nearestKey} from './lib/timeline-index.mjs'
 import { sampleFingerprint } from './core/source-identity'
 
 type Mode = 'split' | 'frames' | 'captions'
@@ -88,16 +89,18 @@ const splitStrategy = ref<'size' | 'duration'>('size')
 const manualCuts=ref<number[]>([])
 const frameStrategy=ref<FrameStrategy>('interval')
 const deduplicate=ref(false)
+const candidateCount=ref(3),minSharpness=ref(0),sceneThreshold=ref(.24)
+const thumbCache=new Map<string,FramePreview[]>()
 const filteredCount=ref(0)
 const showJobs=ref(false),jobsVisited=ref(false)
 const timelineTime=ref(0)
 const timelineThumbnails=ref<FramePreview[]>([])
 const timelineLoading=ref(false)
 let timelineAbort:AbortController|null=null
-function clearTimeline(){timelineAbort?.abort();for(const t of timelineThumbnails.value)URL.revokeObjectURL(t.url);timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
-async function loadTimeline(){if(!file.value||!info.value||timelineLoading.value)return;const source=file.value,duration=info.value.duration,ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;for(const t of timelineThumbnails.value)URL.revokeObjectURL(t.url);timelineThumbnails.value=[];try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,duration/12),startTime:0,endTime:duration,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source)timelineThumbnails.value.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)})}}))}catch(e){if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
+function clearTimeline(){timelineAbort?.abort();for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
+async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){for(const t of rows)URL.revokeObjectURL(t.url);if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
 function seekTimeline(time:number){timelineTime.value=time;const video=document.querySelector<HTMLVideoElement>('.file-card video');if(video&&Number.isFinite(time))video.currentTime=time}
-function addManualCut(time:number){const keys=mediaAnalysis.value?.keyframeSamples.filter(t=>t>0&&t<(info.value?.duration??0))??[];if(!keys.length){errorText.value='请先分析视频以取得关键帧边界';return}const key=keys.reduce((a,b)=>Math.abs(a-time)<=Math.abs(b-time)?a:b);if(Math.abs(key-time)>Math.max(.5,mediaAnalysis.value?.maxGopSeconds??.5)){errorText.value='当前位置附近没有已索引的关键帧样本';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
+function addManualCut(time:number){const keys=mediaAnalysis.value?.keyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
 const size = ref(4)
@@ -312,7 +315,7 @@ async function pickFolder() {
 }
 function addPreview(snapshot: FrameSnapshot) {
   const preview: FramePreview = {
-    name: snapshot.name, timestamp: snapshot.timestamp,
+    name: snapshot.name, timestamp: snapshot.timestamp, sharpness:snapshot.sharpness,
     url: URL.createObjectURL(snapshot.blob),
     blob: outputFolder.value ? undefined : snapshot.blob,
   }
@@ -345,7 +348,7 @@ async function relinkRetry(event:Event){
     if(file.value!==selected||!info.value)throw Error('源媒体读取失败')
     if(params.mode==='split'){
       splitStrategy.value=params.maxSeconds===undefined?'size':'duration';sizeUnit.value='GB';size.value=params.maxBytes/1e9;splitMinutes.value=(params.maxSeconds??600)/60;verificationLevel.value=params.verificationLevel;manualCuts.value=params.manualCuts??[]
-    }else{interval.value=params.interval;frameStart.value=params.startTime;frameEnd.value=params.endTime;imageFormat.value=params.format;imageWidth.value=params.width;jpegQuality.value=params.quality;frameStrategy.value=params.strategy??'interval';deduplicate.value=!!params.deduplicate}
+    }else{interval.value=params.interval;frameStart.value=params.startTime;frameEnd.value=params.endTime;imageFormat.value=params.format;imageWidth.value=params.width;jpegQuality.value=params.quality;frameStrategy.value=params.strategy??'interval';deduplicate.value=!!params.deduplicate;candidateCount.value=params.candidates??3;minSharpness.value=params.minSharpness??0;sceneThreshold.value=params.sceneThreshold??.24}
     outputFolder.value=null;selectedFolderName.value=''
     resumeSession.value=target.retry.resumeId?await loadResumeSession(target.retry.resumeId)??null:null
     resumeEnabled.value=!!resumeSession.value
@@ -420,9 +423,9 @@ async function start() {
           duration: currentInfo.duration, interval: interval.value,
           startTime: frameStart.value, endTime: frameEnd.value,
           format: imageFormat.value, width: imageWidth.value, quality: jpegQuality.value,
-          strategy:frameStrategy.value,deduplicate:deduplicate.value,
+          strategy:frameStrategy.value,deduplicate:deduplicate.value,...(frameStrategy.value==='sharpest'?{candidates:candidateCount.value,minSharpness:minSharpness.value}:frameStrategy.value==='scene'?{sceneThreshold:sceneThreshold.value}:{}),
         }
-    const retryParameters:RetryParameters=payload.mode==='split'?{mode:'split',maxBytes:payload.maxBytes,maxSeconds:payload.maxSeconds,manualCuts:payload.manualCuts,verificationLevel:payload.verificationLevel}:{mode:'frames',interval:payload.interval,startTime:payload.startTime,endTime:payload.endTime,format:payload.format,width:payload.width,quality:payload.quality,strategy:payload.strategy,deduplicate:payload.deduplicate}
+    const retryParameters:RetryParameters=payload.mode==='split'?{mode:'split',maxBytes:payload.maxBytes,maxSeconds:payload.maxSeconds,manualCuts:payload.manualCuts,verificationLevel:payload.verificationLevel}:{mode:'frames',interval:payload.interval,startTime:payload.startTime,endTime:payload.endTime,format:payload.format,width:payload.width,quality:payload.quality,strategy:payload.strategy,deduplicate:payload.deduplicate,candidates:payload.candidates,minSharpness:payload.minSharpness,sceneThreshold:payload.sceneThreshold}
     const resumeId=resumeSession.value?.id
     if(resumeId)payload.resumeId=resumeId
     const fingerprint=await sampleFingerprint(currentFile)
@@ -618,7 +621,7 @@ onBeforeUnmount(() => {
           <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
-        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mediaAnalysis?.keyframeSamples??[]" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
+        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mediaAnalysis?.keyframeIndex??[]" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">
             <div class="fs-analysis-heading">
@@ -692,7 +695,9 @@ onBeforeUnmount(() => {
         </section>
 
         <section class="config-panel" v-else>
-          <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong><span>最清晰：每窗口三候选；场景检测：采样直方图；关键帧：编码索引</span></div></div><div class="select-wrap"><select v-model="frameStrategy" :disabled="status==='running'" aria-label="抽帧策略"><option value="interval">定时抽帧</option><option value="sharpest">最清晰帧</option><option value="scene">场景变化</option><option value="keyframes">关键帧</option></select></div></div>
+          <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong><span>最清晰：每窗口可调候选；场景检测：采样直方图；关键帧：编码索引</span></div></div><div class="select-wrap"><select v-model="frameStrategy" :disabled="status==='running'" aria-label="抽帧策略"><option value="interval">定时抽帧</option><option value="sharpest">最清晰帧</option><option value="scene">场景变化</option><option value="keyframes">关键帧</option></select></div></div>
+          <div v-if="frameStrategy==='sharpest'" class="config-row"><label>每窗口候选数 <input type="number" v-model.number="candidateCount" min="1" max="12" :disabled="status==='running'"/></label><label>最低清晰度 <input type="number" v-model.number="minSharpness" min="0" max="260100" step="10" :disabled="status==='running'"/></label></div>
+          <div v-if="frameStrategy==='scene'" class="config-row"><label>场景差异阈值 {{sceneThreshold.toFixed(2)}} <input type="range" v-model.number="sceneThreshold" min="0" max="1" step=".01" :disabled="status==='running'"/></label></div>
           <div class="config-row"><label><input v-model="deduplicate" type="checkbox" :disabled="status==='running'"/> 过滤最近 64 张近似重复画面</label></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong><span>从 00:00 开始，每隔指定秒数提取画面</span></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong><span>只处理所选区间，避免无关帧与磁盘开销</span></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
@@ -736,7 +741,7 @@ onBeforeUnmount(() => {
           <p v-if="filteredCount" class="fs-analysis-disclaimer">已主动过滤 {{filteredCount}} 张相似或无明显场景变化的候选画面，不计为遗漏。</p>
           <p v-if="missedFrames.length" class="fs-analysis-warning">有 {{missedFrames.length}} 个时间点重试后仍无画面，详见 JSON 报告：{{missedFrames.slice(0,10).map(t=>t.toFixed(3)+'s').join('、')}}</p>
           <p v-if="storyboardError" class="fs-analysis-warning">{{ storyboardError }}</p>
-          <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}</span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
+          <div v-if="frames.length" class="frame-gallery"><div v-for="item in frames" :key="item.name" class="frame-tile"><img :src="item.url" :alt="`截图 ${humanTime(item.timestamp)}`" loading="lazy"/><div class="frame-caption"><span>{{ humanTime(item.timestamp) }}<small v-if="item.sharpness!==undefined"> · Q {{item.sharpness.toFixed(1)}}</small></span><button v-if="item.blob" class="frame-download" type="button" :title="`下载 ${item.name}`" @click="savePreview(item)"><ArrowDownToLine :size="15"/></button><Check v-else :size="14" class="frame-saved"/></div></div></div>
         </section>
 
         <div v-if="errorText && status === 'idle'" class="inline-error"><AlertTriangle :size="17"/><span>{{ errorText }}</span><button type="button" @click="errorText = ''" aria-label="关闭"><X :size="16"/></button></div>

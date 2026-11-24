@@ -32,6 +32,9 @@ export type WorkerStart =
       quality: number
       strategy?:FrameStrategy
       deduplicate?:boolean
+      candidates?:number
+      minSharpness?:number
+      sceneThreshold?:number
     })
 
 export type WorkerCommand = WorkerStart | { kind: 'cancel'; id: number } | { kind: 'inspect'; id: number; file: File } | { kind: 'analyze'; id: number; file: File }

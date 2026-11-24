@@ -1,6 +1,6 @@
 import type { ResumeJournal } from '../core/resume'
 import { CanvasSink,EncodedPacketSink } from 'mediabunny'
-import { measureFrame,hashDistance,sceneDistance } from './frame-quality.mjs'
+import { measureFrame,hashDistance,sceneDistance,candidateTimes } from './frame-quality.mjs'
 import type { FrameQuality } from './frame-quality.mjs'
 import { baseName, checkCanceled, fileTime, frameTimes } from './format'
 import { openInput } from './media'
@@ -15,6 +15,7 @@ export interface FramePreview {
   timestamp: number
   url: string
   blob?: Blob
+  sharpness?:number
 }
 
 /** Serializable preview payload produced by the worker; object URLs belong to the UI. */
@@ -22,6 +23,7 @@ export interface FrameSnapshot {
   name: string
   timestamp: number
   blob: Blob
+  sharpness?:number
 }
 
 export interface FramesOptions {
@@ -44,6 +46,9 @@ export interface FramesOptions {
   strategy?:FrameStrategy
   deduplicate?:boolean
   onFiltered?:(timestamp:number,reason:string)=>void
+  candidates?:number
+  minSharpness?:number
+  sceneThreshold?:number
 }
 
 async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas, format: FrameFormat, quality: number): Promise<Blob> {
@@ -67,6 +72,8 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
     throw new Error('截图格式、分辨率或质量参数无效。')
   }
   const strategy=options.strategy??'interval'
+  const candidateCount=options.candidates??3,minSharpness=options.minSharpness??0,sceneThreshold=options.sceneThreshold??.24
+  if(!Number.isInteger(candidateCount)||candidateCount<1||candidateCount>12||!Number.isFinite(minSharpness)||minSharpness<0||minSharpness>260100||!Number.isFinite(sceneThreshold)||sceneThreshold<0||sceneThreshold>1)throw Error('智能抽帧参数超出范围')
   if(!['interval','keyframes','sharpest','scene'].includes(strategy))throw Error('未知抽帧策略')
   if(options.resume&&(strategy!=='interval'||options.deduplicate))throw Error('智能抽帧暂不支持断点续作')
   let timestamps = frameTimes(duration, interval, startTime, endTime)
@@ -120,17 +127,18 @@ export async function extractFrames(options: FramesOptions): Promise<number> {
       const recent:FrameQuality[]=[];let previous:FrameQuality|undefined
       const qualityOf=(canvas:HTMLCanvasElement|OffscreenCanvas)=>{ctx.drawImage(canvas,0,0,64,36);return measureFrame(ctx.getImageData(0,0,64,36).data,64,36)}
       const emit=async (blob:Blob,t:number,index:number,q:FrameQuality)=>{
-        if(strategy==='scene'&&previous&&sceneDistance(previous.histogram,q.histogram)<.24){previous=q;options.onFiltered?.(t,'场景变化不足');return}
+        if(strategy==='scene'&&previous&&sceneDistance(previous.histogram,q.histogram)<sceneThreshold){previous=q;options.onFiltered?.(t,'场景变化不足');return}
         previous=q
+        if(strategy==='sharpest'&&q.sharpness<minSharpness){options.onFiltered?.(t,'清晰度低于阈值');return}
         if(options.deduplicate&&recent.some(x=>hashDistance(x.hash,q.hash)<=5&&sceneDistance(x.histogram,q.histogram)<.12)){options.onFiltered?.(t,'近似重复');return}
         recent.push(q);if(recent.length>64)recent.shift()
         const name=nameFor(t);if(folder){onFileStart?.(name);await saveBlob(folder,name,blob,signal);onSaved?.(name)}
-        saved++;if(!folder||index<12||index%Math.max(1,Math.ceil(timestamps.length/12))===0)onPreview({name,timestamp:t,blob})
+        saved++;if(!folder||index<12||index%Math.max(1,Math.ceil(timestamps.length/12))===0)onPreview({name,timestamp:t,blob,sharpness:q.sharpness})
       }
       // Candidate requests remain ordered and bounded (three candidates per interval).
-      const candidates=timestamps.flatMap(t=>strategy==='sharpest'?[t,t+Math.min(interval*.33,Math.max(0,endTime-t-.001)),t+Math.min(interval*.66,Math.max(0,endTime-t-.001))]:[t])
+      const candidates=timestamps.flatMap(t=>strategy==='sharpest'?candidateTimes(t,endTime,interval,candidateCount):[t])
       let pos=0,best:{blob:Blob;time:number;q:FrameQuality}|undefined
-      const stride=strategy==='sharpest'?3:1
+      const stride=strategy==='sharpest'?candidateCount:1
       for await(const result of sink.canvasesAtTimestamps(candidates)){
         checkCanceled(signal);const t=candidates[pos],index=Math.floor(pos/stride)
         if(t===undefined)throw Error('多余的候选帧')
