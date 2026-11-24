@@ -57,3 +57,19 @@ jobs:
         run: |
           node scripts/browser-smoke.mjs
           node scripts/browser-resume.mjs
+      - name: 短样本真实浏览器性能基准
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          APP_URL: http://127.0.0.1:4173/FrameSlice/
+          STRESS_MIN_BYTES: '1'
+        run: |
+          base64 -d tests/fixtures/black-h264-aac.mp4.b64 >/tmp/frameslice-benchmark.mp4
+          node scripts/browser-stress-real.mjs /tmp/frameslice-benchmark.mp4 browser-benchmark.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workbench-regression-${{ github.run_attempt }}
+          path: |
+            visual-regression/
+            browser-benchmark.json
+          if-no-files-found: warn

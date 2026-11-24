@@ -1,5 +1,5 @@
 import {chromium} from 'playwright-core'
-import {readFile,mkdtemp,writeFile,rm} from 'node:fs/promises'
+import {readFile,mkdtemp,writeFile,rm,mkdir} from 'node:fs/promises'
 import {join} from 'node:path'
 import {tmpdir} from 'node:os'
 const dir=await mkdtemp(join(tmpdir(),'frameslice-resume-')),file=join(dir,'fixture.mp4')
@@ -30,11 +30,30 @@ try{
  const after=await page.evaluate(async dir=>{const root=await navigator.storage.getDirectory(),folder=await root.getDirectoryHandle(dir),items=[];for await(const [name,h] of folder.entries())if(h.kind==='file'&&name.endsWith('.jpg')){const f=await h.getFile();items.push({name,bytes:f.size,mtime:f.lastModified})}return items},before[0].dir)
  if(after.length!==before.length||!before.slice(1).every(item=>after.some(x=>x.name===item.name&&x.bytes===item.bytes&&x.mtime===item.mtime)))throw Error('resume did not preserve verified existing frames')
  console.log('Real OPFS reload/resume regenerated missing frame and preserved verified outputs')
+ const sessionId=await page.evaluate(()=>JSON.parse(localStorage.getItem('frameslice.jobs.v1')??'[]').find(j=>j.retry?.resumeId)?.retry.resumeId)
+ if(!sessionId)throw Error('missing resume session id')
+ await page.getByRole('button',{name:'任务中心'}).click()
+ const [relink]=await Promise.all([page.waitForEvent('filechooser'),page.locator('.fs-job-center').getByRole('button',{name:'重新关联并重试'}).first().click()]);await relink.setFiles(file)
+ await page.getByText(/已关联续作目录/).waitFor({timeout:30000})
+ const tab=await page.context().newPage();await tab.goto(page.url())
+ await tab.evaluate(id=>new Promise((resolve,reject)=>{void navigator.locks.request('frameslice-resume-'+id,async lock=>{if(!lock){reject(Error('lock unavailable'));return}resolve(true);await new Promise(r=>{globalThis.releaseTestLock=r})}).catch(reject)}),sessionId)
+ await page.getByRole('button',{name:/开始提取图片/}).click()
+ await page.locator('.status-card.failure').waitFor({timeout:30000})
+ if(!(await page.locator('.status-card.failure').innerText()).includes('另一个标签页'))throw Error('cross-tab lock was not enforced')
+ await tab.evaluate(()=>globalThis.releaseTestLock());await tab.close()
+ const damaged=before[0]
+ const original=await page.evaluate(async item=>{const root=await navigator.storage.getDirectory(),folder=await root.getDirectoryHandle(item.dir),h=await folder.getFileHandle(item.name),bytes=new Uint8Array(await (await h.getFile()).arrayBuffer());const changed=bytes.slice();changed[Math.floor(changed.length/2)]^=1;const w=await h.createWritable();await w.write(changed);await w.close();return Array.from(bytes)},damaged)
+ await page.getByRole('button',{name:/开始提取图片/}).click()
+ await page.waitForFunction(()=>document.querySelector('.status-card.failure')?.textContent?.includes('历史文件缺少可信检查点或内容已改变'),{},{timeout:30000})
+ await page.evaluate(async ({item,bytes})=>{const root=await navigator.storage.getDirectory(),folder=await root.getDirectoryHandle(item.dir),h=await folder.getFileHandle(item.name),f=await h.getFile(),changed=new Uint8Array(await f.arrayBuffer());if(changed[Math.floor(changed.length/2)]===(bytes[Math.floor(bytes.length/2)]))throw Error('damaged output was silently overwritten');const w=await h.createWritable();await w.write(new Uint8Array(bytes));await w.close()},{item:damaged,bytes:original})
+ await page.getByRole('button',{name:/开始提取图片/}).click();await done()
+ console.log('Cross-tab lock and same-size output corruption refusal verified')
  await page.getByRole('button',{name:'新建任务'}).count() // optional session was cleared on successful completion
  await page.getByLabel(/启用断点续作/).uncheck()
  await page.getByRole('combobox',{name:'抽帧策略'}).selectOption('sharpest')
  await page.getByRole('button',{name:/开始提取图片/}).click();await done()
  if(!await page.locator('.frame-tile img').count())throw Error('smart frame preview missing')
+ if(!await page.locator('.frame-caption small').count())throw Error('quality score missing')
  await page.getByRole('button',{name:'生成缩略图'}).click()
  await page.locator('.fs-timeline-thumbs img').first().waitFor({timeout:30000})
  await page.getByRole('slider',{name:'时间轴缩放'}).fill('2')
@@ -45,4 +64,11 @@ try{
  const bg=await page.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--fs-bg').trim())
  if(bg!=='#151916')throw Error('dark semantic token mismatch')
  console.log('Smart frames, thumbnails, task center and dark token verified')
+ const screenshots=process.env.VISUAL_DIR||'visual-regression';await mkdir(screenshots,{recursive:true})
+ for(const theme of ['light','dark']){await page.getByRole('combobox',{name:'主题'}).selectOption(theme);await page.screenshot({path:join(screenshots,'jobs-'+theme+'.png'),fullPage:true,animations:'disabled'})}
+ await page.getByRole('button',{name:'定时抽帧'}).click()
+ const separator=page.getByRole('separator',{name:'调整资源栏宽度'});const initial=Number(await separator.getAttribute('aria-valuenow'));await separator.focus();await separator.press('ArrowRight');if(Number(await separator.getAttribute('aria-valuenow'))!==initial+10)throw Error('keyboard panel resize failed')
+ for(const theme of ['light','dark']){await page.getByRole('combobox',{name:'主题'}).selectOption(theme);await page.screenshot({path:join(screenshots,'frames-'+theme+'.png'),fullPage:true,animations:'disabled'})}
+ await page.getByRole('button',{name:/字幕工作台/}).click();await page.locator('.caption-react-host').locator('.caption-action-toolbar').waitFor({timeout:30000});await page.screenshot({path:join(screenshots,'captions-dark.png'),fullPage:true,animations:'disabled'})
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'定时抽帧'}).click();await page.screenshot({path:join(screenshots,'frames-mobile.png'),fullPage:true,animations:'disabled'})
 }finally{await browser.close();await rm(dir,{recursive:true,force:true})}

@@ -466,7 +466,7 @@ async function start() {
             verificationLevel: verificationLevel.value,manualCuts:manualCuts.value }
         : { intervalSeconds: interval.value, startSeconds: frameStart.value,
             endSeconds: frameEnd.value, format: imageFormat.value,
-            width: imageWidth.value, quality: jpegQuality.value,strategy:frameStrategy.value,deduplicate:deduplicate.value,filteredCount:filteredCount.value },
+            width: imageWidth.value, quality: jpegQuality.value,strategy:frameStrategy.value,deduplicate:deduplicate.value,candidates:candidateCount.value,minSharpness:minSharpness.value,sceneThreshold:sceneThreshold.value,filteredCount:filteredCount.value },
       parts: parts.value,
       images: jobFolder ? savedFrameNames.value : frames.value.map(item => item.name),
       completedFrames: finishedFrames.value,

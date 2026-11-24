@@ -10,3 +10,6 @@
 
 ## AI 真实专项
 `.github/workflows/ai-real.yml` 在模型/烧录/CSP 高风险改动时运行，并支持手动触发。使用 espeak-ng 生成语音、FFmpeg 生成短 MP4；实际加载 Whisper Tiny English、WASM 推理、验证字幕词、检查浏览器缓存、重复推理、烧录并使用 ffprobe/ffmpeg 校验和解码。缓存存在并重复识别不等于完全离线成功；离线测试另行补充。需要 Hugging Face、CDN 网络及 Chrome 编解码能力，失败报告须保留。
+
+## v0.6 CI 基准与回归
+浏览器门禁使用仓库短 MP4 样本生成 browser-benchmark.json（qualifies12GB=false），并采集 light/dark、桌面及移动端截图。真实 12GB 仍须提供实际源文件和足够磁盘；不可使用短样本替代。输出 mtime、跨标签页锁及篡改拒绝通过真实 Chrome OPFS 测试覆盖。性能指标包含主线程 JS 堆峰值、输出字节和端到端源字节/秒（非纯 IO 吞吐）。
