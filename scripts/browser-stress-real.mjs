@@ -1,6 +1,6 @@
 /** Real local file -> production browser -> native OPFS. No synthetic Blob substitute. */
 import {chromium} from 'playwright-core'
-import {stat,writeFile,readFile,mkdtemp,rm} from 'node:fs/promises'
+import {stat,writeFile,readFile,mkdtemp,rm,statfs} from 'node:fs/promises'
 import {resolve,basename,join} from 'node:path'
 import {execFileSync} from 'node:child_process'
 import {platform,arch,totalmem,tmpdir} from 'node:os'
@@ -23,9 +23,18 @@ try{
  page.on('pageerror',e=>report.errors.push(e.message))
  await page.addInitScript(()=>Object.defineProperty(window,'showDirectoryPicker',{configurable:true,value:()=>navigator.storage.getDirectory()}))
  await page.goto(origin,{waitUntil:'networkidle'})
- report.storage=await page.evaluate(()=>navigator.storage.estimate())
- if(report.storage.quota-report.storage.usage<source.size*1.05)throw Error('OPFS 可用配额不足')
  const cdp=await page.context().newCDPSession(page)
+ report.storageDefault=await page.evaluate(()=>navigator.storage.estimate())
+ const fs=await statfs(profile);report.physicalFreeBytes=fs.bavail*fs.bsize
+ const requestedQuota=Number(process.env.STRESS_OPFS_QUOTA_BYTES||0)
+ if(requestedQuota){
+  const location=new URL(origin);if(!['127.0.0.1','localhost'].includes(location.hostname)||!Number.isSafeInteger(requestedQuota)||requestedQuota<source.size*1.05||requestedQuota>report.physicalFreeBytes-2*1024**3)throw Error('受控配额仅限本地测试且须有实际磁盘余量')
+  await cdp.send('Storage.overrideQuotaForOrigin',{origin:location.origin,quotaSize:requestedQuota})
+  report.quotaOverride={requestedBytes:requestedQuota,...await cdp.send('Storage.getUsageAndQuota',{origin:location.origin})}
+  if(!report.quotaOverride.overrideActive)throw Error('测试配额未生效')
+ }
+ report.storage=await page.evaluate(()=>navigator.storage.estimate())
+ if(report.storage.quota-report.storage.usage<source.size*1.05||report.physicalFreeBytes<source.size*1.1)throw Error('OPFS 可用配额或实际磁盘不足')
  await cdp.send('Performance.enable')
  const sample=async()=>{if(sampling)return;sampling=true;try{const {metrics}=await cdp.send('Performance.getMetrics');const get=name=>metrics.find(m=>m.name===name)?.value??null;report.samples.push({elapsedMs:Date.now()-started,mainJsHeapBytes:get('JSHeapUsedSize'),taskDuration:get('TaskDuration'),...await processMetrics()})}catch{}finally{sampling=false}}
  interval=setInterval(()=>void sample(),5000)
