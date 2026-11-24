@@ -10,8 +10,8 @@ import {
 import { baseName, checkCanceled } from './format'
 import { planGroups, planGroupsByDuration } from './planning.mjs'
 import { openInput } from './media'
-import { PacketFingerprint, verifySegment } from './verify'
-import type { VerificationLevel, VerificationReport } from './verify'
+import { PacketFingerprint, verifySegment, includePacketTime } from './verify'
+import type { VerificationLevel, VerificationReport, TrackTimeline } from './verify'
 
 interface Group {
   time: number
@@ -172,6 +172,8 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
       output.addVideoTrack(videoSource, { rotation: await video.getRotation() })
       const audioSource = audioCodec ? new EncodedAudioPacketSource(audioCodec) : null
       if (audioSource) output.addAudioTrack(audioSource)
+      const videoTime: TrackTimeline = { start: Infinity, end: -Infinity, maxPacketDuration: 0 }
+      const audioTime: TrackTimeline = { start: Infinity, end: -Infinity, maxPacketDuration: 0 }
       let finalized = false
       let committed = false
       const sourceVideoFingerprint = verificationLevel === 'deep' ? new PacketFingerprint() : null
@@ -198,6 +200,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
               packet.duration, packet.sequenceNumber, packet.byteLength, packet.sideData,
             )
             await videoSource.add(shifted, first ? { decoderConfig: videoConfig } : undefined)
+            includePacketTime(videoTime, shifted)
             sourceVideoFingerprint?.add(packet.data)
             first = false
             const fraction = Math.min(1, Math.max(0, (packet.timestamp - startTime) / Math.max(1, endTime - startTime)))
@@ -222,6 +225,7 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
               packet.duration, packet.sequenceNumber, packet.byteLength, packet.sideData,
             )
             await audioSource.add(shifted, first ? { decoderConfig: audioConfig } : undefined)
+            includePacketTime(audioTime, shifted)
             sourceAudioFingerprint?.add(packet.data)
             first = false
           }
@@ -254,6 +258,8 @@ export async function splitVideo(options: SplitOptions): Promise<SplitResult[]> 
           expectedDuration: endTime - startTime,
           level: verificationLevel,
           signal,
+          expectedVideoTime: videoTime,
+          expectedAudioTime: audio ? audioTime : undefined,
           expectedVideo: sourceVideoFingerprint?.digest(),
           expectedAudio: sourceAudioFingerprint?.digest(),
         })

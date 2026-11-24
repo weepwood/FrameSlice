@@ -70,6 +70,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const searchInput=useRef<HTMLInputElement>(null);
   const cueListRef=useRef<HTMLDivElement>(null);
   const renderAbort=useRef<AbortController|null>(null);
+  useEffect(()=>()=>renderAbort.current?.abort(),[]);
   const {value:cues,set:setCues,reset:resetCues,undo,redo,canUndo,canRedo}=useHistory<Cue[]>([]);
   const [mediaURL,setMediaURL]=useState<string|null>(null);
   useEffect(()=>{
@@ -211,12 +212,12 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     download(new Blob([data],{type:kind==='json'?'application/json':'text/plain;charset=utf-8'}),`${baseName(projectName)}.${kind}`);
   };
   const renderVideo=async()=>{
-    if(!file||!isVideo||!cues.length)return;
+    if(!file||!isVideo||!cues.length||renderAbort.current)return;
     setError('');setRenderState({phase:'working',progress:0,message:'正在下载 FFmpeg 并准备文件…'});
     const controller=new AbortController();renderAbort.current=controller;
     try{
       const {burnVideo}=await import('./lib/burn');
-      const out=await burnVideo({file,cues,style,font:font??undefined,signal:controller.signal,onProgress:p=>setRenderState({phase:'working',progress:p,message:'正在编码视频…'})});
+      const out=await burnVideo({file,duration,width:video.current?.videoWidth??0,height:video.current?.videoHeight??0,cues,style,font:font??undefined,signal:controller.signal,onProgress:p=>setRenderState({phase:'working',progress:p,message:'正在编码视频…'})});
       download(out,`${baseName(projectName)}-captioned.mp4`);
       setRenderState({phase:'idle',progress:0,message:'视频已导出'});
     }catch(e){setRenderState({phase:'error',progress:0,message:controller.signal.aborted?'已取消渲染':String(e instanceof Error?e.message:e)})}
@@ -396,7 +397,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               {renderState.phase==='working'?<div className="render-progress"><progress value={renderState.progress} max={1}/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><button className="btn outline full" onClick={()=>renderAbort.current?.abort()}>取消烧录</button></div>:<button className="btn primary full" disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</button>}
               {renderState.phase==='error'&&<div className="style-note warning">{renderState.message}</div>}
               {renderState.message&&renderState.phase==='idle'&&<div className="task-status done"><Check size={15}/>{renderState.message}</div>}
-              <div className="style-note"><AlertTriangle size={15}/> 网页端 MP4 重新编码可能很慢且占用大量内存。长视频建议导出 SRT 后使用桌面 FFmpeg 烧录。</div>
+              <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>
             </div>}
           </aside>
         </div>
