@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  ArrowDownToLine, ArrowRight, BadgeCheck, Check, ChevronDown, CircleHelp, Clock3,
+  ArrowDownToLine, ArrowRight, BadgeCheck, Check, CircleHelp, Clock3,
   Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
   LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
   Upload, X, Zap, AlertTriangle, Film, PanelRight,
@@ -590,7 +590,7 @@ onBeforeUnmount(() => {
         <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
       </details>
       <div class="sidebar-bottom">
-        <label class="fs-theme-select">外观 <select aria-label="主题" v-model="theme" @change="applyTheme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
+        <div class="fs-theme-select"><span>外观</span><WorkbenchSelect v-model="theme" label="主题" :options="([{value:'system',label:'跟随系统'},{value:'light',label:'浅色'},{value:'dark',label:'深色'}] as const)" @update:model-value="applyTheme"/></div>
         <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong><span>视频不会上传至服务器</span></div></div>
         <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
         <div class="sidebar-version">FRAMESLICE / V{{version}}</div>
@@ -709,7 +709,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="config-row">
             <div class="setting-copy"><div class="setting-icon"><ShieldCheck :size="19"/></div><div><strong>输出完整性校验</strong><span>快速模式检查封装、轨道、时长与关键帧；深度模式还逐包对比 CRC32，读取量更大</span></div></div>
-            <div class="select-wrap"><select v-model="verificationLevel" :disabled="status === 'running'" aria-label="视频输出校验等级"><option value="quick">快速校验（推荐）</option><option value="deep">逐包深度校验</option></select><ChevronDown :size="14"/></div>
+            <WorkbenchSelect v-model="verificationLevel" label="视频输出校验等级" :disabled="status==='running'" :options="([{value:'quick',label:'快速校验（推荐）'},{value:'deep',label:'逐包深度校验'}] as const)"/>
           </div>
           <div class="config-row last">
             <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || '请指定本地输出目录' }}</span></div></div>

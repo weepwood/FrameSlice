@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  AlertTriangle, Check, CheckCircle2, ChevronDown, FileAudio, FileText,
+  AlertTriangle, Check, CheckCircle2, FileAudio, FileText,
   FileVideo, Folder, FolderOpen, LoaderCircle, PackageOpen, Play, Subtitles,
   X, ShieldCheck,
 } from 'lucide-vue-next'
+import WorkbenchSelect from './WorkbenchSelect.vue'
 import MediaEditWorkspace from './MediaEditWorkspace.vue'
 import type { ContainerInspection, ContainerTrack, ContainerOutput, ContainerAction, ContainerFormat } from '../lib/container-ops'
 import { scanContainerInWorker, runContainerInWorker } from '../lib/container-client'
@@ -264,7 +265,7 @@ onBeforeUnmount(() => cleanup())
         </div>
         <div v-if="action==='package'" class="ct-option-row">
           <div><strong>目标容器</strong><small>根据编码兼容性决定能否无损导出</small></div>
-          <div class="ct-select"><select v-model="format" :disabled="working" aria-label="封装目标格式"><option value="mkv">MKV（推荐）</option><option value="mp4">MP4</option></select><ChevronDown :size="14"/></div>
+          <WorkbenchSelect v-model="format" label="封装目标格式" :disabled="working" :options="([{value:'mkv',label:'MKV（推荐）'},{value:'mp4',label:'MP4'}] as const)"/>
         </div>
         <div v-if="action==='package' && format==='mkv'" class="ct-option-row">
           <div><strong>附加软字幕</strong><small>添加 SRT / VTT，写入可切换 WebVTT 轨道</small></div>

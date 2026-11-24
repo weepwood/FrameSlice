@@ -1,3 +1,4 @@
+import {selectOption,themeOption} from './select-option.mjs'
 /** Stable, viewport-only candidates on a fresh context. No history/timestamp data. */
 import {chromium} from 'playwright-core'
 import {mkdir,writeFile,readFile} from 'node:fs/promises'
@@ -11,7 +12,7 @@ try{
   const ctx=await browser.newContext({viewport,deviceScaleFactor:1,colorScheme:theme,locale:'zh-CN',timezoneId:'UTC',reducedMotion:'reduce'})
   try{
    const page=await ctx.newPage();await page.goto(process.env.APP_URL||'http://127.0.0.1:4173/FrameSlice/')
-   await page.getByRole('combobox',{name:'主题'}).selectOption(theme)
+   await themeOption(page,theme)
    for(const [mode,button] of [['split','无损分割'],['frames','定时抽帧'],['captions','字幕工作台'],['jobs','任务中心']]){
     await page.getByRole('button',{name:new RegExp(button)}).first().click()
     if(mode==='captions')await page.locator('.caption-react-host').locator('.caption-action-toolbar').waitFor({timeout:30000})

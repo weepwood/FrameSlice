@@ -84,3 +84,5 @@
 - 主任务开始/取消按钮保持同一 DOM 源，桌面工具栏可达、窄屏执行区回退；不可复制或绕过既有 start/cancel 校验。原生视频载入态截图须实际解码并完成 seek 后采集。视觉改动后不得沿用未经复审的新候选清单；保留 v0.7.1 发布基线。
 
 - UI 基线批准与合并分离：先实际审查 PNG、清单及载入截图，再提交新 approval；原 v0.7.1 清单保留在 visual-baseline/history，原 Release ZIP 不覆盖，新的 UI 基线使用独立资产名并在部署后核验。任何截图范围限制记录于 UI_REVIEW.md；未通过新 2% 门禁/性能回归不可合并。
+
+- Vue 自定义下拉统一复用 Reka UI WorkbenchSelect，测试使用角色与选项名称。存储清理仅允许结束任务记录和已知 Whisper 模型 URL，禁止全域 localStorage.clear、CacheStorage 全量删除、OPFS 递归删除；字幕自动保存工程由编辑器自身管理。PR #12 生产 CI 45420893068 已成功、两个 Release 资产并存。新 UI 候选需审核后才批准基线。
