@@ -69,6 +69,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [renderState,setRenderState]=useState<RenderState>({phase:'idle',progress:0,message:''});
   const [font,setFont]=useState<File|null>(null);
   const [shift,setShift]=useState('0.5');
+  const shell=useRef<HTMLDivElement>(null);
   const video=useRef<HTMLVideoElement>(null);
   const mediaInput=useRef<HTMLInputElement>(null);
   const captionsInput=useRef<HTMLInputElement>(null);
@@ -86,25 +87,30 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     return()=>URL.revokeObjectURL(url);
   },[file]);
   const isVideo=Boolean(file?.type.startsWith('video/')||file?.name.match(/\.(mp4|mov|webm|m4v)$/i));
-  const effectiveDuration=cues.reduce((max,cue)=>Math.max(max,cue.end),duration);
+  const cueDuration=useMemo(()=>cues.reduce((max,cue)=>Math.max(max,cue.end),0),[cues]);
+  const effectiveDuration=Math.max(cueDuration,duration);
   const activeCue=useMemo(()=>cues.find(c=>time>=c.start&&time<c.end)??null,[cues,time]);
-  const selectedCue=cues.find(c=>c.id===selectedId)??null;
+  const selectedCue=useMemo(()=>cues.find(c=>c.id===selectedId)??null,[cues,selectedId]);
   const problemCount=useMemo(()=>cues.reduce((n,c,i)=>n+lintCue(c,cues[i+1]).length,0),[cues]);
-  const shown=useMemo(()=>cues.filter((c,i)=>(!onlyIssues||lintCue(c,cues[i+1]).length>0)&&c.text.toLocaleLowerCase().includes(query.toLocaleLowerCase())),[cues,query,onlyIssues]);
+  const shown=useMemo(()=>{const term=query.trim().toLocaleLowerCase();return cues.filter((c,i)=>(!onlyIssues||lintCue(c,cues[i+1]).length>0)&&c.text.toLocaleLowerCase().includes(term))},[cues,query,onlyIssues]);
   const cueIndex=useMemo(()=>new Map(cues.map((cue,i)=>[cue.id,i])),[cues]);
   const pageCount=Math.max(1,Math.ceil(shown.length/100));
   const currentPage=Math.min(cuePage,pageCount-1);
   const pageCues=shown.slice(currentPage*100,(currentPage+1)*100);
-  useEffect(()=>setCuePage(0),[query,onlyIssues]);
+  const changeQuery=(value:string)=>{setQuery(value);setCuePage(0)};
+  const changeIssueFilter=(value:boolean)=>{setOnlyIssues(value);setCuePage(0)};
   useEffect(()=>{
     if(!followPlayback||tab!=='cues'||query||onlyIssues||!activeCue)return;
+    const root=cueListRef.current?.getRootNode();
+    const focused=root instanceof ShadowRoot?root.activeElement:document.activeElement;
+    if(cueListRef.current?.contains(focused))return;
     const index=cueIndex.get(activeCue.id);
     if(index!==undefined){
       const nextPage=Math.floor(index/100);
       if(nextPage!==currentPage){setCuePage(nextPage);return;}
     }
     const active=cueListRef.current?.querySelector('[data-current="true"]');
-    if(active && !active.contains(document.activeElement))active.scrollIntoView({block:'nearest',behavior:'smooth'});
+    if(active)active.scrollIntoView({block:'nearest',behavior:'smooth'});
   },[activeCue?.id,followPlayback,tab,query,onlyIssues,cueIndex,currentPage]);
   useEffect(()=>{if(video.current)video.current.playbackRate=playbackRate},[playbackRate,mediaURL]);
   const onChunks=useCallback((chunks:Chunk[])=>{
@@ -159,7 +165,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       if((text.match(/�/g)||[]).length>2)text=new TextDecoder('gb18030').decode(buffer);
       const parsed=parseSubtitles(text);
       if(!parsed.length)throw Error('未检测到有效的字幕时间轴');
-      resetCues(parsed);setSelectedId(parsed[0].id);setTab('cues');
+      if(cues.length&&!window.confirm('导入字幕将替换当前字幕，是否继续？（可撤销）'))return;
+      transcriber.stop();setCues(parsed);setSelectedId(parsed[0].id);setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
       if(!file)setProjectName(baseName(f.name));
     }catch(e){setError(`字幕导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
@@ -206,13 +213,13 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     const next=cues[index+1]?.start;
     const end=next&&next>start+0.1?Math.min(next,start+2):start+2;
     const cue:Cue={id:uid(),start:round3(start),end:round3(end),text:''};
-    setCues(list=>[...list.slice(0,index+1),cue,...list.slice(index+1)]);setSelectedId(cue.id);
+    setCues(list=>[...list.slice(0,index+1),cue,...list.slice(index+1)]);setSelectedId(cue.id);setQuery('');setOnlyIssues(false);setCuePage(Math.floor((index+1)/100));
   };
   const jumpToCue=(id:string)=>{
     const cue=cues.find(c=>c.id===id);
     if(!cue)return;
     setTab('cues');setOnlyIssues(false);setQuery('');setCuePage(Math.floor((cueIndex.get(id)??0)/100));setSelectedId(id);seek(cue.start);
-    window.requestAnimationFrame(()=>cueListRef.current?.querySelector(`[data-cue-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'}));
+    window.requestAnimationFrame(()=>cueListRef.current?.querySelector(`[data-cue-id="${CSS.escape(id)}"]`)?.scrollIntoView({block:'center',behavior:'smooth'}));
   };
   const exportAs=(kind:'srt'|'vtt'|'json')=>{
     const valid=cues.filter(c=>c.end>c.start&&c.text.trim());
@@ -240,13 +247,15 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   };
   useEffect(()=>{
     const handle=(e:KeyboardEvent)=>{
-      const input=(e.target as HTMLElement).closest('textarea,input,select,[contenteditable]');
+      const path=e.composedPath();
+      if(e.defaultPrevented||e.isComposing||!shell.current||!path.includes(shell.current))return;
+      const interactive=path.some(node=>node instanceof Element&&node.matches('textarea,input,select,button,a,[contenteditable],[role=button],[role=checkbox],[role=slider],[role=combobox],[role=tab],[role=menuitem],[role=option]'));
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
         e.preventDefault();setTab('cues');setOnlyIssues(false);
         window.requestAnimationFrame(()=>searchInput.current?.focus());return;
       }
       if(e.key==='Escape'&&shortcutsOpen){setShortcutsOpen(false);return;}
-      if(input||shortcutsOpen)return;
+      if(interactive||shortcutsOpen)return;
       if(e.key==='?'){e.preventDefault();setShortcutsOpen(true);return;}
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){
         e.preventDefault();if(e.shiftKey)redo();else undo();
@@ -259,7 +268,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   });
   const mediaMissing=Boolean(originalMediaName&&!file);
 
-  return <div className={`app-shell ${embedded?'embedded':''} ${dragging?'dragging':''}`}
+  return <div ref={shell} tabIndex={-1} className={`app-shell ${embedded?'embedded':''} ${dragging?'dragging':''}`}
     onDragEnter={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current++;setDragging(true)}}}
     onDragOver={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){e.preventDefault();e.dataTransfer.dropEffect='copy'}}}
     onDragLeave={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current=Math.max(0,dragDepth.current-1);if(!dragDepth.current)setDragging(false)}}}
@@ -338,7 +347,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               </div>
               <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
             </section>
-            <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={setSelectedId} onUpdate={updateCue}/>
+            <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
 
           </div>
           <aside className="side-panel surface">
@@ -368,14 +377,14 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             </section>
             </Tabs.Panel>
             <Tabs.Panel value="cues" className="caption-tab-content">
-              <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
+              <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>changeQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
-                onToggleIssues={setOnlyIssues} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
+                onToggleIssues={changeIssueFilter} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
               <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" onClick={()=>setCuePage(p=>Math.max(0,p-1))}>‹</button><span>{currentPage+1}/{pageCount}</span><button disabled={currentPage>=pageCount-1} title="下一页字幕" onClick={()=>setCuePage(p=>Math.min(pageCount-1,p+1))}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
               <div className="cue-list" ref={cueListRef}>
                 {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=lintCue(c,cues[index+1]);return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
-                    <div className="cue-row-top"><button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在当前位置拆分" onClick={()=>setCues(xs=>splitCue(xs,c.id))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
+                    <div className="cue-row-top"><button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
                     <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
                     <div className="cue-row-bottom"><TimeEditor label="开始时间" time={c.start} onCommit={v=>updateCue(c.id,{start:v})}/><span>→</span><TimeEditor label="结束时间" time={c.end} onCommit={v=>updateCue(c.id,{end:v})}/><button className="cue-seek" onClick={()=>{seek(c.start);setSelectedId(c.id)}} title="跳转到字幕"><Play size={12}/></button></div>
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}

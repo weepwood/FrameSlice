@@ -146,6 +146,10 @@ try {
   if(!await next.isDisabled())throw Error('gallery last-frame boundary failed')
   await page.keyboard.press('ArrowLeft')
   if(await next.isDisabled())throw Error('gallery keyboard previous failed')
+  await page.keyboard.press('End')
+  if(!await next.isDisabled())throw Error('gallery End failed')
+  await page.keyboard.press('Home')
+  if(await galleryDialog.getByRole('heading').innerText()!==firstFrame)throw Error('gallery Home failed')
   await page.keyboard.press('Escape')
   await galleryDialog.waitFor({state:'hidden'})
   if(!await tile.evaluate(el=>document.activeElement===el))throw Error('gallery did not restore focus')
@@ -257,6 +261,32 @@ try {
     buffer: Buffer.from(['1','00:00:01,000 --> 00:00:03,000','FrameSlice 字幕合并测试',''].join(String.fromCharCode(10)), 'utf8'),
   })
   await caption.getByRole('textbox',{name:'第 1 条字幕'}).waitFor()
+  const cueEditor=caption.getByRole('textbox',{name:'第 1 条字幕'})
+  await cueEditor.focus()
+  await cueEditor.evaluate(el=>el.setSelectionRange(el.value.length,el.value.length))
+  for(const key of ['Space','j','k','l','Space'])await page.keyboard.press(key)
+  if(!(await cueEditor.inputValue()).endsWith(' jkl '))throw Error('caption keyboard intercepted text input: '+JSON.stringify(await cueEditor.inputValue()))
+  await cueEditor.fill('FrameSlice 字幕合并测试')
+  await caption.getByRole('slider',{name:'跳转播放位置',exact:true}).fill('1.5')
+  await caption.getByRole('button',{name:'在播放位置拆分字幕'}).click()
+  await caption.getByRole('textbox',{name:'第 2 条字幕'}).waitFor()
+  await caption.getByRole('button',{name:/撤销/}).click()
+  await caption.getByRole('textbox',{name:'第 2 条字幕'}).waitFor({state:'detached'})
+  if(await cueEditor.inputValue()!=='FrameSlice 字幕合并测试')throw Error('caption split undo did not restore text')
+  const replacement={name:'replacement.srt',mimeType:'text/plain',buffer:Buffer.from('1\n00:00:00,500 --> 00:00:01,500\nreplacement cue\n')}
+  const dismissReplacement=page.waitForEvent('dialog').then(dialog=>dialog.dismiss())
+  await caption.locator('input[accept=".srt,.vtt"]').setInputFiles(replacement)
+  await dismissReplacement
+  await cueEditor.waitFor()
+  if(await cueEditor.inputValue()!=='FrameSlice 字幕合并测试')throw Error('canceling replacement lost current subtitles')
+  const confirmReplacement=page.waitForEvent('dialog').then(dialog=>dialog.accept())
+  await caption.locator('input[accept=".srt,.vtt"]').setInputFiles(replacement)
+  await confirmReplacement
+  await page.waitForFunction(()=>document.querySelector('.caption-react-host')?.shadowRoot?.querySelector('textarea[aria-label="第 1 条字幕"]')?.value==='replacement cue')
+  await caption.getByRole('button',{name:/撤销/}).click()
+  if(await cueEditor.inputValue()!=='FrameSlice 字幕合并测试')throw Error('replacement undo did not restore subtitles')
+
+
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'visual-regression/loaded-caption-light.png',animations:'disabled'})
   await caption.getByRole('tab', { name: /导出/ }).click()
   const [subtitleDownload] = await Promise.all([
@@ -384,6 +414,39 @@ try {
       .then(value => value?.includes('active'))) {
     throw new Error('Direct caption deep link did not activate the unified subtitle tab')
   }
+  // Isolated fixture: exercise large history rendering without mutating real user storage.
+  const management=await browser.newPage({viewport:{width:1440,height:900},acceptDownloads:true})
+  try{
+    await management.addInitScript(()=>{
+      const jobs=Array.from({length:72},(_,i)=>({id:'test-job-'+i,type:'frames',asset:{id:'asset-'+i,name:i===71?'unique-target.mp4':'fixture-'+i+'.mp4',bytes:123,lastModified:0,mime:'video/mp4'},status:'completed',progress:1,label:'完成',createdAt:1000+i}))
+      localStorage.setItem('frameslice.jobs.v1',JSON.stringify(jobs))
+    })
+    await management.goto(origin,{waitUntil:'networkidle'})
+    await management.getByRole('button',{name:'任务中心'}).click()
+    const list=management.getByRole('region',{name:'任务列表'})
+    if(await list.locator('.fs-center-job').count()!==50)throw Error('history first page did not cap rows')
+    await list.getByRole('button',{name:'下一页'}).click()
+    if(await list.locator('.fs-center-job').count()!==22)throw Error('history second page count wrong')
+    const [report]=await Promise.all([management.waitForEvent('download'),management.getByRole('button',{name:'导出历史 JSON'}).click()])
+    if(JSON.parse(await readFile(await report.path(),'utf8')).length!==72)throw Error('history export must include all filtered pages')
+    await management.getByRole('searchbox',{name:'搜索任务'}).fill('unique-target')
+    await list.getByText('unique-target.mp4',{exact:false}).waitFor()
+    if(await list.locator('.fs-center-job').count()!==1)throw Error('history filter failed to reset pagination')
+    await management.getByRole('button',{name:/视频分割/}).click()
+    const [chooser]=await Promise.all([management.waitForEvent('filechooser'),management.getByRole('button',{name:'添加媒体资源'}).click()])
+    const payload=await readFile(sample)
+    await chooser.setFiles(Array.from({length:6},(_,i)=>({name:'library-'+i+'.mp4',mimeType:'video/mp4',buffer:payload})))
+    const library=management.locator('.fs-media-library')
+    await library.getByRole('searchbox',{name:'搜索媒体资源'}).fill('library-5')
+    if(await library.locator('.fs-library-row').count()!==1)throw Error('resource search did not filter')
+    await library.locator('button[title="library-5.mp4"]').click()
+    await management.locator('.file-codec').waitFor()
+    if(await library.locator('button[aria-pressed=true]').count()!==1)throw Error('resource selection state missing')
+    await library.getByRole('button',{name:'移除 library-5.mp4'}).click()
+    await library.getByText('没有匹配的媒体').waitFor()
+    await library.getByRole('searchbox',{name:'搜索媒体资源'}).fill('')
+    if(await library.locator('.fs-library-row').count()!==5)throw Error('resource remove or filter reset failed')
+  }finally{await management.close()}
   if (errors.length) throw new Error('Browser runtime errors: ' + errors.join('; ') + '\\nNetwork errors: ' + JSON.stringify(networkErrors))
   console.log(JSON.stringify({ browser: 'Chrome', app: origin, split: 'passed', extract: 'passed', keyframeAnalysis: 'passed', manifest: 'passed', storyboard: 'passed', captionStudio: 'embedded', captionSRT: 'passed', samePageNavigation: 'passed', legacyCaptionLink: 'passed', containerDemux: 'passed', subtitleMux: 'passed', mkvToMp4: 'passed', captionHandoff: 'passed', files }, null, 2))
 } finally {

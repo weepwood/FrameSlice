@@ -13,7 +13,7 @@ const selected=computed(()=>props.frames[selectedIndex.value])
 let opener:HTMLElement|null=null
 function show(item:FramePreview,event:MouseEvent){opener=event.currentTarget as HTMLElement;selectedName.value=item.name;open.value=true}
 function move(delta:number){const item=props.frames[selectedIndex.value+delta];if(item)selectedName.value=item.name}
-function keydown(event:KeyboardEvent){if(event.altKey||event.ctrlKey||event.metaKey)return;if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();move(event.key==='ArrowLeft'?-1:1)}}
+function keydown(event:KeyboardEvent){if(event.altKey||event.ctrlKey||event.metaKey)return;if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();move(event.key==='ArrowLeft'?-1:1)}else if(event.key==='Home'||event.key==='End'){event.preventDefault();const item=props.frames[event.key==='Home'?0:props.frames.length-1];if(item)selectedName.value=item.name}}
 function restoreFocus(event:Event){event.preventDefault();void nextTick(()=>{if(opener?.isConnected)opener.focus();else document.querySelector<HTMLElement>('.frame-gallery .frame-preview-button')?.focus();opener=null})}
 watch(selected, item=>{if(!item&&open.value)open.value=false})
 </script>
@@ -34,7 +34,7 @@ watch(selected, item=>{if(!item&&open.value)open.value=false})
   <DialogRoot v-model:open="open"><DialogPortal><DialogOverlay class="fs-dialog-overlay fs-gallery-overlay"/><DialogContent class="fs-dialog-content fs-gallery-dialog" @keydown="keydown" @close-auto-focus="restoreFocus">
     <template v-if="selected"><div class="fs-gallery-dialog-header"><div><DialogTitle>{{selected.name}}</DialogTitle><DialogDescription>{{humanTime(selected.timestamp)}} · {{selectedIndex+1}} / {{frames.length}} · {{selected.blob?'可下载':'已保存至输出目录'}}</DialogDescription></div><DialogClose as-child><button class="fs-gallery-icon" type="button" aria-label="关闭预览"><X :size="20"/></button></DialogClose></div>
     <div class="fs-gallery-viewer"><img :src="selected.url" :alt="'完整截图 '+humanTime(selected.timestamp)"/></div>
-    <div class="fs-gallery-dialog-footer"><div><button class="fs-gallery-icon" type="button" aria-label="上一张" :disabled="selectedIndex<=0" @click="move(-1)"><ChevronLeft :size="20"/></button><span>{{selectedIndex+1}} / {{frames.length}}</span><button class="fs-gallery-icon" type="button" aria-label="下一张" :disabled="selectedIndex>=frames.length-1" @click="move(1)"><ChevronRight :size="20"/></button></div><small>← → 切换 · Esc 关闭</small><button v-if="selected.blob" class="secondary-button" type="button" @click="emit('save',selected)"><ArrowDownToLine :size="15"/> 下载图片</button><span v-else class="fs-gallery-saved"><Check :size="16"/> 已保存</span></div></template>
+    <div class="fs-gallery-dialog-footer"><div><button class="fs-gallery-icon" type="button" aria-label="上一张" :disabled="selectedIndex<=0" @click="move(-1)"><ChevronLeft :size="20"/></button><span>{{selectedIndex+1}} / {{frames.length}}</span><button class="fs-gallery-icon" type="button" aria-label="下一张" :disabled="selectedIndex>=frames.length-1" @click="move(1)"><ChevronRight :size="20"/></button></div><small>← → 切换 · Home / End 首尾 · Esc 关闭</small><button v-if="selected.blob" class="secondary-button" type="button" @click="emit('save',selected)"><ArrowDownToLine :size="15"/> 下载图片</button><span v-else class="fs-gallery-saved"><Check :size="16"/> 已保存</span></div></template>
   </DialogContent></DialogPortal></DialogRoot>
 </section>
 </template>
