@@ -12,6 +12,7 @@ FrameSlice 不按浏览器名称决定全部能力，而是检查安全上下文
 | AI 转录、实验性烧录 | 模型/WASM、设备、浏览器能力决定 | 不承诺全浏览器可用 |
 
 ## 验收方法
+- 正式浏览器门禁固定 Ubuntu 24.04：Playwright 1.55.0 的 Firefox / WebKit 构建支持该平台，Ubuntu 26.04（当前 ubuntu-latest）不受支持。两个引擎均执行，任一失败仍阻塞发布。运行环境变化后必须复核正式视觉候选。
 - 正式 Chrome 仍执行真实 OPFS Worker 输出、文件校验、续作、字幕并发、固定截图与性能门禁。
 - 新增 `scripts/browser-capability.mjs`。Chromium 人为移除目录选择接口，用真实浏览器验证降级逻辑；Firefox 和 WebKit 保留原生接口，验证实际能力、媒体预检/规划、抽帧上限、可解码则下载 JPEG、不可解码则要求明确错误、字幕编辑及刷新恢复。
 - Playwright WebKit 不是实机 Safari，也不代表 iOS Safari；Firefox headless 不是所有操作系统的 Firefox。编解码结果取决于浏览器构建和设备。专项通过不等同全部媒体、全部交互或全部版本兼容。
