@@ -51,6 +51,7 @@ jobs:
         id: preview
         run: |
           npm run build
+          node scripts/check-ui-budget.mjs
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/frameslice-vite.log 2>&1 &
           for attempt in $(seq 1 30); do
             if curl --silent --fail http://127.0.0.1:4173/FrameSlice/ >/dev/null; then exit 0; fi

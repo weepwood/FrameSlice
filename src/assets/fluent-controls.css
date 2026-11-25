@@ -31,6 +31,11 @@
 .fs-select-item[data-state=checked],.caption-select-item[data-selected]{color:var(--colorBrandForeground1,var(--fs-accent))}
 .fs-workbench :is(.fs-select-trigger,.fs-number-group),.app-shell.embedded :is(.caption-select-trigger,.fs-number-group,.subtitle-search,.caption-project-field input,.time-input){border-bottom-color:var(--colorNeutralStrokeAccessible,var(--fs-border))}
 .fs-workbench :is(.fs-select-trigger,.fs-number-group):focus-within,.app-shell.embedded :is(.caption-select-trigger,.fs-number-group,.subtitle-search,.caption-project-field input,.time-input):focus-within{border-bottom-color:var(--colorCompoundBrandStroke,var(--fs-focus))}
-.fs-workbench .fs-workbench-progress-fill,.caption-progress-fill{background:var(--colorBrandBackground,var(--fs-accent))}
+.caption-progress-fill{background:var(--colorBrandBackground,var(--fs-accent))}
 .fs-workbench .fs-segmented .secondary-button[data-state=on]{color:var(--colorBrandForeground1,var(--fs-accent));border-color:var(--colorNeutralStroke2,var(--fs-border))}
 .app-shell .caption-editor-layout .side-tabs button.active{color:var(--colorBrandForeground1,var(--fs-accent));background:var(--colorSubtleBackgroundSelected,var(--fs-selected))}
+
+fluent-progress-bar.fs-workbench-progress{height:7px;background:var(--colorNeutralBackground6,var(--fs-raised))}
+.fs-job-row fluent-progress-bar.fs-workbench-progress{height:4px}
+fluent-progress-bar.fs-workbench-progress::part(indicator){background-color:var(--colorCompoundBrandBackground,var(--fs-brand-fill))}
+@media(prefers-reduced-motion:reduce){fluent-progress-bar.fs-workbench-progress::part(indicator){transition:none;animation:none}}

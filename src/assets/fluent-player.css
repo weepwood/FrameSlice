@@ -46,3 +46,8 @@
 
 .fs-media-player:not(:defined){display:block}
 .fs-media-player:not(:defined) video[slot=media]{position:relative}
+
+.fs-media-player{--media-menu-background:#292929;--media-menu-border-radius:6px;--media-menu-item-hover-background:#414141;--media-menu-item-checked-background:#383838}
+.fs-media-player:focus-visible{outline:2px solid #479ef5;outline-offset:-2px}
+.fs-media-player media-playback-rate-menu{z-index:8;min-width:100px;--media-menu-max-height:220px;box-shadow:0 4px 12px #0006}
+@media(prefers-reduced-motion:reduce){.fs-media-player media-playback-rate-menu{--media-menu-transition-in:none;--media-menu-transition-out:none}}

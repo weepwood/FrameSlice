@@ -1,6 +1,6 @@
 import type {DetailedHTMLProps,HTMLAttributes} from 'react';
 type MediaElement=DetailedHTMLProps<HTMLAttributes<HTMLElement>,HTMLElement>&{
- noautohide?:string;gesturesdisabled?:string;nohotkeys?:string;seekoffset?:string;showduration?:string;rates?:string;slot?:string
+ noautohide?:string;gesturesdisabled?:string;nohotkeys?:string;seekoffset?:string;showduration?:string;rates?:string;slot?:string;anchor?:string
 };
 declare module 'react'{
  namespace JSX{
@@ -14,7 +14,8 @@ declare module 'react'{
    'media-time-display':MediaElement;
    'media-mute-button':MediaElement;
    'media-volume-range':MediaElement;
-   'media-playback-rate-button':MediaElement;
+   'media-playback-rate-menu-button':MediaElement;
+   'media-playback-rate-menu':MediaElement;
    'media-pip-button':MediaElement;
    'media-loading-indicator':MediaElement;
   }

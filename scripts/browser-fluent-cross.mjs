@@ -31,7 +31,7 @@ try{
  if(Math.abs(await video.evaluate(v=>v.currentTime)-4)>.2)throw Error('WAV seek failed');
  await cp.locator('media-mute-button').click();
  if(!await video.evaluate(v=>v.muted))throw Error('WAV mute failed');
- await cp.locator('media-playback-rate-button').click();
+ await cp.locator('media-playback-rate-menu-button').click();await cp.locator('media-playback-rate-menu').getByRole('menuitemradio',{name:'1.25x',exact:true}).click();
  if(await video.evaluate(v=>v.playbackRate)===1)throw Error('WAV rate failed');
  await cp.locator('media-play-button').click();await video.evaluate(v=>new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('audio playback did not start')),5000);if(!v.paused){clearTimeout(t);resolve()}else v.addEventListener('play',()=>{clearTimeout(t);resolve()},{once:true})}));
  await cp.locator('media-play-button').click();if(!await video.evaluate(v=>v.paused))throw Error('WAV pause failed');

@@ -1,3 +1,4 @@
+import {playerShortcut} from '../../../src/player/shortcuts';
 import {loadMediaPlayer} from '../../../src/player/load';
 import {readPlaybackPreferences,restorePlayback,savePlayback} from '../../../src/player/preferences';
 import {CaptionFullscreen} from './components/CaptionFullscreen';
@@ -390,7 +391,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             <section className="video-panel surface">
               <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
-                {mediaURL?<media-controller className="fs-media-player" noautohide="" gesturesdisabled="" nohotkeys="">
+                {mediaURL?<media-controller className="fs-media-player" noautohide="" gesturesdisabled="" nohotkeys="" tabIndex={0} aria-label="字幕媒体播放控制" onKeyDown={e=>playerShortcut(e.nativeEvent,e.currentTarget)}>
                   <video ref={video} src={mediaURL} slot="media" playsInline preload="metadata" controls={!playerReady} onTimeUpdate={e=>{
                      const v=e.currentTarget;
                      if(loopSelected&&selectedCue&&selectedCue.end>selectedCue.start&&!v.paused&&(v.currentTime>=selectedCue.end||v.currentTime<selectedCue.start)){
@@ -406,9 +407,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                     <media-control-bar>
                       <media-seek-backward-button seekoffset="5"/><media-play-button/><media-seek-forward-button seekoffset="5"/><media-time-display showduration=""/>
                       <button className="fs-player-loop" disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
-                      <span className="fs-player-spacer"/><media-mute-button/><media-volume-range/><media-playback-rate-button rates="0.25 0.5 0.75 1 1.25 1.5 2"/>{isVideo&&<media-pip-button/>}<CaptionFullscreen video={video} onError={setError}/>
+                      <span className="fs-player-spacer"/><media-mute-button/><media-volume-range/><media-playback-rate-menu-button/>{isVideo&&<media-pip-button/>}<CaptionFullscreen video={video} onError={setError}/>
                     </media-control-bar>
-                  </div></>}
+                  </div><media-playback-rate-menu anchor="auto" hidden rates="0.25 0.5 0.75 1 1.25 1.5 2"/></>}
                 </media-controller>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
               </div>
               {playerFailed&&mediaURL&&<div role="status" className="media-info">专业播放器加载失败，已使用浏览器原生控件。</div>}
@@ -500,7 +501,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     {shortcutsOpen&&<div className="shortcut-scrim" onMouseDown={e=>{if(e.target===e.currentTarget)setShortcutsOpen(false)}}>
       <div className="shortcut-dialog" role="dialog" aria-modal="true" aria-label="键盘快捷键">
         <div className="shortcut-heading"><div><Keyboard size={20}/><strong>键盘快捷键</strong></div><button aria-label="关闭快捷键" onClick={()=>setShortcutsOpen(false)}><X size={18}/></button></div>
-        <div className="shortcut-grid"><span>播放 / 暂停</span><kbd>Space</kbd><span>后退 / 前进 5 秒</span><div><kbd>J</kbd> <kbd>L</kbd></div><span>查找字幕</span><kbd>Ctrl / ⌘ + K</kbd><span>撤销</span><kbd>Ctrl / ⌘ + Z</kbd><span>重做</span><kbd>Ctrl / ⌘ + Shift + Z</kbd><span>查看帮助</span><kbd>?</kbd></div>
+        <div className="shortcut-grid"><span>播放 / 暂停</span><kbd>Space</kbd><span>后退 / 前进 5 秒</span><div><kbd>J</kbd> <kbd>L</kbd></div><span>播放器聚焦：静音 / 全屏</span><div><kbd>M</kbd> <kbd>F</kbd></div><span>播放器聚焦：音量</span><div><kbd>↑</kbd> <kbd>↓</kbd></div><span>查找字幕</span><kbd>Ctrl / ⌘ + K</kbd><span>撤销</span><kbd>Ctrl / ⌘ + Z</kbd><span>重做</span><kbd>Ctrl / ⌘ + Shift + Z</kbd><span>查看帮助</span><kbd>?</kbd></div>
         <p>编辑文本时不会触发播放快捷键，支持时间轴拖拽校时。</p>
       </div>
     </div>}

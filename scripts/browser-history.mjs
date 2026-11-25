@@ -18,7 +18,7 @@ try{
   const meters=p.locator('.fs-center-job').getByRole('progressbar')
   if(!await meters.count())throw Error('job progress missing')
   for(const meter of await meters.all()){
-   if(await meter.evaluate(el=>el.tagName==='PROGRESS'||el.getBoundingClientRect().height!==7||!el.querySelector('.fs-workbench-progress-fill')))throw Error('job progress is not shared styled component')
+   if(await meter.evaluate(el=>el.tagName!=='FLUENT-PROGRESS-BAR'||el.getBoundingClientRect().height!==7||!el.shadowRoot?.querySelector('[part=indicator]')))throw Error('job progress is not shared styled component')
    if(Number(await meter.getAttribute('aria-valuenow'))!==1)throw Error('completed job progress incorrect')
   }
  }
