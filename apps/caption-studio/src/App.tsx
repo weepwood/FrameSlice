@@ -11,6 +11,7 @@ import {useHistory} from './hooks/useHistory';
 import {useTranscriber} from './hooks/useTranscriber';
 import {chunksToCues,defaultStyle,fmt,lintCue,mergeNext,parseSubtitles,parseTime,round3,shiftCues,shortTime,sorted,splitCue,toSRT,toVTT,uid,type CaptionStyle,type Chunk,type Cue,type Issue} from './lib/captions';
 import {clearProject,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
+import {buildCueIndex} from './lib/cue-index';
 import type {Device} from './workers/transcribe.worker';
 import {workspace} from '../../../src/core/workspace';
 import {version} from '../package.json';
@@ -66,6 +67,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [error,setError]=useState('');
   const [saved,setSaved]=useState<'loading'|'saved'|'saving'|'error'>('loading');
   const [hydrated,setHydrated]=useState(false);
+  const [loadFailed,setLoadFailed]=useState(false);
+  const [loadAttempt,setLoadAttempt]=useState(0);
+  const [saveAttempt,setSaveAttempt]=useState(0);
   const [renderState,setRenderState]=useState<RenderState>({phase:'idle',progress:0,message:''});
   const [font,setFont]=useState<File|null>(null);
   const [shift,setShift]=useState('0.5');
@@ -89,14 +93,15 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const isVideo=Boolean(file?.type.startsWith('video/')||file?.name.match(/\.(mp4|mov|webm|m4v)$/i));
   const cueDuration=useMemo(()=>cues.reduce((max,cue)=>Math.max(max,cue.end),0),[cues]);
   const effectiveDuration=Math.max(cueDuration,duration);
-  const activeCue=useMemo(()=>cues.find(c=>time>=c.start&&time<c.end)??null,[cues,time]);
+  const intervals=useMemo(()=>buildCueIndex(cues),[cues]);
+  const activeCue=intervals.active(time);
   const selectedCue=useMemo(()=>cues.find(c=>c.id===selectedId)??null,[cues,selectedId]);
   const problemCount=useMemo(()=>cues.reduce((n,c,i)=>n+lintCue(c,cues[i+1]).length,0),[cues]);
   const shown=useMemo(()=>{const term=query.trim().toLocaleLowerCase();return cues.filter((c,i)=>(!onlyIssues||lintCue(c,cues[i+1]).length>0)&&c.text.toLocaleLowerCase().includes(term))},[cues,query,onlyIssues]);
   const cueIndex=useMemo(()=>new Map(cues.map((cue,i)=>[cue.id,i])),[cues]);
   const pageCount=Math.max(1,Math.ceil(shown.length/100));
   const currentPage=Math.min(cuePage,pageCount-1);
-  const pageCues=shown.slice(currentPage*100,(currentPage+1)*100);
+  const pageCues=useMemo(()=>shown.slice(currentPage*100,(currentPage+1)*100),[shown,currentPage]);
   const changeQuery=(value:string)=>{setQuery(value);setCuePage(0)};
   const changeIssueFilter=(value:boolean)=>{setOnlyIssues(value);setCuePage(0)};
   useEffect(()=>{
@@ -127,27 +132,28 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       const clean=verifyProject(p);
       setProjectName(clean.name);setOriginalMediaName(clean.mediaName);
       setDuration(clean.duration);setStyle(clean.style);resetCues(clean.cues);
-    }).then(()=>{if(!cancelled)setSaved('saved')}).catch(()=>{if(!cancelled)setSaved('error')}).finally(()=>{if(!cancelled)setHydrated(true)});
+    }).then(()=>{if(!cancelled){setSaved('saved');setLoadFailed(false);setHydrated(true)}}).catch(()=>{if(!cancelled){setSaved('error');setLoadFailed(true)}});
     return()=>{cancelled=true};
-  },[resetCues]);
+  },[resetCues,loadAttempt]);
   useEffect(()=>{
     if(!hydrated)return;
     setSaved('saving');
+    let cancelled=false;
     const timer=setTimeout(()=>{
       const p:Project={version:1,name:projectName,mediaName:file?.name||originalMediaName,duration:effectiveDuration,cues,style,updatedAt:Date.now()};
-      saveProject(p).then(()=>setSaved('saved')).catch(()=>setSaved('error'));
+      saveProject(p).then(()=>{if(!cancelled)setSaved('saved')}).catch(()=>{if(!cancelled)setSaved('error')});
     },600);
-    return()=>clearTimeout(timer);
-  },[hydrated,projectName,file,originalMediaName,effectiveDuration,cues,style]);
+    return()=>{cancelled=true;clearTimeout(timer)};
+  },[hydrated,projectName,file,originalMediaName,effectiveDuration,cues,style,saveAttempt]);
 
   const loadMedia=(f:File)=>{
-    renderAbort.current?.abort();
+    if(!hydrated)return;
     if(!f.type.startsWith('video/')&&!f.type.startsWith('audio/')&&!/\.(mp4|mov|webm|m4v|mp3|m4a|wav|ogg|flac|aac)$/i.test(f.name)){
       setError('请选择音频或视频文件');return;
     }
     const relink=Boolean(cues.length&&(!file&&!originalMediaName||originalMediaName===f.name));
     if(cues.length&&!relink&&!window.confirm('打开新媒体将清空当前字幕。请先导出工程或字幕。确定继续？'))return;
-    transcriber.stop();setError('');setFile(f);
+    renderAbort.current?.abort();transcriber.stop();setError('');setFile(f);
     if(!relink){setProjectName(baseName(f.name));setDuration(0);setSelectedId(null);resetCues([])}
     setOriginalMediaName(f.name);setTime(0);setPeaks([]);
     setRenderState({phase:'idle',progress:0,message:''});
@@ -158,6 +164,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     loadMedia(f);
   };
   const importSubtitles=async(f:File)=>{
+    if(!hydrated)return;
     setError('');
     try{
       const buffer=await f.arrayBuffer();
@@ -171,15 +178,17 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     }catch(e){setError(`字幕导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const importProject=async(f:File)=>{
-    renderAbort.current?.abort();
+    if(!hydrated)return;
     try{
       const p=verifyProject(JSON.parse(await f.text()));
-      transcriber.stop();setFile(null);setPeaks([]);setTime(0);
+      if((cues.length||file||originalMediaName)&&!window.confirm('打开工程将替换当前工程。请先导出备份。确定继续？'))return;
+      renderAbort.current?.abort();transcriber.stop();setFile(null);setPeaks([]);setTime(0);
       setDuration(p.duration);setProjectName(p.name);setOriginalMediaName(p.mediaName);
-      setStyle(p.style);resetCues(p.cues);setSelectedId(null);setError('');setTab('cues');
+      setStyle(p.style);resetCues(p.cues);setSelectedId(null);setError('');setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
     }catch(e){setError(`项目导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const reset=async()=>{
+    if(!hydrated)return;
     renderAbort.current?.abort();
     transcriber.stop();resetCues([]);setFile(null);setPeaks([]);setProjectName('未命名项目');
     setOriginalMediaName('');setDuration(0);setTime(0);setSelectedId(null);setStyle(defaultStyle);setError('');
@@ -248,7 +257,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   useEffect(()=>{
     const handle=(e:KeyboardEvent)=>{
       const path=e.composedPath();
-      if(e.defaultPrevented||e.isComposing||!shell.current||!path.includes(shell.current))return;
+      if(!hydrated||e.defaultPrevented||e.isComposing||!shell.current||!path.includes(shell.current))return;
       const interactive=path.some(node=>node instanceof Element&&node.matches('textarea,input,select,button,a,[contenteditable],[role=button],[role=checkbox],[role=slider],[role=combobox],[role=tab],[role=menuitem],[role=option]'));
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
         e.preventDefault();setTab('cues');setOnlyIssues(false);
@@ -274,7 +283,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     onDragLeave={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current=Math.max(0,dragDepth.current-1);if(!dragDepth.current)setDragging(false)}}}
     onDrop={e=>{e.preventDefault();dragDepth.current=0;setDragging(false);if(e.dataTransfer.files[0])openMediaOrSubtitle(e.dataTransfer.files[0])}}>
     {dragging&&<div className="file-drop-overlay" role="status"><div><UploadCloud size={30}/><strong>松开以导入文件</strong><span>支持音视频、SRT、VTT 与字幕工程</span></div></div>}
-    {!embedded&&<header className="topbar">
+    {!embedded&&<header className="topbar" inert={!hydrated}>
       <div className="brand"><span className="brand-mark"><AudioLines size={20} strokeWidth={2.5}/></span><div><b>caption<span className="brand-light">studio</span></b><small>LOCAL FIRST EDITOR</small></div></div>
       <span className="header-divider"/>
       <div className="project-name"><input aria-label="项目名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/><ChevronDown size={14}/></div>
@@ -289,7 +298,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     <input ref={projectInput} type="file" accept=".json" hidden onChange={e=>{if(e.target.files?.[0])void importProject(e.target.files[0]);e.target.value=''}}/>
     <input ref={fontInput} type="file" accept=".ttf,.otf" hidden onChange={e=>{setFont(e.target.files?.[0]??null);e.target.value=''}}/>
 
-    <div className="workspace">
+    {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><button className="btn outline" onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</button></div>}
+    {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><button className="btn outline" onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</button><button className="btn outline" onClick={exportProject}>导出备份</button></div>}
+    <div className="workspace" inert={!hydrated}>
       {!embedded&&<aside className="nav-rail" aria-label="工作区">
         <span className="rail-label">FRAMESLICE / WORKSPACE</span>
         <a href="/FrameSlice/" className="rail-item frame-home-link"><ArrowLeft size={18}/>返回视频工具</a>
@@ -347,7 +358,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               </div>
               <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
             </section>
-            <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
+            <Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
 
           </div>
           <aside className="side-panel surface">
@@ -420,7 +431,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
           </aside>
         </div>
         
-        <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${cues.findIndex(c=>c.id===selectedId)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
+        <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${(cueIndex.get(selectedId??'')??-1)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
       </main>
     </div>
     {shortcutsOpen&&<div className="shortcut-scrim" onMouseDown={e=>{if(e.target===e.currentTarget)setShortcutsOpen(false)}}>
@@ -436,6 +447,6 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
 function TimeEditor({time,label,onCommit}:{time:number;label:string;onCommit:(time:number)=>void}){
   const [draft,setDraft]=useState<string|null>(null);
   const commit=()=>{if(draft!==null){const value=parseTime(draft);if(Number.isFinite(value)&&value>=0)onCommit(round3(value));setDraft(null)}};
-  return <input className="time-input" aria-label={label} title={label} value={draft??shortTime(time)} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setDraft(null)}}/>;
+  return <input className="time-input" aria-label={label} title={label} value={draft??fmt(time,'vtt')} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setDraft(null)}}/>;
 }
 function colorAlpha(hex:string,a:number){const h=hex.replace('#','');return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`}

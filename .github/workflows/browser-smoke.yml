@@ -66,6 +66,7 @@ jobs:
           node scripts/browser-resume.mjs
           node scripts/browser-batch-resume.mjs
           node scripts/browser-history.mjs
+          node scripts/browser-caption-recovery.mjs
       - name: 独立固定视口视觉候选
         if: always() && steps.preview.outcome == 'success'
         env:

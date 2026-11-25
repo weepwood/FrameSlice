@@ -491,3 +491,11 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 
 .app-shell.embedded .timeline-ruler .tick-start{transform:none}
 .app-shell.embedded .timeline-ruler .tick-end{transform:translateX(-100%)}
+
+/* Recovery actions must remain reachable on narrow screens and in both themes. */
+.app-shell>.error-banner{flex-wrap:wrap;margin:0 0 12px;align-items:center;border-color:var(--fs-border,#f0d6ca);background:var(--fs-raised,#fff4ed);color:var(--fs-danger,#ab6c52)}
+.app-shell>.error-banner>span{flex:1 1 180px;min-width:0}
+.app-shell>.error-banner>.btn{display:inline-flex;margin-left:0;min-height:34px}
+.app-shell.embedded>.error-banner>.btn{background:var(--fs-input);border-color:var(--fs-border);color:var(--fs-text)}
+
+.time-input{width:106px;min-width:0;flex:0 1 106px}
