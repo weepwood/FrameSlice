@@ -374,7 +374,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         }
         {error&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>{error}</span><button aria-label="关闭错误提示" onClick={()=>setError('')}><X size={16}/></button></div>}
         {mediaMissing&&<div className="notice-banner"><Info size={16}/>已恢复字幕工程，但媒体文件不会自动保存。请重新打开「{originalMediaName}」以继续视频预览。</div>}
-        <EditorPanels viewer={<div className="main-column">
+        <EditorPanels viewer={
             <section className="video-panel surface">
               <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
@@ -400,10 +400,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label className="speed-control"><span>倍速</span><CaptionSelect label="播放速度" value={playbackRate} onChange={setPlaybackRate} options={[.5,.75,1,1.25,1.5,2].map(value=>({value,label:value+"×"}))}/></label>
               </div>
               {file&&<div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{sizeText(file.size)}</span></div>}
-            </section>
-            <Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
-
-          </div>} inspector={<aside className="side-panel surface">
+            </section>} timeline={<Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>} inspector={<aside className="side-panel surface">
             <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">
             <Tabs.List className="side-tabs" aria-label="工作区功能">
               <Tabs.Tab value="cues" className={tab==='cues'?'active':''}><Subtitles size={16}/>字幕</Tabs.Tab>

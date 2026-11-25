@@ -10,3 +10,6 @@ dist/
 /visual-candidate/
 /visual-regression/
 /browser-capability-*.json
+
+/browser-desktop-*.json
+/browser-resource-soak.json

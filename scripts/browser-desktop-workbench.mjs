@@ -1,7 +1,9 @@
-import {chromium} from 'playwright-core';
-import {mkdir,readFile} from 'node:fs/promises';
+import {chromium,firefox,webkit} from 'playwright-core';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {themeOption,selectOption} from './select-option.mjs';
-const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']});
+const engine=process.env.BROWSER_ENGINE??'chromium';
+const type={chromium,firefox,webkit}[engine];if(!type)throw Error('unknown browser');
+const browser=await type.launch({headless:true,...(engine==='chromium'?{executablePath:process.env.CHROME_PATH,args:['--no-sandbox']}:{})});
 try{
  const page=await browser.newPage({viewport:{width:1440,height:900}});
  const url=process.env.APP_URL??'http://127.0.0.1:4173/FrameSlice/';
@@ -23,6 +25,15 @@ try{
  const keyboard=(await panel.boundingBox()).width;
  if(Math.abs(keyboard-after)<1)throw Error('keyboard resize did not change width');
  if(await first.inputValue()!=='Resizable editor draft')throw Error('resize lost editor state');
+ const heightDivider=host.getByRole('separator',{name:'调整时间轴高度'}),timeline=host.locator('.timeline.surface');
+ const oldHeight=(await timeline.boundingBox()).height,hb=await heightDivider.boundingBox();
+ await page.mouse.move(hb.x+hb.width/2,hb.y+hb.height/2);await page.mouse.down();await page.mouse.move(hb.x+hb.width/2,hb.y-45,{steps:6});await page.mouse.up();
+ const newHeight=(await timeline.boundingBox()).height;
+ if(newHeight<oldHeight+20)throw Error('height pointer resize failed '+oldHeight+' -> '+newHeight);
+ await heightDivider.focus();await heightDivider.press('ArrowDown');
+ const keyboardHeight=(await timeline.boundingBox()).height;
+ if(Math.abs(keyboardHeight-newHeight)<1)throw Error('height keyboard resize failed');
+
  const number=host.getByRole('spinbutton',{name:'偏移秒数',exact:true});
  await number.fill('0.375');await number.press('Tab');
  if(Math.abs(Number(await number.inputValue())-.375)>.000001)throw Error('React precision lost');
@@ -33,12 +44,13 @@ try{
  await first.waitFor();
  if(await first.inputValue()!=='Resizable editor draft')throw Error('draft restore failed');
  if(Math.abs((await panel.boundingBox()).width-keyboard)>20)throw Error('layout persistence failed');
+ if(Math.abs((await timeline.boundingBox()).height-keyboardHeight)>20)throw Error('height persistence failed');
  await mkdir('visual-regression',{recursive:true});
- await themeOption(page,'light');await page.screenshot({path:'visual-regression/desktop-workbench-light.png',animations:'disabled'});
- await themeOption(page,'dark');await page.screenshot({path:'visual-regression/desktop-workbench-dark.png',animations:'disabled'});
+ await themeOption(page,'light');await page.screenshot({path:'visual-regression/desktop-workbench-'+engine+'-light.png',animations:'disabled'});
+ await themeOption(page,'dark');await page.screenshot({path:'visual-regression/desktop-workbench-'+engine+'-dark.png',animations:'disabled'});
  await page.setViewportSize({width:390,height:844});
  await host.locator('[data-stacked=true]').waitFor();
- if(await separator.isVisible()||await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('mobile layout overflow');
+ if(await heightDivider.isVisible()||await separator.isVisible()||await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('mobile layout overflow');
  if(await first.inputValue()!=='Resizable editor draft')throw Error('responsive layout lost editor');
  await page.setViewportSize({width:1440,height:900});
  await page.getByRole('button',{name:'视频分割'}).click();
@@ -51,5 +63,5 @@ try{
  if(Math.abs(Number(await num.inputValue())-.018)>.000001)throw Error('Vue direct precision lost: '+await num.inputValue());
  await page.getByRole('button',{name:'每段时长（分钟） 增加'}).click();
  if(Math.abs(Number(await num.inputValue())-.518)>.000001)throw Error('Vue step failed: '+await num.inputValue());
- console.log(JSON.stringify({pointerResize:'passed',keyboardResize:'passed',layoutPersistence:'passed',draftPreserved:'passed',responsive:'passed',reactNumber:'passed',vueNumber:'passed'}));
+ const result={engine,version:browser.version(),heightResizeAndPersistence:'passed',pointerResize:'passed',keyboardResize:'passed',layoutPersistence:'passed',draftPreserved:'passed',responsive:'passed',reactNumber:'passed',vueNumber:'passed'};await writeFile('browser-desktop-'+engine+'.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }finally{await browser.close()}
