@@ -1,112 +1,112 @@
 {
   "schema": 1,
   "chrome": "158.0.8127.88",
-  "commit": "d0719bab5b29737128d3ae291ae454400472cecb",
+  "commit": "b0d1e4b17a5f3793aa9662eef2e3ad771d34ee48",
   "images": [
     {
       "name": "split-light-1440.png",
-      "sha256": "cb947c6d6df2da1329831957de3888d9ed4ca02c76582bfcf640dea7b85e7ccd",
+      "sha256": "42f221411070a866b35a8812f40a33dd11d9a98a78800be4cf4bac9b16edb735",
       "width": 1440,
       "height": 900
     },
     {
       "name": "frames-light-1440.png",
-      "sha256": "ac89df160bfdb37b962c987bb5cfbd1b01db9a9170088057b8e56b9621cb63de",
+      "sha256": "cb343b7f908fbbe30b3c9c06c293557219b9a6e282473188eaf1d890930fed7d",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-light-1440.png",
-      "sha256": "567d5a8433fea9788bc3b3a28e6bca05a1a4b78ce330c9035e42eb2f9514f307",
+      "sha256": "58eadea5fc37feafdac34800f0ef31a07aa6d7e231763fc6aa213d744141a55a",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-light-1440.png",
-      "sha256": "002441479b6a0035a2be32e22898f58cc6f0f6e195ae516dbde81fa0721271da",
+      "sha256": "eca99f6abe3a70e556b60ce2a288e0067aedb3ea7f1c56e2a4823140463c65c4",
       "width": 1440,
       "height": 900
     },
     {
       "name": "split-dark-1440.png",
-      "sha256": "2a135d494e6fc13621721e12dbf2303e0864347c439846ce5a6f5a8f23850551",
+      "sha256": "dab2df1b4b9091712a6eea86c0cf75baffe13e665f8e9eb8dc1843e7726dd892",
       "width": 1440,
       "height": 900
     },
     {
       "name": "frames-dark-1440.png",
-      "sha256": "d786c373219e2248520f7f130a7e6592d330e82bd8502d5b58486397a4ae987a",
+      "sha256": "d6cdfda986147af6ae6d0f3cbac1b6d1f51a134e8bdabb566b04669adb2d1a56",
       "width": 1440,
       "height": 900
     },
     {
       "name": "captions-dark-1440.png",
-      "sha256": "93212e2ea7698bff781480f7e3e6f6ee1db932ef9042981272f089b4d53f19db",
+      "sha256": "2fb49e2367b7fc7bc507d3bcd812313561e423cf4ae92ed8fa5a487034d95393",
       "width": 1440,
       "height": 900
     },
     {
       "name": "jobs-dark-1440.png",
-      "sha256": "a04fc1e643669a0618162b39874d52bfae33a3991d9b061aada714c0056d4d43",
+      "sha256": "819b677abea2214c09a03fe68fbb999ddd02413f805a326d170287e6f9ac6756",
       "width": 1440,
       "height": 900
     },
     {
       "name": "split-light-390.png",
-      "sha256": "e1b33a61f191a905f9c85e6a56caa8b7908931717da774b8479c7ca93a8ebe44",
+      "sha256": "3fade303c03107915b16a77b41b5235b406a1eff566ed91dfd8e15d6bf17861b",
       "width": 390,
       "height": 844
     },
     {
       "name": "frames-light-390.png",
-      "sha256": "79fe0a010ccf2e3948e651b9031a063533f238de203a23807ee661754df91d68",
+      "sha256": "45c06f541d734fe5095d439563a8614e67548c5ccbd0f4b2cb23e08ae1751013",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-light-390.png",
-      "sha256": "9311ec1e666fcbd031429f2e946791450567f01e4f252f679ed15538769b65c9",
+      "sha256": "93ce69b8184e67d41edd63ff9f9932ba86504e2dabdd028fea3bfb67a08258b1",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-light-390.png",
-      "sha256": "23ea8cc1d14bae768457553bbaa808f16b6874da3062745e300c69de0b32f33d",
+      "sha256": "6fe0f43d5cc7119adb48ada0d10fbaaa106120f0bbf7a556451536d7552d1d75",
       "width": 390,
       "height": 844
     },
     {
       "name": "split-dark-390.png",
-      "sha256": "65b0681c074797d0d5f38c0247fc74e7a28b6f4d836b4870e36ace73b694b7ea",
+      "sha256": "f9620a3565b69da62555b5b933212c905ef6e32ae299ca967c6e98b59c5fc823",
       "width": 390,
       "height": 844
     },
     {
       "name": "frames-dark-390.png",
-      "sha256": "791bcdbdb58ad91a6a8296a07be710beb4b9ea012bc0e09280151bc5ceb1f599",
+      "sha256": "825e34bc749f6d8dace0034adc29bfffa5202cd14d22ed40388c90e167964312",
       "width": 390,
       "height": 844
     },
     {
       "name": "captions-dark-390.png",
-      "sha256": "ed1bd4c39f71dea006cd9845adaa87c66c9034f3a8f1a32eef5c2395c09089a2",
+      "sha256": "da5ee2eb73abdc7cd76f494f0e4a4d1fd93788554bd7b4174fef5ff0644fd881",
       "width": 390,
       "height": 844
     },
     {
       "name": "jobs-dark-390.png",
-      "sha256": "4bf3f58fc26cf573e946ef73afc471990a86d827a16677e3642eb3335149091c",
+      "sha256": "ce0eb841ff3829ea86681f599598fd390173e07b1d2d9928b3ee6746af14664e",
       "width": 390,
       "height": 844
     }
   ],
-  "head": "7472c3b6506e497158692d400fef4611c886a5ab",
-  "runId": 45585221715,
+  "head": "1d30e3981a510f1ba7d6772d3f6145e8275ed9fa",
+  "runId": 45596060089,
   "runAttempt": 1,
-  "artifactId": 15009240529,
-  "artifactDigest": "sha256:249cd17e89ad71be3faf9bedb19d6bd3af53c0f002e8b80b2239e08a217b3482",
-  "releaseTag": "v1.1.0",
-  "assetName": "visual-baseline-v1.1.0.zip",
+  "artifactId": 15013312405,
+  "artifactDigest": "sha256:8805f2d07d27cfb74d557e93e1aad9c1adb63fd061170ba6e1949c6022baf409",
+  "releaseTag": "v1.1.1",
+  "assetName": "visual-baseline-v1.1.1.zip",
   "reviewedOn": "2026-11-25",
-  "scope": "Ubuntu 24.04 / Chrome 158.0.8127.88 四工作区双主题1440×900/390×844固定视口16图；正式ZIP及逐图哈希尺寸独立核验，实际审阅全部16图及三引擎6张有字幕桌面图。空态预览裁切已修复，字幕四图因计划内重构与旧版差异5.31–8.79%，其余12图低于2%。保留原2%门禁及历史资产。三引擎能力及桌面交互报告通过；窄屏纵向滚动、任务存储洋红遮罩为预期。固定空态基线不代表全部交互状态。"
+  "scope": "Ubuntu 24.04 / Chrome158.0.8127.88 四工作区双主题1440×900与390×844共16图；正式ZIP及逐图SHA256和尺寸核验，实际审阅四组固定截图及有任务深色图。相对V1.1.0旧基线16图差异6.95–30.55%，为计划内全站统一布局、侧栏、检查器及标题更新；保留2%门禁。资源和三浏览器专项通过。移动端纵向滚动及空态留白仍存在，存储洋红为动态遮罩。基线截图版本文本为1.1.0，新发布版本1.1.1需经最终视觉门禁复验。"
 }
