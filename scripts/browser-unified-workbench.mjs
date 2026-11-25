@@ -22,6 +22,16 @@ try{
   for(const [title,key] of modes){
    await page.getByRole('button',{name:title,exact:true}).click();await check(title);
    if(key==='captions')await page.locator('.caption-react-host [data-save=saved]').waitFor();
+   if(key==='split'||key==='frames'){
+    const inspector=page.getByRole('complementary',{name:'媒体检查器'});
+    if(await inspector.locator('.fs-inspector-output').count())throw Error('empty inspector shows redundant output summary');
+    const output=inspector.getByRole('region',{name:'输出设置'});
+    const r=await output.boundingBox(),h=await inspector.boundingBox();
+    if(!r||!h||r.y-h.y>150)throw Error('output settings not prioritized');
+    const drop=await page.getByRole('button',{name:'选择视频文件',exact:true}).boundingBox();
+    if(!drop||drop.height<220)throw Error('empty import surface collapsed');
+   }
+
    await page.screenshot({path:'visual-regression/unified-'+key+'-'+theme+'.png',animations:'disabled'});
   }
  }
@@ -31,6 +41,7 @@ try{
  await chooser.setFiles([{name:'unified-source.mp4',mimeType:'video/mp4',buffer:bytes}]);
  await page.locator('.file-codec').waitFor();
  await page.locator('.fs-library-row.selected').waitFor();
+ await page.getByRole('complementary',{name:'媒体检查器'}).getByText('当前输出',{exact:true}).waitFor();
  await page.getByRole('button',{name:/任务记录/}).click();
  await page.locator('.fs-job-history .fs-job-status').first().waitFor();
  const statusHeight=(await status.boundingBox()).height;
@@ -46,5 +57,5 @@ try{
  }
  await themeOption(page,'light');await page.screenshot({path:'visual-regression/unified-mobile.png',animations:'disabled'});
  if(errors.length)throw Error(errors.join('; '));
- console.log(JSON.stringify({sharedHeader:'passed',sharedBody:'passed',compactStatusHeight:statusHeight,resources:'passed',sharedJobStatus:'passed',theme:'passed',mobile:'passed'}));
+ console.log(JSON.stringify({inspectorEmptyAndLoaded:'passed',sharedHeader:'passed',sharedBody:'passed',compactStatusHeight:statusHeight,resources:'passed',sharedJobStatus:'passed',theme:'passed',mobile:'passed'}));
 }finally{await browser.close()}

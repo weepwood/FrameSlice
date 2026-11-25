@@ -640,6 +640,7 @@ onBeforeUnmount(() => {
           <strong>拖放视频文件</strong>
           <p>MP4、MOV、MKV、WebM 等本地媒体</p>
           <span class="drop-action">选择文件 <ArrowRight :size="14"/></span>
+          <span class="fs-drop-hint">{{mode==='split'?'导入后可预览关键帧与分割计划':'导入后可选择时间范围、抽帧策略和输出格式'}}</span>
         </section>
         <section v-else class="file-card">
           <div class="file-preview">
@@ -753,7 +754,7 @@ onBeforeUnmount(() => {
           <Teleport :to="actionTarget || 'body'" :disabled="!actionInToolbar"><button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>
           <button v-else type="button" class="cancel-button" @click="cancel"><PauseCircle :size="16"/> 取消任务</button></Teleport>
         </section>
-        <div class="empty-action" v-else><Info :size="16"/> {{ loading ? '正在读取媒体信息…' : '请先选择一个视频文件以配置并开始处理。' }}</div>
+        <div class="empty-action" v-else-if="file"><Info :size="16"/> {{ loading ? '正在读取媒体信息…' : '媒体尚未就绪，请检查文件格式。' }}</div>
 
         <section v-if="status !== 'idle'" class="result-section" aria-live="polite">
           <div class="step-head"><h2>任务结果</h2><span class="step-description">{{ status === 'running' ? '处理中' : status === 'done' ? '处理完毕' : '状态信息' }}</span></div>
@@ -784,7 +785,7 @@ onBeforeUnmount(() => {
     <SplitterPanel v-if="wideLayout&&inspectorOpen&&!showJobs&&mode!=='captions'&&!(mode==='split'&&videoTool==='container')" id="frameslice-inspector" :order="3" size-unit="px" :default-size="rightWidth" :min-size="240" :max-size="400" as="aside" class="right-panel" aria-label="媒体检查器">
       <div class="right-panel-inner fs-inspector">
         <header class="fs-inspector-heading"><PanelRight :size="16"/><h2>检查器</h2></header>
-        <section class="fs-inspector-section">
+        <section class="fs-inspector-section fs-inspector-source" :class="{'is-empty':!file}">
           <h3>源媒体</h3>
           <template v-if="file">
             <p class="fs-inspector-filename" :title="file.name">{{file.name}}</p>
@@ -796,9 +797,10 @@ onBeforeUnmount(() => {
               <div v-if="info"><dt>音频编码</dt><dd>{{info.audioCodec || '无'}}</dd></div>
             </dl>
           </template>
-          <p v-else class="fs-inspector-empty">导入视频后查看文件信息。</p>
+          <p v-else class="fs-inspector-empty"><Film :size="14"/> 尚未导入媒体</p>
         </section>
-        <section class="fs-inspector-section">
+        <div ref="settingsTarget" class="fs-settings-target"></div>
+        <section v-if="info" class="fs-inspector-section fs-inspector-output">
           <h3>当前输出</h3>
           <dl>
             <div><dt>操作</dt><dd>{{mode==='split'?'无损分割':'抽帧'}}</dd></div>
@@ -809,14 +811,12 @@ onBeforeUnmount(() => {
           </dl>
           <p v-if="mode==='frames'&&frameStrategy!=='interval'" class="fs-inspector-empty">实际抽帧数量取决于所选策略与过滤结果。</p>
         </section>
-        <div ref="settingsTarget" class="fs-settings-target"></div>
-        <section class="fs-inspector-section">
+        <section class="fs-inspector-section fs-inspector-task">
           <h3>任务状态</h3>
           <p class="fs-inspector-state"><span :class="['fs-state-dot',status]"/>{{status==='running'?'正在处理':status==='done'?'已完成':status==='error'?'处理失败':status==='canceled'?'已取消':loading?'读取媒体':info?'等待开始':'等待导入'}}</p>
           <template v-if="status==='running'"><WorkbenchProgress :value="progressPercent" label="当前任务进度"/><p>{{progressLabel}}</p></template>
           <p v-if="status==='error'" class="fs-danger">{{errorText}}</p>
         </section>
-        <p class="fs-inspector-note"><ShieldCheck :size="15"/> 源媒体在本机读取和处理。</p>
       </div>
     </SplitterPanel>
   </SplitterGroup>

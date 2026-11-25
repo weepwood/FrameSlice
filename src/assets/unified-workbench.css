@@ -55,7 +55,8 @@
 .fs-workbench .caption-page.fs-workspace-body{min-height:0}
 .fs-workbench .step-head h2,.fs-workbench .fs-analysis-header>strong,.fs-workbench .fs-job-center h3,.fs-workbench .fs-preview-header h2{font-size:13px;font-weight:650;letter-spacing:0;color:var(--fs-text)}
 .fs-workbench :is(.config-panel,.file-card,.fs-analysis,.ct-card,.ct-file-card,.ct-result,.status-card,.result-list,.frame-tile,.execution,.fs-preview-panel,.fs-jobs-empty,.caption-embed-feedback){border-radius:var(--fs-panel-radius);box-shadow:var(--fs-panel-shadow);border-color:var(--fs-border)}
-.fs-workbench .drop-zone{border-radius:var(--fs-panel-radius);border-color:var(--fs-border);background:linear-gradient(180deg,var(--fs-surface),color-mix(in srgb,var(--fs-bg) 40%,var(--fs-surface)));min-height:clamp(200px,30vh,300px)}
+.fs-workbench .drop-zone{border-radius:var(--fs-panel-radius);border-color:var(--fs-border);background:linear-gradient(180deg,var(--fs-surface),color-mix(in srgb,var(--fs-bg) 40%,var(--fs-surface)));min-height:clamp(220px,37vh,340px)}
+.fs-workbench .fs-drop-hint{font-size:11px;color:var(--fs-muted);margin-top:15px;line-height:1.5;text-align:center}
 .fs-workbench .drop-icon{color:var(--fs-accent);background:var(--fs-selected);border-radius:8px;width:40px;height:40px}
 .fs-workbench .video-tool-switch{margin:0;gap:4px;padding:3px;background:var(--fs-raised);border-radius:7px;width:max-content;max-width:100%;border:0}
 .fs-workbench .video-tool-switch button{padding:6px 10px;min-height:32px;border:0;border-radius:5px;box-shadow:none;transition:background-color .14s}
@@ -71,11 +72,24 @@
 .fs-workbench .fs-jobs-list{margin:12px 0 16px}
 .fs-workbench .fs-jobs-empty{min-height:156px}
 .fs-workbench .fs-inspector-heading{height:var(--fs-toolbar-height)}
-.fs-workbench .fs-inspector-section{padding:14px 0}
+.fs-workbench .fs-inspector-section{padding:11px 0}
+.fs-workbench .fs-inspector-section h3{margin:0 0 8px;font-size:12px}
+.fs-workbench .fs-inspector-section dl{gap:6px}
+.fs-workbench .fs-inspector-source.is-empty{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:42px}
+.fs-workbench .fs-inspector-source.is-empty h3{margin:0;white-space:nowrap}
+.fs-workbench .fs-inspector-source.is-empty .fs-inspector-empty{display:flex;align-items:center;gap:4px;font-size:10px;margin:0}
+.fs-workbench .fs-settings-target .fs-output-settings{padding:12px 0 8px}
+.fs-workbench .fs-settings-target .config-panel{box-shadow:none;border-radius:0}
+.fs-workbench .fs-settings-target .config-row{padding:7px 0;gap:5px;min-height:0}
+.fs-workbench .fs-settings-target .config-row .setting-copy{gap:4px}
+.fs-workbench .fs-settings-target .config-row .setting-copy strong{font-size:12px}
+.fs-workbench .fs-settings-target .config-footnote{padding:8px 0 0;border-top:0;color:var(--fs-muted)}
+.fs-workbench .fs-inspector-task{border-bottom:0}
+.fs-workbench .fs-inspector-task .fs-inspector-state{margin:0;font-size:11px}
 .fs-workbench :is(.secondary-button,.primary-button,.fs-select-trigger,.file-remove,.fs-tool-button){transition:background-color .14s,border-color .14s,color .14s}
 @media(max-width:1140px){:root{--fs-workspace-padding:16px}}
 @media(max-width:800px){:root{--fs-workspace-padding:12px;--fs-toolbar-height:52px}.fs-workbench .fs-sidebar-collections{flex:none;max-height:160px;margin-top:6px}.fs-workbench .fs-sidebar-collections .fs-job-history{display:none}.fs-workbench .sidebar-bottom.fs-sidebar-status{flex-direction:row;justify-content:space-between;align-items:center;gap:10px;padding:5px 2px 0;margin-top:4px}.fs-sidebar-appearance{flex:0 1 130px}.fs-sidebar-meta{gap:8px}.fs-workbench .fs-workspace-header{flex-wrap:wrap}.fs-workspace-title h1{font-size:15px}.fs-workspace-title p{font-size:10px}.fs-workspace-symbol{width:30px;height:30px}.fs-workbench .fs-workspace-header .privacy-indicator{display:none}.fs-workbench .fs-workspace-header .top-actions:has(.fs-primary-target:empty){display:none}}
-@media(prefers-reduced-motion:reduce){.fs-workbench *{transition-duration:0s!important}}
+@media(prefers-reduced-motion:reduce){.fs-workbench :is(.nav-item,.fs-history-chevron,.secondary-button,.primary-button,.fs-select-trigger,.file-remove,.fs-tool-button,.video-tool-switch button){transition:none}}
 
 .fs-source-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;min-height:38px;margin:0 0 12px}
 .fs-source-toolbar h2{font-size:13px;font-weight:650;margin:0;color:var(--fs-text)}
@@ -88,3 +102,14 @@
 .fs-workbench .fs-center-job-main{gap:4px}
 .fs-workbench .fs-center-job .fs-workbench-progress{max-width:180px}
 @media(max-width:800px){.fs-workbench .drop-zone{min-height:180px}.fs-source-toolbar{min-height:32px}.fs-center-job-main .fs-job-detail{padding-left:0}}
+
+/* Shared focus, hover and panel resize feedback; no animation of layout geometry. */
+.fs-workbench :is(.nav-item,.fs-job-clear,.fs-sidebar-github,.fs-history-trigger,.fs-library-row button,.video-tool-switch button):focus-visible{outline:2px solid var(--fs-focus);outline-offset:1px}
+.fs-workbench .fs-reka-handle:after{inset:0 2px;background:var(--fs-border);transition:background-color .14s}
+.fs-workbench .fs-reka-handle:is(:hover,:focus-visible,[data-state=drag]):after{background:var(--fs-focus)}
+.fs-workbench .fs-resource-item:focus-within{background:var(--fs-hover)}
+.fs-workbench .fs-resource-item.selected:focus-within{background:var(--fs-selected)}
+.fs-workbench .fs-center-job>div:last-child{justify-content:center}
+.fs-workbench .fs-task-toolbar input[type=search]{min-height:var(--fs-control-height)}
+@media(max-width:800px){.fs-workbench .fs-drop-hint{margin-top:10px;font-size:10px}.fs-workbench .drop-zone{min-height:200px}}
+@media(prefers-reduced-motion:reduce){.fs-workbench .fs-reka-handle:after{transition:none}}

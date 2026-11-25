@@ -14,25 +14,15 @@
 .fs-workbench .nav-item {position:relative;min-height:38px;padding:9px 10px;gap:9px;font-size:13px;font-weight:550;border-radius:6px}
 .fs-workbench .nav-item.active {color:var(--fs-accent);font-weight:650}
 .fs-workbench .nav-item.active:before {content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;background:var(--fs-accent);border-radius:1px}
-.fs-workbench .fs-media-library {border-top:1px solid var(--fs-border);padding-top:12px;margin-top:18px}
-.fs-workbench .fs-media-library .fs-analysis-header {margin:0;min-height:32px}
-.fs-workbench .fs-media-library .secondary-button {padding:5px;min-height:26px}
 .fs-workbench .fs-library-row button {min-height:32px}
-.fs-workbench .local-notice {border:0;background:transparent;padding:8px;margin:10px 0 0;color:var(--fs-success)}
 .fs-workbench .local-notice span,.fs-workbench .sidebar-version,.fs-workbench .footer {color:var(--fs-muted)}
-.fs-workbench .sidebar-version {letter-spacing:0;margin:8px;font-size:11px}
-.fs-workbench .sidebar-link {padding:9px;font-size:12px}
 .fs-workbench .topbar {height:52px;padding:0 24px;background:var(--fs-surface);gap:10px}
 .fs-workbench .breadcrumbs {font-size:12px;min-width:0;white-space:nowrap}
 .fs-workbench .top-actions {gap:10px;letter-spacing:0;font-size:11px}
 .fs-workbench .privacy-indicator {color:var(--fs-muted);font-weight:500;white-space:nowrap}
 .fs-workbench .fs-inspector-toggle {min-height:30px;padding:5px 8px;font-size:12px}
 .fs-workbench .fs-inspector-toggle[aria-pressed=true] {background:var(--fs-selected);color:var(--fs-accent)}
-.fs-workbench .content,.fs-workbench .caption-page {padding:25px clamp(18px,2.4vw,36px) 18px;max-width:1180px}
-.fs-workbench .caption-page {max-width:1600px;min-height:calc(100vh - 52px)}
 
-.fs-workbench .page-head h1 {line-height:1.35}
-.fs-workbench .page-head p {font-size:13px;margin-top:4px;line-height:1.6}
 .fs-workbench .step-head {margin-bottom:10px;gap:8px}
 .fs-workbench .step-head h2 {font-size:14px;font-weight:650}
 .fs-workbench .step-description {font-size:12px}
@@ -59,7 +49,6 @@
 .fs-workbench .config-row {margin:0 16px}
 
 .fs-workbench .setting-icon {background:transparent;color:var(--fs-muted);width:24px;height:30px}
-
 
 .fs-workbench .setting-copy span {font-size:12px;line-height:1.5}
 .fs-workbench .config-footnote {padding:11px 16px;background:var(--fs-raised);border-color:var(--fs-border)}
@@ -122,23 +111,18 @@
 .fs-workbench .fs-inspector-filename {margin:0 0 13px;color:var(--fs-text);font-size:13px;overflow-wrap:anywhere;font-weight:600}
 .fs-workbench .fs-inspector-empty,.fs-workbench .fs-inspector-section p {font-size:12px;line-height:1.6;color:var(--fs-muted)}
 .fs-workbench .fs-inspector-section p.fs-danger {color:var(--fs-danger)}
-.fs-inspector-state,.fs-inspector-note {display:flex;align-items:center;gap:8px}
+.fs-inspector-state {display:flex;align-items:center;gap:8px}
 .fs-state-dot {height:7px;width:7px;border-radius:50%;background:var(--fs-muted);flex:none}
 .fs-state-dot.running {background:var(--fs-accent)}
 .fs-state-dot.done {background:var(--fs-success)}
 .fs-state-dot.error {background:var(--fs-danger)}
 .fs-inspector-section .fs-workbench-progress {margin-top:10px}
-.fs-inspector-note {font-size:12px;color:var(--fs-muted);padding:15px 0;line-height:1.6}
 .fs-select-content {font-size:13px}
 .fs-select-item {min-height:32px}
 @media(max-width:800px) {
   .fs-workbench .identity {padding-bottom:9px}
   .fs-workbench .sidebar-nav .nav-item {font-size:13px}
-  .fs-workbench .fs-media-library {padding-top:5px;margin-top:6px}
   .fs-workbench .topbar {height:44px;padding:0 14px}
-  .fs-workbench .content,.fs-workbench .caption-page {padding:18px 14px}
-  .fs-workbench .page-head {margin-bottom:18px}
-  .fs-workbench .page-head h1 {font-size:23px}
   .fs-workbench .drop-zone {min-height:140px}
   .fs-workbench .config-row {margin:0 12px;min-height:64px}
   .fs-workbench .config-row .setting-copy span {max-width:none;font-size:12px}
@@ -161,9 +145,6 @@
 @media(prefers-reduced-motion:reduce) {.fs-workbench * {scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
 /* Second pass: actual 390px and 1440px screenshot review. */
-.fs-workbench .fs-media-library .fs-analysis-header {flex-direction:row;align-items:center;justify-content:space-between;padding:0 3px}
-.fs-workbench .fs-media-library.is-empty .fs-analysis-header {min-height:28px}
-.fs-workbench .fs-media-library.is-empty {overflow:visible}
 .fs-workbench .fs-inspector {padding-inline:14px}
 .fs-settings-target .fs-output-settings {padding:14px 0;border-bottom:1px solid var(--fs-border)}
 .fs-settings-target .step-two {margin:0 0 9px}
@@ -172,16 +153,13 @@
 .fs-settings-target .config-row .setting-icon {display:none}
 .fs-settings-target .config-row .setting-copy span {font-size:11px}
 .fs-settings-target .config-row .config-control,.fs-settings-target .config-row .range-control {justify-content:flex-start;flex-wrap:wrap}
-.fs-settings-target .config-row .config-control .number-input {max-width:100%}
 .fs-settings-target .config-row .fs-select-trigger {width:100%;min-width:0;white-space:normal}
 .fs-settings-target .config-row .config-control .fs-select-trigger {width:auto}
 .fs-settings-target .config-footnote {padding:8px 0;background:transparent;border-top:1px solid var(--fs-border)}
 .fs-settings-target .config-footnote span {font-size:11px}
 .fs-settings-target .config-row .select-wrap select {width:100%;min-width:0}
-.fs-settings-target .config-row .range-control .number-input {width:70px}
 .fs-settings-target .config-row label {overflow-wrap:anywhere}
 .fs-settings-target .config-row label input[type=range] {max-width:100%}
-.fs-settings-target .config-row label input[type=number] {max-width:100%;width:88px}
 .fs-preview-panel {margin:16px 0;background:var(--fs-surface);border:1px solid var(--fs-border);border-radius:var(--fs-radius);overflow:hidden}
 .fs-preview-header {height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px}
 .fs-preview-header h2 {font-size:13px;font-weight:650}
@@ -209,8 +187,6 @@
 .fs-timeline-legend i {width:8px;height:8px;display:inline-block;border-radius:1px}
 .legend-key {background:#a9bbd3}.legend-play {background:#d79a42}.legend-cut {background:#ef8e5b}.legend-range {background:#6d9eef}
 @media(max-width:800px) {
- .fs-workbench .fs-media-library.is-empty {margin:4px 0;padding-top:3px}
- .fs-workbench .sidebar-bottom .fs-theme-select {font-size:12px}
  .fs-workbench .fs-preview-panel video {max-height:240px}
  .fs-workbench .topbar .privacy-indicator {font-size:11px}
  .fs-workbench .fs-timeline-tools input {width:76px}
@@ -239,7 +215,6 @@
 .fs-select-item{min-height:32px;white-space:normal;font-size:12px;line-height:1.4}
 .fs-select-item[data-state=checked]{color:var(--fs-accent)}
 .fs-select-item[data-highlighted]{background:var(--fs-selected);color:var(--fs-text)}
-.fs-workbench .fs-theme-select .fs-select-trigger{min-height:30px;font-size:12px}
 .fs-inline-field,.fs-storage-row{display:flex;align-items:center;gap:10px}
 .fs-storage-row{justify-content:space-between;padding:11px 0;border-top:1px solid var(--fs-border)}
 .fs-storage-row>div{min-width:0;display:grid;gap:4px}
@@ -317,9 +292,6 @@
 @media(max-width:600px){.fs-frame-results .frame-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.fs-frame-results .frame-gallery.density-large{grid-template-columns:1fr}.fs-gallery-expand{opacity:1}.fs-gallery-dialog-header,.fs-gallery-dialog-footer{padding:10px}.fs-gallery-dialog-footer small{display:none}.fs-gallery-viewer img{max-height:65dvh}}
 
 /* Shared spacing rhythm and restrained surfaces. */
-.fs-workbench .content,.fs-workbench .caption-page{min-width:0;padding:20px clamp(16px,2vw,28px) 20px;box-sizing:border-box}
-.fs-workbench .page-head{margin-bottom:16px}
-.fs-workbench .page-head h1{font-size:24px;font-weight:650;letter-spacing:-.02em}
 .fs-workbench .step-head{margin-bottom:10px}
 .fs-workbench .config-row{min-height:48px;gap:12px;padding-block:8px}
 .fs-workbench .setting-icon{width:28px;height:28px;background:none;color:var(--fs-muted)}
@@ -332,7 +304,6 @@
 .fs-workbench .config-footnote span{font-size:11px}
 .fs-workbench .fs-analysis{padding:14px 16px;margin:12px 0 16px;border-radius:var(--fs-radius)}
 .fs-workbench .fs-analysis-header{gap:12px;align-items:center}
-.fs-workbench .fs-settings-target .config-row{min-height:0;padding:9px 0;gap:6px}
 .fs-workbench .fs-jobs-utilities>.fs-analysis{margin-top:0}
 .fs-workbench .fs-storage-diagnostics .fs-analysis-header{margin-bottom:16px}
 .fs-storage-diagnostics .fs-inline-field{gap:6px}
@@ -347,14 +318,13 @@
 .fs-workbench .fs-storage-row strong{font-size:13px;font-weight:550}
 .fs-workbench .fs-storage-row small{font-size:11px}
 .fs-storage-message{margin:8px 0 0;color:var(--fs-muted);font-size:12px}
-@media(max-width:720px){.fs-workbench .content,.fs-workbench .caption-page{padding:16px 12px}.fs-workbench .fs-analysis{padding:12px}.fs-workbench .config-row{min-height:44px}.fs-workbench .fs-storage-row{gap:8px}.fs-storage-summary{font-size:11px}}
+@media(max-width:720px){.fs-workbench .fs-analysis{padding:12px}.fs-workbench .config-row{min-height:44px}.fs-workbench .fs-storage-row{gap:8px}.fs-storage-summary{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.fs-workbench-progress-fill{transition:none}}
 
 /* Same semantic progress rail for history, active work and storage. */
 .fs-workbench-progress{width:100%;min-width:0;height:7px;border:0;border-radius:4px;overflow:hidden;background:var(--fs-raised)}
 .fs-job-row .fs-workbench-progress{height:4px}
 .fs-center-job .fs-workbench-progress{margin-top:2px}
-
 
 /* Shared control geometry; keep keyboard, numeric validation and native input semantics. */
 .fs-workbench :is(input[type=number],input[type=search],input[aria-label="搜索任务"]){box-sizing:border-box;min-height:var(--fs-control-height);max-width:100%;border:1px solid var(--fs-border);border-radius:var(--fs-radius);background:var(--fs-input);color:var(--fs-text);padding:6px 10px;font:inherit;font-size:12px;font-variant-numeric:tabular-nums}
@@ -375,10 +345,6 @@
 .fs-workbench .fs-timeline-slider{gap:var(--fs-space-2)}
 .fs-workbench .fs-timeline-toolbar{gap:var(--fs-space-2)}
 .fs-workbench .fs-center-toolbar{gap:var(--fs-space-2)}
-.fs-workbench .fs-inspector-section{padding:var(--fs-space-3) 0}
-.fs-workbench .fs-inspector-section dl{gap:var(--fs-space-2)}
-.fs-workbench .fs-settings-target .config-row{padding:var(--fs-space-2) 0}
-.fs-workbench .fs-settings-target .config-control .number-input{width:88px}
 .fs-select-content,.fs-dialog-content{border-radius:var(--fs-radius)}
 @media(max-width:720px){.fs-workbench .range-control input[type=number]{width:64px}.fs-workbench .fs-center-toolbar>input[aria-label="搜索任务"]{flex-basis:100%}.fs-workbench .fs-timeline-track{height:64px}}
 
