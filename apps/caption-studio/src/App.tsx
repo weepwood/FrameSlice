@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
+import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2,ListChecks} from 'lucide-react';
 import {Tabs} from '@base-ui/react/tabs';
 import {Checkbox} from '@base-ui/react/checkbox';
 import {ProjectMenu} from './components/ProjectMenu';
@@ -7,6 +7,7 @@ import {CaptionProgress} from './components/CaptionProgress';
 import {CaptionSelect} from './components/CaptionSelect';
 import {Timeline} from './components/Timeline';
 import {ReviewTools} from './components/ReviewTools';
+import {BatchCueTools} from './components/BatchCueTools';
 import {useHistory} from './hooks/useHistory';
 import {useTranscriber} from './hooks/useTranscriber';
 import {chunksToCues,defaultStyle,fmt,lintCue,mergeNext,parseSubtitles,parseTime,round3,shiftCues,shortTime,sorted,splitCue,toSRT,toVTT,uid,type CaptionStyle,type Chunk,type Cue,type Issue} from './lib/captions';
@@ -54,6 +55,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [maxChars,setMaxChars]=useState(30);
   const [style,setStyle]=useState<CaptionStyle>(defaultStyle);
   const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [batchMode,setBatchMode]=useState(false);
+  const [batchIds,setBatchIds]=useState<Set<string>>(()=>new Set());
   const [tab,setTab]=useState<Tab>('cues');
   const [query,setQuery]=useState('');
   const [onlyIssues,setOnlyIssues]=useState(false);
@@ -104,6 +107,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const problemCount=useMemo(()=>cues.reduce((n,c,i)=>n+lintCue(c,cues[i+1]).length,0),[cues]);
   const shown=useMemo(()=>{const term=query.trim().toLocaleLowerCase();return cues.filter((c,i)=>(!onlyIssues||lintCue(c,cues[i+1]).length>0)&&c.text.toLocaleLowerCase().includes(term))},[cues,query,onlyIssues]);
   const cueIndex=useMemo(()=>new Map(cues.map((cue,i)=>[cue.id,i])),[cues]);
+  useEffect(()=>{setBatchIds(old=>{const next=new Set([...old].filter(id=>cueIndex.has(id)));return next.size===old.size?old:next})},[cueIndex]);
+  const closeBatch=()=>{setBatchMode(false);setBatchIds(new Set())};
+
   const pageCount=Math.max(1,Math.ceil(shown.length/100));
   const currentPage=Math.min(cuePage,pageCount-1);
   const pageCues=useMemo(()=>shown.slice(currentPage*100,(currentPage+1)*100),[shown,currentPage]);
@@ -113,7 +119,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const commitPage=()=>{if(pageDraft!==null){const value=Number(pageDraft);if(pageDraft.trim()&&Number.isInteger(value))browsePage(value-1);else setPageDraft(null)}};
   useEffect(()=>setPageDraft(null),[query,onlyIssues,pageCount]);
   useEffect(()=>{
-    if(!followPlayback||tab!=='cues'||query||onlyIssues||!activeCue)return;
+    if(batchMode||!followPlayback||tab!=='cues'||query||onlyIssues||!activeCue)return;
     const root=cueListRef.current?.getRootNode();
     const focused=root instanceof ShadowRoot?root.activeElement:document.activeElement;
     if(cueListRef.current?.contains(focused))return;
@@ -124,7 +130,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     }
     const active=cueListRef.current?.querySelector('[data-current="true"]');
     if(active)active.scrollIntoView({block:'nearest',behavior:'smooth'});
-  },[activeCue?.id,followPlayback,tab,query,onlyIssues,cueIndex,currentPage]);
+  },[activeCue?.id,followPlayback,tab,query,onlyIssues,cueIndex,currentPage,batchMode]);
   useEffect(()=>{if(video.current)video.current.playbackRate=playbackRate},[playbackRate,mediaURL]);
   const onChunks=useCallback((chunks:Chunk[])=>{
     setCues(previous=>sorted([...previous,...chunksToCues(chunks,maxChars,duration||undefined)]));
@@ -141,7 +147,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       revision.current=loadedRevision;conflict.current=false;
       committed.current=JSON.stringify([clean.name,clean.mediaName,clean.cues.reduce((max,c)=>Math.max(max,c.end),clean.duration),clean.cues,clean.style]);
       setProjectName(clean.name);setOriginalMediaName(clean.mediaName);
-      setDuration(clean.duration);setStyle(clean.style);resetCues(clean.cues);
+      setDuration(clean.duration);setStyle(clean.style);resetCues(clean.cues);closeBatch();
       setFile(null);setTime(0);setPeaks([]);setSelectedId(null);setQuery('');setOnlyIssues(false);setCuePage(0);
     }).then(()=>{if(!cancelled){setSaved('saved');setLoadFailed(false);setHydrated(true)}}).catch(()=>{if(!cancelled){setSaved('error');setLoadFailed(true)}});
     return()=>{cancelled=true};
@@ -177,7 +183,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     const relink=Boolean(cues.length&&(!file&&!originalMediaName||originalMediaName===f.name));
     if(cues.length&&!relink&&!window.confirm('打开新媒体将清空当前字幕。请先导出工程或字幕。确定继续？'))return;
     renderAbort.current?.abort();transcriber.stop();setError('');setFile(f);
-    if(!relink){setProjectName(baseName(f.name));setDuration(0);setSelectedId(null);resetCues([])}
+    if(!relink){closeBatch();setProjectName(baseName(f.name));setDuration(0);setSelectedId(null);resetCues([])}
     setOriginalMediaName(f.name);setTime(0);setPeaks([]);
     setRenderState({phase:'idle',progress:0,message:''});
   };
@@ -196,7 +202,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       const parsed=parseSubtitles(text);
       if(!parsed.length)throw Error('未检测到有效的字幕时间轴');
       if(cues.length&&!window.confirm('导入字幕将替换当前字幕，是否继续？（可撤销）'))return;
-      transcriber.stop();setCues(parsed);setSelectedId(parsed[0].id);setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
+      transcriber.stop();closeBatch();setCues(parsed);setSelectedId(parsed[0].id);setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
       if(!file)setProjectName(baseName(f.name));
     }catch(e){setError(`字幕导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
@@ -207,13 +213,13 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       if((cues.length||file||originalMediaName)&&!window.confirm('打开工程将替换当前工程。请先导出备份。确定继续？'))return;
       renderAbort.current?.abort();transcriber.stop();setFile(null);setPeaks([]);setTime(0);
       setDuration(p.duration);setProjectName(p.name);setOriginalMediaName(p.mediaName);
-      setStyle(p.style);resetCues(p.cues);setSelectedId(null);setError('');setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
+      setStyle(p.style);resetCues(p.cues);closeBatch();setSelectedId(null);setError('');setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
     }catch(e){setError(`项目导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const reset=async()=>{
     if(!hydrated)return;
     renderAbort.current?.abort();
-    transcriber.stop();resetCues([]);setFile(null);setPeaks([]);setProjectName('未命名项目');
+    transcriber.stop();closeBatch();resetCues([]);setFile(null);setPeaks([]);setProjectName('未命名项目');
     setOriginalMediaName('');setDuration(0);setTime(0);setSelectedId(null);setStyle(defaultStyle);setError('');
     // Save the empty project through the same atomic revision check; never delete another tab's draft.
   };
@@ -226,7 +232,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const startTranscription=()=>{
     if(!file)return;
     if(cues.length&&!window.confirm('重新转录将替换当前所有字幕。是否继续？'))return;
-    setError('');setPeaks([]);resetCues([]);setSelectedId(null);setTab('transcribe');
+    setError('');setPeaks([]);closeBatch();resetCues([]);setSelectedId(null);setTab('transcribe');
     // Automatically extract the original File audio in a Worker, no 350 MB cap.
     transcriber.transcribe(file,model,language==='auto'?null:language,device);
   };
@@ -415,11 +421,14 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>changeQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
                 onToggleIssues={changeIssueFilter} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
+              {cues.length>0&&!batchMode&&<div className="cue-batch-entry"><button className="review-chip" onClick={()=>{setBatchMode(true);setFollowPlayback(false)}}><ListChecks size={14}/>多选编辑</button></div>}
+              {batchMode&&<BatchCueTools cues={cues} page={pageCues} shown={shown} selected={batchIds} onSelect={setBatchIds} onChange={setCues} onClose={closeBatch}/>}
+
               <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" aria-label="上一页字幕" onClick={()=>browsePage(currentPage-1)}>‹</button>{pageCount>1?<label className="cue-page-jump"><input aria-label="字幕页码" inputMode="numeric" value={pageDraft??String(currentPage+1)} onChange={e=>setPageDraft(e.target.value)} onBlur={commitPage} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setPageDraft(null)}}/><span>/{pageCount}</span></label>:<span>1/1</span>}<button disabled={currentPage>=pageCount-1} title="下一页字幕" aria-label="下一页字幕" onClick={()=>browsePage(currentPage+1)}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
               <div className="cue-list" ref={cueListRef}>
                 {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=lintCue(c,cues[index+1]);return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
-                    <div className="cue-row-top"><button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
+                    <div className="cue-row-top">{batchMode&&<Checkbox.Root className="caption-checkbox" aria-label={'选择第 '+(index+1)+' 条字幕'} checked={batchIds.has(c.id)} onCheckedChange={checked=>setBatchIds(old=>{const next=new Set(old);if(checked)next.add(c.id);else next.delete(c.id);return next})}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root>}<button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
                     <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
                     <div className="cue-row-bottom"><TimeEditor label="开始时间" time={c.start} onCommit={v=>updateCue(c.id,{start:v})}/><span>→</span><TimeEditor label="结束时间" time={c.end} onCommit={v=>updateCue(c.id,{end:v})}/><button className="cue-seek" onClick={()=>{seek(c.start);setSelectedId(c.id)}} title="跳转到字幕"><Play size={12}/></button></div>
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}

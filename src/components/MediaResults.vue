@@ -8,6 +8,12 @@ import type {FramePreview} from '../lib/frames'
 const props=defineProps<{parts:SplitResult[];frames:FramePreview[]}>()
 const emit=defineEmits<{save:[FramePreview]}>()
 const density=ref<'compact'|'large'>('compact'),open=ref(false),selectedName=ref('')
+const partPage=ref(0)
+const partPageSize=50
+const partPageCount=computed(()=>Math.max(1,Math.ceil(props.parts.length/partPageSize)))
+const visibleParts=computed(()=>props.parts.slice(partPage.value*partPageSize,(partPage.value+1)*partPageSize))
+watch(()=>props.parts,()=>{partPage.value=0})
+watch(partPageCount,n=>{partPage.value=Math.min(partPage.value,n-1)})
 const selectedIndex=computed(()=>props.frames.findIndex(item=>item.name===selectedName.value))
 const selected=computed(()=>props.frames[selectedIndex.value])
 let opener:HTMLElement|null=null
@@ -18,7 +24,7 @@ function restoreFocus(event:Event){event.preventDefault();void nextTick(()=>{if(
 watch(selected, item=>{if(!item&&open.value)open.value=false})
 </script>
 <template>
-<div v-if="parts.length" class="result-list"><div v-for="item in parts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div>
+<div v-if="parts.length" class="result-list"><div v-for="item in visibleParts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div><nav v-if="partPageCount>1" class="fs-job-pagination" aria-label="分割结果分页"><button class="secondary-button" :disabled="partPage===0" @click="partPage--">上一页</button><span>{{partPage+1}} / {{partPageCount}} · {{parts.length}} 个片段</span><button class="secondary-button" :disabled="partPage>=partPageCount-1" @click="partPage++">下一页</button></nav>
 <section v-if="frames.length" class="fs-frame-results" aria-label="抽帧预览">
   <header class="fs-gallery-header">
     <div><strong><ImageIcon :size="16"/> 抽帧预览 <span class="fs-gallery-count">{{frames.length}}</span></strong><small>仅显示最近预览</small></div>

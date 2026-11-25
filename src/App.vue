@@ -99,6 +99,7 @@ const analysisError = ref('')
 const exportReportJson = ref('')
 const reportNotice = ref('')
 const savedFrameNames = ref<string[]>([])
+let storyboardRevision=0
 const storyboardBusy = ref(false)
 const storyboardError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -124,8 +125,8 @@ const timelineTime=ref(0)
 const timelineThumbnails=ref<FramePreview[]>([])
 const timelineLoading=ref(false)
 let timelineAbort:AbortController|null=null
-function clearTimeline(){timelineAbort?.abort();for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
-async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){for(const t of rows)URL.revokeObjectURL(t.url);if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
+function clearTimeline(){timelineAbort?.abort();timelineAbort=null;timelineLoading.value=false;for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
+async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{if(!thumbCache.has(key)||thumbCache.get(key)!==rows){for(const t of rows)URL.revokeObjectURL(t.url);if(timelineAbort===ctl)timelineThumbnails.value=[]}if(timelineAbort===ctl){timelineAbort=null;timelineLoading.value=false}}}
 function seekTimeline(time:number){if(!Number.isFinite(time))return;const next=Math.max(0,Math.min(info.value?.duration??0,time));timelineTime.value=next;const video=previewVideo.value;if(video&&video.readyState>=1&&Math.abs(video.currentTime-next)>.001){try{video.currentTime=next}catch{/* unsupported browser preview; processing remains available */}}}
 function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
@@ -276,6 +277,7 @@ function resetOutput() {
   exportReportJson.value = ''
   reportNotice.value = ''
   savedFrameNames.value = []
+  storyboardRevision++
   storyboardBusy.value = false
   storyboardError.value = ''
   status.value = 'idle'
@@ -291,6 +293,7 @@ function clearFile() {
   planAbort?.abort();splitPlan.value=[];planKey.value='';planError.value=''
   inspectController?.abort()
   inspectController = null
+  loading.value = false
   clearAnalysis()
   resetOutput()
   file.value = null
@@ -525,15 +528,16 @@ function downloadManifest() {
 }
 async function downloadStoryboard() {
   if (!frames.value.length || storyboardBusy.value || !file.value) return
+  const revision=++storyboardRevision,source=file.value,previews=[...frames.value]
   storyboardBusy.value = true
   storyboardError.value = ''
   try {
-    const blob = await createStoryboard(frames.value, file.value.name)
-    downloadBlob(blob, baseName(file.value.name) + '_storyboard.jpg')
+    const blob = await createStoryboard(previews, source.name)
+    if(revision===storyboardRevision&&file.value===source)downloadBlob(blob, baseName(source.name) + '_storyboard.jpg')
   } catch (error) {
-    storyboardError.value = friendlyError(error)
+    if(revision===storyboardRevision)storyboardError.value = friendlyError(error)
   } finally {
-    storyboardBusy.value = false
+    if(revision===storyboardRevision)storyboardBusy.value = false
   }
 }
 function retry() { resetOutput(); errorText.value = '' }
@@ -547,6 +551,7 @@ function warnOnUnload(event: BeforeUnloadEvent) {
 window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
+  storyboardRevision++
   clearTimeline()
   unsubscribeJobs()
   window.removeEventListener('frameslice:subtitle-package', acceptSubtitleHandoff)
