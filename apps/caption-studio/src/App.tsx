@@ -355,9 +355,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     <input ref={projectInput} type="file" accept=".json" hidden onChange={e=>{if(e.target.files?.[0])void importProject(e.target.files[0]);e.target.value=''}}/>
     <input ref={fontInput} type="file" accept=".ttf,.otf" hidden onChange={e=>{setFont(e.target.files?.[0]??null);e.target.value=''}}/>
 
-    {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><button className="btn outline" onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</button></div>}
-    {hydrated&&saved==='conflict'&&<div className="error-banner draft-conflict" role="alert"><AlertTriangle size={16}/><span>另一标签页已更新草稿。当前编辑仍保留，自动保存已暂停；可导出备份后重新读取。</span><button className="btn outline" onClick={exportProject}>导出当前备份</button><button className="btn outline" onClick={()=>{if(window.confirm('重新读取将替换本页未保存的编辑。请先导出备份。确定继续？')){transcriber.stop();renderAbort.current?.abort();setHydrated(false);setSaved('loading');setLoadAttempt(n=>n+1)}}}>读取最新草稿</button></div>}
-    {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><button className="btn outline" onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</button><button className="btn outline" onClick={exportProject}>导出备份</button></div>}
+    {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><CaptionButton onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</CaptionButton></div>}
+    {hydrated&&saved==='conflict'&&<div className="error-banner draft-conflict" role="alert"><AlertTriangle size={16}/><span>另一标签页已更新草稿。当前编辑仍保留，自动保存已暂停；可导出备份后重新读取。</span><CaptionButton onClick={exportProject}>导出当前备份</CaptionButton><CaptionButton onClick={()=>{if(window.confirm('重新读取将替换本页未保存的编辑。请先导出备份。确定继续？')){transcriber.stop();renderAbort.current?.abort();setHydrated(false);setSaved('loading');setLoadAttempt(n=>n+1)}}}>读取最新草稿</CaptionButton></div>}
+    {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><CaptionButton onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</CaptionButton><CaptionButton onClick={exportProject}>导出备份</CaptionButton></div>}
     <div className="workspace" inert={!hydrated}>
       {!embedded&&<aside className="nav-rail" aria-label="工作区">
         <span className="rail-label">FRAMESLICE / WORKSPACE</span>
@@ -442,7 +442,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>每条字幕最大字符 <CaptionNumberField label="每条字幕最大字符" min={8} max={120} value={maxChars} disabled={busy} onChange={v=>{if(v!==null)setMaxChars(Math.min(120,Math.max(8,Math.round(v))))}}/></label>
               </div>
               <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>首次转录需下载模型。</span></div>
-                {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
+                {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<CaptionButton primary disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</CaptionButton>}</div>
               {transcriber.state.phase==='loading'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在准备模型 {Math.round(transcriber.state.progress)}% <CaptionProgress value={transcriber.state.progress} label="转录进度"/></div>}
               {transcriber.state.phase==='extracting'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在从媒体分段提取音轨 · {Math.round(transcriber.state.progress)}% <CaptionProgress value={transcriber.state.progress} label="转录进度"/></div>}
               {transcriber.state.phase==='running'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在使用 {transcriber.state.device==='webgpu'?'WebGPU':'WASM'} 分段识别 · {Math.round(transcriber.state.progress)}% · {transcriber.state.segments} 段完成 <CaptionProgress value={transcriber.state.progress} label="转录进度"/> {transcriber.state.partial&&<span className="transcript-snippet">{transcriber.state.partial}</span>}</div>}
@@ -467,7 +467,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
                   </article>})}
               </div>
-              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
+              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<CaptionButton full onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</CaptionButton></div>
             </Tabs.Panel>
             <Tabs.Panel value="style" className="style-editor caption-tab-content">
               <div className="section-subheading"><strong>预览样式</strong></div>
@@ -488,7 +488,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <CaptionButton full onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</CaptionButton>
               <div className="section-subheading render-heading"><strong>烧录字幕到视频</strong><small>实验功能 · 适合短视频</small></div>
               <button className="file-pick" onClick={()=>fontInput.current?.click()}><Languages size={17}/>{font?.name||'选择中文字体 .ttf / .otf（推荐）'}<ChevronDown size={14}/></button>
-              {renderState.phase==='working'?<div className="render-progress"><CaptionProgress value={renderState.progress} max={1} label="烧录进度"/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><button className="btn outline full" onClick={()=>renderAbort.current?.abort()}>取消烧录</button></div>:<button className="btn primary full" disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</button>}
+              {renderState.phase==='working'?<div className="render-progress"><CaptionProgress value={renderState.progress} max={1} label="烧录进度"/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><CaptionButton full onClick={()=>renderAbort.current?.abort()}>取消烧录</CaptionButton></div>:<CaptionButton primary full disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</CaptionButton>}
               {renderState.phase==='error'&&<div className="style-note warning">{renderState.message}</div>}
               {renderState.message&&renderState.phase==='idle'&&<div className="task-status done"><Check size={15}/>{renderState.message}</div>}
               <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>

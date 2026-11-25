@@ -19,6 +19,8 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
   const scrub=useRef<number|null>(null);
   const canvas=useRef<HTMLCanvasElement>(null);
   const track=useRef<HTMLDivElement>(null);
+  const [trackWidth,setTrackWidth]=useState(0);
+  useEffect(()=>{const el=track.current;if(!el)return;const update=()=>setTrackWidth(el.clientWidth);const observer=new ResizeObserver(update);observer.observe(el);update();return()=>observer.disconnect()},[]);
   const visible=Math.max(1,Math.min(span,Math.max(1,duration)));
   const start=Math.max(0,Math.min(viewStart,Math.max(0,duration-visible)));
   function zoom(next:number,anchor=time){
@@ -65,11 +67,13 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     const scheme=matchMedia('(prefers-color-scheme: dark)');scheme.addEventListener('change',paint);paint();return()=>{ro.disconnect();theme.disconnect();scheme.removeEventListener('change',paint)};
   },[peaks,visible,start,duration]);
   const ticks=useMemo(()=>{
-    const step=visible<=5?1:visible<=15?2:visible<=30?5:visible<=90?10:visible<=240?30:60;
+    const base=visible<=5?1:visible<=15?2:visible<=30?5:visible<=90?10:visible<=240?30:60;
+    const minSpacing=visible*76/Math.max(76,trackWidth||600);
+    const step=base*Math.max(1,Math.ceil(minSpacing/base));
     const values:number[]=[];
     for(let v=Math.ceil(start/step)*step;v<start+visible;v+=step)values.push(v);
     return values;
-  },[visible,start]);
+  },[visible,start,trackWidth]);
   const point=(e:{clientX:number})=>{
     const r=track.current?.getBoundingClientRect();
     if(!r)return 0;

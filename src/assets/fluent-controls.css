@@ -48,3 +48,32 @@ fluent-progress-bar.fs-workbench-progress::part(indicator){background-color:var(
 .empty-actions .fs-caption-fluent-button[appearance=outline]{--colorNeutralForeground1:#f5f5f5;--colorNeutralStroke1:#777;--colorNeutralBackground1:transparent;--colorNeutralBackground1Hover:#414141;--colorNeutralForeground1Hover:#fff}
 .caption-progress.fs-workbench-progress{display:block;width:100%}
 @media(max-width:480px){.fs-caption-fluent-button{font-size:11px;--spacingHorizontalM:6px}}
+
+
+/* Common visual contract: framework wrappers keep their own focus, portal and precision logic. */
+.fs-fluent-select,.fs-fluent-number{min-height:var(--fs-control-height,34px);border-radius:var(--borderRadiusMedium,4px);font-size:12px;box-shadow:none}
+.fs-fluent-select{font-weight:400;gap:8px}
+.fs-fluent-select[aria-expanded=true],.fs-fluent-select:focus-visible,.fs-fluent-number:focus-within{border-bottom-color:var(--colorCompoundBrandStroke,var(--fs-focus));box-shadow:0 1px 0 var(--colorCompoundBrandStroke,var(--fs-focus))}
+.fs-fluent-popup{padding:4px;border-radius:var(--borderRadiusMedium,4px);box-shadow:var(--shadow8);border:1px solid var(--colorNeutralStroke2,var(--fs-border))}
+.fs-fluent-option{min-height:30px;padding:5px 8px;gap:8px;border-radius:var(--borderRadiusMedium,4px);font-size:12px}
+.fs-fluent-option[data-highlighted]{background:var(--colorNeutralBackground1Hover,var(--fs-raised))}
+.fs-fluent-option:is([data-state=checked],[data-selected]){background:var(--colorNeutralBackground1Selected,var(--fs-selected));color:var(--colorBrandForeground1,var(--fs-accent))}
+.fs-fluent-number .fs-number-value{font-variant-numeric:tabular-nums;font-weight:400}
+.fs-fluent-number .fs-number-step:hover:not(:disabled){background:var(--colorNeutralBackground1Hover,var(--fs-raised))}
+.fs-fluent-number .fs-number-step:focus-visible{outline:2px solid var(--colorStrokeFocus2,var(--fs-focus));outline-offset:-2px}
+.fs-fluent-select:disabled,.fs-fluent-number:has(input:disabled){background:var(--colorNeutralBackgroundDisabled,var(--fs-raised));color:var(--colorNeutralForegroundDisabled,var(--fs-muted))}
+.app-shell .error-banner>.fs-caption-fluent-button{flex:none}
+.app-shell .transcribe-bottom>.fs-caption-fluent-button{flex-shrink:0}
+
+/* Shared media timeline semantics, including the canvas waveform's inherited token. */
+:root,:host{--fs-wave:var(--colorBrandForeground1,#0f6cbd);--fs-wave-bg:var(--colorNeutralBackground3,#f5f5f5);--fs-timeline-playhead:var(--colorPaletteDarkOrangeForeground1,#a9510a);--fs-timeline-selection:var(--colorBrandBackground2,#ebf3fc);--fs-timeline-selection-stroke:var(--colorCompoundBrandStroke,#0f6cbd)}
+.fs-workbench .fs-timeline-track .fs-timeline-range{background:color-mix(in srgb,var(--fs-timeline-selection-stroke) 18%,transparent);border-color:var(--fs-timeline-selection-stroke)}
+.fs-workbench .fs-range-handle::before{background:var(--fs-timeline-selection-stroke)}
+.app-shell .caption-editor-layout .cue-bar{background:var(--fs-timeline-selection);border-color:color-mix(in srgb,var(--fs-timeline-selection-stroke) 50%,transparent);color:var(--fs-text)}
+.app-shell .caption-editor-layout .cue-bar.selected{background:var(--fs-brand-fill);border-color:var(--fs-brand-fill);color:var(--fs-on-accent)}
+.app-shell .caption-editor-layout .timeline-lanes .waveform{background:var(--fs-wave-bg)}
+.fs-workbench .fs-timeline-track .fs-timeline-play,.app-shell .caption-editor-layout .timeline-track .playhead{background:var(--fs-timeline-playhead);color:var(--fs-timeline-playhead)}
+.fs-workbench .fs-timeline-ruler,.app-shell .caption-editor-layout .timeline-ruler{font-variant-numeric:tabular-nums;color:var(--fs-muted)}
+
+.fs-workbench .legend-play{background:var(--fs-timeline-playhead)}
+.fs-workbench .legend-range{background:var(--fs-timeline-selection-stroke)}
