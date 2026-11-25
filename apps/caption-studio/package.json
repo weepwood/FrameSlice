@@ -17,6 +17,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@huggingface/transformers": "^4.3.0",
     "lucide-react": "^0.468.0",
+    "media-chrome": "4.19.5",
     "mediabunny": "^1.66.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

@@ -75,6 +75,7 @@ jobs:
           node scripts/browser-caption-layout.mjs
           node scripts/browser-desktop-workbench.mjs
           node scripts/browser-unified-workbench.mjs
+          node scripts/browser-fluent-player.mjs
           BROWSER_ENGINE=chromium node scripts/browser-capability.mjs
       - name: 正式版本跨浏览器能力边界（Firefox / WebKit）
         env:

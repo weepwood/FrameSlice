@@ -1,3 +1,8 @@
+import {MediaController,MediaControlBar,MediaPlayButton,MediaSeekBackwardButton,MediaSeekForwardButton,MediaTimeRange,MediaTimeDisplay,MediaMuteButton,MediaVolumeRange,MediaPlaybackRateButton,MediaPipButton,MediaLoadingIndicator} from 'media-chrome/react';
+import 'media-chrome/lang/zh-CN';
+import {setLanguage} from 'media-chrome/utils/i18n';
+setLanguage('zh-CN');
+import {CaptionFullscreen} from './components/CaptionFullscreen';
 import {EditorPanels} from './components/EditorPanels';
 import {CaptionNumberField} from './components/CaptionNumberField';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
@@ -378,19 +383,28 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             <section className="video-panel surface">
               <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
-                {mediaURL?<>
-                  <video ref={video} src={mediaURL} playsInline onTimeUpdate={e=>{
+                {mediaURL?<MediaController className="fs-media-player" noAutohide gesturesDisabled noHotkeys>
+                  <video ref={video} src={mediaURL} slot="media" playsInline preload="metadata" onTimeUpdate={e=>{
                      const v=e.currentTarget;
                      if(loopSelected&&selectedCue&&selectedCue.end>selectedCue.start&&!v.paused&&(v.currentTime>=selectedCue.end||v.currentTime<selectedCue.start)){
                        v.currentTime=selectedCue.start;
                      }
                      setTime(v.currentTime);
-                   }} onLoadedMetadata={e=>{if(Number.isFinite(e.currentTarget.duration))setDuration(e.currentTarget.duration);e.currentTarget.playbackRate=playbackRate}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onClick={play}/>
-                  {activeCue&&<div className={`caption-overlay ${style.position}`}><span style={{color:style.textColor,backgroundColor:colorAlpha(style.boxColor,style.boxOpacity),fontSize:`clamp(14px,${(style.fontSize/1080*100).toFixed(2)}cqh,${style.fontSize}px)`,fontWeight:style.bold?700:400}}>{activeCue.text}</span></div>}
-                  {!isVideo&&<div className="audio-backdrop"><Activity size={50} strokeWidth={1.1}/><p>音频预览</p></div>}
-                </>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
+                   }} onLoadedMetadata={e=>{if(Number.isFinite(e.currentTarget.duration))setDuration(e.currentTarget.duration);e.currentTarget.playbackRate=playbackRate}} onRateChange={e=>setPlaybackRate(e.currentTarget.playbackRate)} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onClick={play}/>
+                  {activeCue&&<div slot="middle-chrome" className={`caption-overlay ${style.position}`}><span style={{color:style.textColor,backgroundColor:colorAlpha(style.boxColor,style.boxOpacity),fontSize:`clamp(14px,${(style.fontSize/1080*100).toFixed(2)}cqh,${style.fontSize}px)`,fontWeight:style.bold?700:400}}>{activeCue.text}</span></div>}
+                  {!isVideo&&<div slot="centered-chrome" className="audio-backdrop"><Activity size={50} strokeWidth={1.1}/><p>音频预览</p></div>}
+                  <MediaLoadingIndicator slot="centered-chrome"/>
+                  <div className="fs-player-controls">
+                    <MediaTimeRange/>
+                    <MediaControlBar>
+                      <MediaSeekBackwardButton seekOffset={5}/><MediaPlayButton/><MediaSeekForwardButton seekOffset={5}/><MediaTimeDisplay showDuration/>
+                      <button className="fs-player-loop" disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
+                      <span className="fs-player-spacer"/><MediaMuteButton/><MediaVolumeRange/><MediaPlaybackRateButton rates={[.25,.5,.75,1,1.25,1.5,2]}/>{isVideo&&<MediaPipButton/>}<CaptionFullscreen video={video} onError={setError}/>
+                    </MediaControlBar>
+                  </div>
+                </MediaController>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
               </div>
-              <div className="playback-controls">
+              {!mediaURL&&<div className="playback-controls">
                 <button className="play-button" onClick={play} disabled={!file} aria-label={playing?'暂停':'播放'}>{playing?<Pause size={17} fill="currentColor"/>:<Play size={17} fill="currentColor"/>}</button>
                 <button className="icon-btn" aria-label="后退 5 秒" title="后退 5 秒" onClick={()=>seek(time-5)}><SkipBack size={17}/></button>
                 <button className="icon-btn" aria-label="前进 5 秒" title="前进 5 秒" onClick={()=>seek(time+5)}><SkipForward size={17}/></button>
@@ -398,7 +412,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <input type="range" min={0} max={effectiveDuration||1} step={.01} value={Math.min(time,effectiveDuration)} aria-label="跳转播放位置" onChange={e=>seek(Number(e.target.value))}/>
                 <button className={`icon-btn loop-button ${loopSelected?'active':''}`} disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
                 <label className="speed-control"><span>倍速</span><CaptionSelect label="播放速度" value={playbackRate} onChange={setPlaybackRate} options={[.5,.75,1,1.25,1.5,2].map(value=>({value,label:value+"×"}))}/></label>
-              </div>
+              </div>}
               {file&&<div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{sizeText(file.size)}</span></div>}
             </section>} timeline={<Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>} inspector={<aside className="side-panel surface">
             <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">

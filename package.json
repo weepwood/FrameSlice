@@ -14,17 +14,20 @@
     "build:caption": "npm --prefix apps/caption-studio run build"
   },
   "dependencies": {
+    "@fluentui/tokens": "1.0.0-alpha.25",
+    "@fluentui/web-components": "3.2.4",
     "lucide-vue-next": "^0.468.0",
+    "media-chrome": "4.19.5",
     "mediabunny": "1.66.2",
     "reka-ui": "2.11.0",
     "vue": "^3.5.20"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.0",
+    "esbuild": "^0.25.12",
     "typescript": "^5.9.2",
     "vite": "^7.1.0",
-    "vue-tsc": "^3.1.0",
-    "esbuild": "^0.25.12"
+    "vue-tsc": "^3.1.0"
   },
   "engines": {
     "node": ">=22.12"

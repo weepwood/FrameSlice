@@ -1,0 +1,22 @@
+/* Shared Fluent appearance for retained Reka/Base UI primitives and native editing controls. */
+.fs-workbench,.app-shell.embedded{font-family:var(--fs-font),'Microsoft YaHei',sans-serif}
+.fs-workbench :is(.secondary-button,.fs-tool-button,.fs-select-trigger,.fs-number-group),.app-shell :is(.btn.outline,.caption-select-trigger,.fs-number-group){border-radius:var(--borderRadiusMedium,4px);font-weight:500;box-shadow:none}
+.fs-workbench :is(.primary-button,.cancel-button),.app-shell .btn.primary{border-radius:var(--borderRadiusMedium,4px);font-weight:600}
+.fs-workbench :is(.secondary-button,.fs-tool-button,.fs-select-trigger):hover:not(:disabled),.app-shell :is(.btn.outline,.icon-btn):hover:not(:disabled){background:var(--colorNeutralBackground1Hover,var(--fs-raised));color:var(--fs-text)}
+.fs-workbench .primary-button:hover:not(:disabled),.app-shell .btn.primary:hover:not(:disabled){background:var(--colorBrandBackgroundHover,var(--fs-accent));filter:none;transform:none}
+.fs-workbench :is(.primary-button,.secondary-button,.fs-select-trigger,.fs-tool-button):focus-visible,.app-shell :is(.btn,.icon-btn,.caption-select-trigger):focus-visible{outline:2px solid var(--colorStrokeFocus2,var(--fs-focus));outline-offset:2px}
+.fs-workbench .nav-item.active{background:var(--colorSubtleBackgroundSelected,var(--fs-selected))}
+.fs-workbench .nav-item.active:before{background:var(--colorBrandBackground,var(--fs-accent))}
+.fs-workbench .fs-workspace-symbol{color:var(--colorBrandForeground1,var(--fs-accent));background:var(--colorBrandBackground2,var(--fs-selected));border-radius:var(--borderRadiusLarge,8px)}
+.fs-workbench fluent-button.fs-fluent-button{min-width:0;max-width:100%;font-size:12px;min-height:32px;--spacingHorizontalM:10px}
+.fs-fluent-button::part(content){display:flex;align-items:center;gap:6px}
+.fs-workbench .fs-workspace-header{letter-spacing:0}
+.fs-workbench .fs-workspace-title h1{font-weight:600;letter-spacing:0}
+.fs-workbench .fs-select-content,.app-shell :is(.caption-project-menu,.caption-select-popup){box-shadow:var(--shadow8,0 4px 12px #0002);border-radius:var(--borderRadiusMedium,4px)}
+.app-shell .caption-editor-layout .cue-row.selected{background:var(--colorNeutralBackground1Selected,var(--fs-selected))}
+
+.fs-fluent-button svg{fill:none;stroke:currentColor;flex:none}
+
+/* Brand text and filled controls use distinct Fluent tokens for dark-theme contrast. */
+.fs-workbench :is(.mark,.drop-action,.primary-button,.cancel-button),.app-shell.embedded :is(.btn.primary,.play-button),.app-shell .caption-editor-layout .cue-bar.selected{background:var(--fs-brand-fill,var(--fs-accent));color:var(--fs-on-accent)}
+.fs-workbench .primary-button:hover:not(:disabled),.app-shell.embedded .btn.primary:hover:not(:disabled){background:var(--colorBrandBackgroundHover,var(--fs-brand-fill));filter:none}
