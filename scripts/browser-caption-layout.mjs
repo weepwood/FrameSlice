@@ -24,6 +24,9 @@ try{
  await page.setViewportSize({width:1280,height:720});await checkEmpty();
  await page.setViewportSize({width:1440,height:900});await checkEmpty();
  if(await host.getByRole('toolbar',{name:'字幕校对工具'}).count())throw Error('empty toolbar visible');
+ await host.getByRole('button',{name:'语音转录',exact:true}).click();
+ await host.getByRole('tab',{name:'转录'}).and(host.locator('[aria-selected=true]')).waitFor();
+ await host.getByRole('tab',{name:'字幕',exact:true}).click();
  await host.getByRole('button',{name:'加载示例字幕'}).click();
  await host.getByRole('textbox',{name:'第 1 条字幕',exact:true}).waitFor();
  const toolbar=host.getByRole('toolbar',{name:'字幕校对工具'});
@@ -39,12 +42,12 @@ try{
  await align();
  await mkdir('visual-regression',{recursive:true});
  await themeOption(page,'light');await page.screenshot({path:'visual-regression/editor-redesign-light.png',animations:'disabled'});
- await themeOption(page,'dark');await page.screenshot({path:'visual-regression/editor-redesign-dark.png',animations:'disabled'});
+ await themeOption(page,'dark');await host.locator('[data-save=saved]').waitFor();await page.screenshot({path:'visual-regression/editor-redesign-dark.png',animations:'disabled'});
  await page.setViewportSize({width:390,height:844});
  await toolbar.scrollIntoViewIfNeeded();
  if(await toolbar.evaluate(el=>el.scrollWidth>el.clientWidth+1)||await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('mobile editor overflow');
  const labels=await host.locator('.timeline-ruler span').evaluateAll(els=>els.map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right})));
  if(labels.length<2||labels.some((r,i)=>i>0&&r.left<labels[i-1].right+2))throw Error('narrow ruler labels overlap');
  await page.screenshot({path:'visual-regression/editor-redesign-dark-390.png',animations:'disabled'});
- console.log(JSON.stringify({emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
+ console.log(JSON.stringify({emptyEntryRouting:'passed',emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
 }finally{await browser.close()}

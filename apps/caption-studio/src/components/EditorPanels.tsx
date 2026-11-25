@@ -2,7 +2,7 @@ import {useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {Group,Panel,Separator,type Layout} from 'react-resizable-panels';
 
 const KEY='frameslice.caption.layout.v1';
-const defaultLayout={viewer:70,inspector:30};
+const defaultLayout={viewer:66,inspector:34};
 const HEIGHT_KEY='frameslice.caption.height.v1';
 const defaultHeight={preview:65,timeline:35};
 function loadHeight():Layout{try{const v=JSON.parse(localStorage.getItem(HEIGHT_KEY)||'null');if(v&&Number.isFinite(v.preview)&&Number.isFinite(v.timeline)&&Math.abs(v.preview+v.timeline-100)<.01&&v.timeline>=25&&v.timeline<=55)return {preview:v.preview,timeline:v.timeline}}catch{}return defaultHeight}
@@ -22,7 +22,7 @@ export function EditorPanels({viewer,timeline,inspector}:{viewer:ReactNode;timel
  },[]);
  return <div ref={root} className="caption-editor-layout" data-stacked={stacked}>
   <Group id="caption-workbench" className="caption-panel-group" orientation={stacked?'vertical':'horizontal'} disabled={stacked} disableCursor defaultLayout={initial} onLayoutChanged={layout=>{if(!stacked&&layout.inspector>=20&&layout.inspector<=50)try{localStorage.setItem(KEY,JSON.stringify(layout))}catch{}}}>
-   <Panel id="viewer" defaultSize="70%" minSize={stacked?"0%":"50%"} className="caption-panel-inner"><div className="main-column">
+   <Panel id="viewer" defaultSize="66%" minSize={stacked?"0%":"50%"} className="caption-panel-inner"><div className="main-column">
     <Group id="caption-viewer-height" className="caption-height-group" orientation="vertical" disabled={stacked} disableCursor defaultLayout={height} onLayoutChanged={layout=>{if(!stacked&&layout.timeline>=25&&layout.timeline<=55)try{localStorage.setItem(HEIGHT_KEY,JSON.stringify(layout))}catch{}}}>
      <Panel id="preview" defaultSize="65%" minSize={stacked?"0%":"320px"} className="caption-viewer-part">{viewer}</Panel>
      <Separator id="caption-height-divider" className="caption-height-divider" aria-label="调整时间轴高度" disabled={stacked}/>
@@ -30,7 +30,7 @@ export function EditorPanels({viewer,timeline,inspector}:{viewer:ReactNode;timel
     </Group>
    </div></Panel>
    <Separator id="caption-inspector-divider" className="caption-panel-divider" aria-label="调整字幕检查器宽度" disabled={stacked}/>
-   <Panel id="inspector" defaultSize="30%" minSize={stacked?"0%":"300px"} maxSize={stacked?"100%":"50%"} className="caption-panel-inner">{inspector}</Panel>
+   <Panel id="inspector" defaultSize="34%" minSize={stacked?"0%":"300px"} maxSize={stacked?"100%":"50%"} className="caption-panel-inner">{inspector}</Panel>
   </Group>
  </div>;
 }

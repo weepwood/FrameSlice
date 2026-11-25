@@ -100,7 +100,7 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
   };
   const cancelDrag=()=>{liveDrag.current=null;scrub.current=null;setDrag(null)};
   const displayCues=useMemo(()=>intervalIndex.visible(start,start+visible),[intervalIndex,start,visible]);
-  return <section className="timeline surface">
+  return <section className="timeline surface" data-empty={!duration}>
     <div className="section-title timeline-top">
       <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
       <div className="timeline-actions">

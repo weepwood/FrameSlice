@@ -266,10 +266,10 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 /* Shared host tokens; standalone React defaults preserved. */
 :host{font-family:inherit;color:var(--fs-text,#292d27);color-scheme:inherit}
 .app-shell.embedded{color:var(--fs-text,#292d27);--studio-ink:var(--fs-text,#292d27);--studio-muted:var(--fs-muted,#68736a);--studio-accent:var(--fs-accent,#455f49);--studio-border:var(--fs-border,#e4e9e1)}
-.app-shell.embedded :is(.surface,.section-title,.workflow-step,.caption-action-toolbar,.cue-row,.review-chip,.subtitle-search,.replace-panel,.shortcut-dialog,.cue-footer,.side-tabs,.playback-controls,.timeline-foot,.export-grid button){background:var(--fs-surface,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(.surface,.section-title,.workflow-step,.review-chip,.subtitle-search,.replace-panel,.shortcut-dialog,.cue-footer,.side-tabs,.playback-controls,.timeline-foot,.export-grid button){background:var(--fs-surface,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
 .app-shell.embedded :is(.section-title strong,.workflow-step b,.editor-header h1,.section-subheading strong){color:var(--fs-text,#292d27)}
 .app-shell.embedded :is(.subtle,.media-info,.caption-save-state,.caption-project-field>span,.timeline-foot,.style-note,.transcribe-helper,.cue-stats,.bottom-meta){color:var(--fs-muted,#68736a)}
-.app-shell.embedded :is(.workflow-step.current,.workflow-step.complete,.cue-row.selected,.rail-item.selected,.chip,.review-chip.active){background:var(--fs-selected,#e8ede6);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
+.app-shell.embedded :is(.workflow-step.current,.workflow-step.complete,.rail-item.selected,.chip,.review-chip.active){background:var(--fs-selected,#e8ede6);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
 .app-shell.embedded :is(input:not([type=range]):not([type=checkbox]):not([type=color]),textarea,select,.btn.outline,.btn.icon-help,.cue-pagination button){background:var(--fs-input,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
 .app-shell.embedded :is(input,textarea,select):focus-visible{outline-color:var(--fs-focus,#729574);background:var(--fs-input,#fff)}
 .app-shell.embedded :is(.btn.primary,.play-button){background:var(--fs-accent,#455f49);color:var(--fs-on-accent,#fff)}

@@ -5,6 +5,7 @@ import './styles.css'
 import './editor-layout.css'
 import '../../../src/assets/fluent-controls.css'
 import '../../../src/assets/fluent-player.css'
+import './caption-workbench.css'
 
 /**
  * Standalone React island, mounted within the FrameSlice Vue workspace.
