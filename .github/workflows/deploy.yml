@@ -111,7 +111,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          case "$VERSION" in 0.7.1|0.8.0|0.9.0|1.0.0|1.1.0|1.1.1) ;; *) exit 0 ;; esac
+          case "$VERSION" in 0.7.1|0.8.0|0.9.0|1.0.0|1.1.0|1.1.1|1.2.0) ;; *) exit 0 ;; esac
           set -euo pipefail
           node -e 'const v=require("./package.json").version; for(const p of ["./package-lock.json","./apps/caption-studio/package.json","./apps/caption-studio/package-lock.json"]){const x=require(p);if(x.version!==v||(x.packages&&x.packages[""].version!==v))throw Error("版本不一致 "+p)}'
           awk -v heading="## v$VERSION" '$0==heading{p=1;next} /^## /{if(p)exit} p' CHANGELOG.md > /tmp/frameslice-release-notes.md
@@ -165,7 +165,7 @@ jobs:
           PY
           python3 scripts/verify-approved-visual.py /tmp/frameslice-new-release-images
           gh release edit "v$VERSION" --draft=false
-          if test "$VERSION" = "0.8.0" || test "$VERSION" = "0.9.0" || test "$VERSION" = "1.0.0" || test "$VERSION" = "1.1.0" || test "$VERSION" = "1.1.1"; then
+          if test "$VERSION" = "0.8.0" || test "$VERSION" = "0.9.0" || test "$VERSION" = "1.0.0" || test "$VERSION" = "1.1.0" || test "$VERSION" = "1.1.1" || test "$VERSION" = "1.2.0"; then
             test "$(git ls-remote origin "refs/tags/v$VERSION" | cut -f1)" = "$GITHUB_SHA"
           fi
           gh release view "v$VERSION" --json tagName,isDraft,assets | jq -e --arg asset "$ASSET" --arg tag "v$VERSION" '.tagName==$tag and .isDraft==false and any(.assets[];.name==$asset)'
