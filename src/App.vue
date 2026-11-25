@@ -126,6 +126,7 @@ const timeline=useTimelinePreviews(file,info,e=>{errorText.value=friendlyError(e
 const timelineThumbnails=timeline.thumbnails,timelineLoading=timeline.loading,loadTimeline=timeline.load
 function clearTimeline(){timeline.clear();timelineTime.value=0;manualCuts.value=[]}
 function seekTimeline(time:number){if(!Number.isFinite(time))return;const next=Math.max(0,Math.min(info.value?.duration??0,time));timelineTime.value=next;const video=previewVideo.value;if(video&&video.readyState>=1&&Math.abs(video.currentTime-next)>.001){try{video.currentTime=next}catch{/* unsupported browser preview; processing remains available */}}}
+function moveManualCut(old:number,time:number){const key=nearestKey(mediaAnalysis.value?.safeKeyframeIndex??[],time);if(key===undefined||key<=0||key>=(info.value?.duration??0)||!manualCuts.value.includes(old)||manualCuts.value.some(x=>x===key&&x!==old))return;manualCuts.value=manualCuts.value.map(x=>x===old?key:x).sort((a,b)=>a-b)}
 function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
@@ -656,7 +657,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="file&&info" class="fs-preview-panel" aria-label="视频预览"><div class="fs-preview-header"><h2>视频预览</h2><span>{{humanTime(timelineTime)}} / {{humanTime(info.duration)}}</span></div><video ref="previewVideo" :key="videoUrl" :src="videoUrl" controls playsinline preload="metadata" aria-label="源视频播放器" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="timelineTime>0 && seekTimeline(timelineTime)"/><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>
-        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
+        <MediaTimeline v-if="file && info" :source="videoUrl" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @cancel="timeline.cancel" @move-cut="moveManualCut" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">
             <div class="fs-analysis-heading">

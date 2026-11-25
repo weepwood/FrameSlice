@@ -15,10 +15,24 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
   const [viewStart,setViewStart]=useState(0);
   const [follow,setFollow]=useState(true);
   const [drag,setDrag]=useState<Drag|null>(null);
+  const liveDrag=useRef<Drag|null>(null);
+  const scrub=useRef<number|null>(null);
   const canvas=useRef<HTMLCanvasElement>(null);
   const track=useRef<HTMLDivElement>(null);
   const visible=Math.max(1,Math.min(span,Math.max(1,duration)));
-  const start=Math.min(viewStart,Math.max(0,duration-visible));
+  const start=Math.max(0,Math.min(viewStart,Math.max(0,duration-visible)));
+  function zoom(next:number,anchor=time){
+    const width=Math.max(1,Math.min(600,next)),nextVisible=Math.max(1,Math.min(width,Math.max(1,duration)));
+    const fraction=Math.max(0,Math.min(1,(anchor-start)/visible));
+    setViewStart(Math.max(0,Math.min(Math.max(0,duration-nextVisible),anchor-fraction*nextVisible)));
+    setSpan(width);
+  }
+  useEffect(()=>{const node=track.current;if(!node)return;const wheel=(e:WheelEvent)=>{
+    if(!(e.ctrlKey||e.metaKey||e.shiftKey))return;
+    e.preventDefault();setFollow(false);
+    if(e.shiftKey&&!e.ctrlKey&&!e.metaKey){setViewStart(Math.max(0,Math.min(Math.max(0,duration-visible),start+(e.deltaX||e.deltaY)*visible/500)));return}
+    zoom(visible*(e.deltaY<0?.8:1.25),point(e));
+  };node.addEventListener('wheel',wheel,{passive:false});return()=>node.removeEventListener('wheel',wheel)},[start,visible,duration,time]);
   useEffect(()=>{
     if(follow&&time>=start+visible-.3&&duration>visible)setViewStart(Math.min(Math.max(0,duration-visible),Math.floor(time/visible)*visible));
     if(follow&&time<start)setViewStart(Math.max(0,Math.floor(time/visible)*visible));
@@ -62,41 +76,48 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     return Math.min(duration,Math.max(0,start+(e.clientX-r.left)/r.width*visible));
   };
   const dragStart=(e:React.PointerEvent,id:string,side:'start'|'end')=>{
-    e.stopPropagation();onSelect(id);setFollow(false);
+    if(e.button!==0||liveDrag.current)return;e.preventDefault();e.stopPropagation();onSelect(id);setFollow(false);
     e.currentTarget.setPointerCapture(e.pointerId);
     const cue=cues.find(c=>c.id===id);
-    if(cue)setDrag({id,side,value:cue[side]});
+    if(cue){const next={id,side,value:cue[side]};liveDrag.current=next;setDrag(next)};
   };
   const move=(e:React.PointerEvent)=>{
-    if(!drag)return;
-    const cue=cues.find(c=>c.id===drag.id);if(!cue)return;
-    const raw=point(e),value=Math.round(Math.max(drag.side==='start'?0:cue.start+.08,Math.min(drag.side==='start'?cue.end-.08:duration,raw))*1000)/1000;
-    setDrag({...drag,value});
+    if(scrub.current===e.pointerId){onSeek(point(e));return}
+    const current=liveDrag.current;if(!current)return;
+    const cue=cues.find(c=>c.id===current.id);if(!cue)return;
+    const raw=point(e),value=Math.round(Math.max(current.side==='start'?0:cue.start+.08,Math.min(current.side==='start'?Math.max(0,cue.end-.08):Math.max(duration,cue.end),raw))*1000)/1000;
+    const next={...current,value};liveDrag.current=next;setDrag(next);
   };
-  const endDrag=()=>{if(drag)onUpdate(drag.id,{[drag.side]:drag.value});setDrag(null)};
+  const endDrag=(e:React.PointerEvent)=>{
+    if(scrub.current===e.pointerId){onSeek(point(e));scrub.current=null;return}
+    if(!liveDrag.current)return;
+    move(e);const current=liveDrag.current;liveDrag.current=null;setDrag(null);
+    if(current)onUpdate(current.id,{[current.side]:current.value});
+  };
+  const cancelDrag=()=>{liveDrag.current=null;scrub.current=null;setDrag(null)};
   const displayCues=useMemo(()=>intervalIndex.visible(start,start+visible),[intervalIndex,start,visible]);
   return <section className="timeline surface">
     <div className="section-title timeline-top">
       <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
       <div className="timeline-actions">
         <div className="inline-checkbox"><Checkbox.Root className="caption-checkbox" aria-label="跟随播放" checked={follow} onCheckedChange={v=>setFollow(v===true)}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
-        <button className="icon-btn" aria-label="缩小时间轴" onClick={()=>setSpan(Math.min(600,span*2))}><Minus size={15}/></button>
-        <span className="zoom-label">{visible >=60?`${Math.round(visible/60)} min`:`${visible}s`}</span>
-        <button className="icon-btn" aria-label="放大时间轴" onClick={()=>setSpan(Math.max(10,span/2))}><Plus size={15}/></button>
+        <button className="icon-btn" aria-label="缩小时间轴" disabled={visible>=Math.min(600,duration)} onClick={()=>zoom(visible*2)}><Minus size={15}/></button>
+        <span className="zoom-label">{visible >=60?`${Number((visible/60).toFixed(1))} min`:`${Number(visible.toFixed(2))}s`}</span>
+        <button className="icon-btn" aria-label="放大时间轴" disabled={visible<=1} onClick={()=>zoom(visible/2)}><Plus size={15}/></button>
         <button className="icon-btn" aria-label="定位到播放位置" title="定位到播放位置" onClick={()=>setViewStart(Math.max(0,time-visible*.3))}><StepForward size={15}/></button>
       </div>
     </div>
     <div className="timeline-ruler">
       {ticks.map(t=><span className={t-start<visible*.04?'tick-start':start+visible-t<visible*.04?'tick-end':undefined} key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
     </div>
-    <div ref={track} className="timeline-track" onPointerMove={move} onPointerUp={endDrag} onPointerCancel={()=>setDrag(null)} onClick={e=>{if(!(e.target as HTMLElement).closest('.cue-bar'))onSeek(point(e))}}>
+    <div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
       <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">无音频波形</span>}
       <div className="cue-track">
         {displayCues.map(c=>{
           const s=drag?.id===c.id&&drag.side==='start'?drag.value:c.start;
           const end=drag?.id===c.id&&drag.side==='end'?drag.value:c.end;
           const left=Math.max(0,(s-start)/visible*100),right=Math.min(100,(end-start)/visible*100);
-          return <div key={c.id} className={`cue-bar ${selectedId===c.id?'selected':''}`} style={{left:`${left}%`,width:`${Math.max(.25,right-left)}%`}} onClick={e=>{e.stopPropagation();onSelect(c.id);onSeek(c.start)}} title={c.text}>
+          return <div key={c.id} className={`cue-bar ${selectedId===c.id?'selected':''}`} style={{left:`${left}%`,width:`${Math.max(.25,right-left)}%`}} onClick={e=>{e.stopPropagation();if((e.target as HTMLElement).closest('.resize-handle'))return;onSelect(c.id);onSeek(c.start)}} title={c.text}>
             <span className="resize-handle left" role="slider" aria-label="调整字幕起点" aria-valuemin={0} aria-valuemax={Math.max(0,c.end-.08)} aria-valuenow={s} aria-valuetext={shortTime(s)} tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'start')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{start:Math.min(c.end-.08,Math.max(0,c.start+(e.key==='ArrowRight'?.1:-.1)))})}}}/>
             <span className="cue-bar-label">{c.text}</span>
             <span className="resize-handle right" role="slider" aria-label="调整字幕终点" aria-valuemin={c.start+.08} aria-valuemax={Math.max(c.start+.08,duration,c.end)} aria-valuenow={end} aria-valuetext={shortTime(end)} tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'end')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{end:Math.min(Math.max(duration,c.end,c.start+.08),Math.max(c.start+.08,c.end+(e.key==='ArrowRight'?.1:-.1)))})}}}/>

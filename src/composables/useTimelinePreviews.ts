@@ -10,24 +10,27 @@ export function useTimelinePreviews(file:Ref<File|null>,info:Ref<SourceInfo|null
   let controller:AbortController|null=null
   let pending:FramePreview[]|null=null
   const release=(rows:FramePreview[])=>{for(const row of rows)URL.revokeObjectURL(row.url);rows.length=0}
+  function cancel(){
+    const rows=pending;controller?.abort();controller=null;loading.value=false;pending=null
+    if(rows){release(rows);thumbnails.value=[]}
+  }
   function clear(){
-    controller?.abort();controller=null;loading.value=false
-    if(pending)release(pending)
-    pending=null
+    cancel()
     for(const rows of cache.values())release(rows)
     cache.clear();thumbnails.value=[]
   }
-  async function load(start=0,end=info.value?.duration??0,level=1){
+  async function load(start=0,end=info.value?.duration??0,_level=1){
     const source=file.value,duration=info.value?.duration
     if(!source||!duration||loading.value||!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return
-    const key=JSON.stringify([start,end,level])
+    start=Math.max(0,Math.min(duration,start));end=Math.max(0,Math.min(duration,end));if(end<=start)return
+    const key=JSON.stringify([start,end].map(n=>Math.round(n*1000)))
     const hit=cache.get(key)
     if(hit){cache.delete(key);cache.set(key,hit);thumbnails.value=[...hit];return}
     const ctl=new AbortController(),rows:FramePreview[]=[]
     controller=ctl;pending=rows;loading.value=true;thumbnails.value=[]
     const current=()=>controller===ctl&&!ctl.signal.aborted&&file.value===source
     const add=(snapshot:FrameSnapshot)=>{
-      if(!current())return
+      if(!current()||rows.length>=13)return
       rows.push({name:snapshot.name,timestamp:snapshot.timestamp,url:URL.createObjectURL(snapshot.blob)})
       thumbnails.value=[...rows]
     }
@@ -46,5 +49,5 @@ export function useTimelinePreviews(file:Ref<File|null>,info:Ref<SourceInfo|null
       if(controller===ctl){controller=null;pending=null;loading.value=false;if(!committed)thumbnails.value=[]}
     }
   }
-  return {thumbnails,loading,clear,load}
+  return {thumbnails,loading,clear,load,cancel}
 }

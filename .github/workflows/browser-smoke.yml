@@ -71,6 +71,7 @@ jobs:
           node scripts/browser-caption-conflict.mjs
           node scripts/browser-caption-batch.mjs
           node scripts/browser-media-lifecycle.mjs
+          node scripts/browser-timeline-professional.mjs
           BROWSER_ENGINE=chromium node scripts/browser-capability.mjs
       - name: 正式版本跨浏览器能力边界（Firefox / WebKit）
         env:

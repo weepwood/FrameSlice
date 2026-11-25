@@ -523,3 +523,13 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .cue-batch-panel .cue-batch-danger{color:var(--fs-danger,#b04c43)}
 
 .cue-quality-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 var(--fs-space-3,12px) var(--fs-space-2,8px)}.cue-quality-tools .caption-select-trigger{flex:1;min-width:130px}
+
+.cue-scale-tools{border-top:1px solid var(--fs-border,#dce3e7);padding-top:6px;font-size:11px;color:var(--fs-muted,#657280)}
+.cue-scale-tools summary{cursor:pointer;padding:3px 0;color:var(--fs-text,#24303b)}
+.cue-scale-tools[open] .cue-batch-actions{margin:6px 0}
+.timeline-track{touch-action:none;outline-offset:3px}
+.timeline-track:focus-visible{outline:2px solid var(--fs-accent,#305fb1)}
+.timeline-track .resize-handle:focus-visible{outline:2px solid var(--fs-on-accent,#fff);outline-offset:-2px}
+.timeline-track .playhead{pointer-events:none}
+
+.app-shell.embedded .timeline-actions .icon-btn{border:1px solid var(--fs-border);background:var(--fs-surface);color:var(--fs-text)}.app-shell.embedded .timeline-actions .icon-btn:hover:not(:disabled){background:var(--fs-selected);color:var(--fs-accent)}.app-shell.embedded .timeline-actions .icon-btn:disabled{opacity:.45}

@@ -22,3 +22,18 @@ export function cleanSelected(cues:Cue[],ids:ReadonlySet<string>):Cue[]{
   });
   return changed?result:cues;
 }
+
+/** Retiming is relative to the earliest selected start, not the media origin. */
+export function scaleSelected(cues:Cue[],ids:ReadonlySet<string>,factor:number):Cue[]{
+  if(!Number.isFinite(factor)||factor<=0||factor>100)throw Error('请输入大于0且不超过100的时间比例');
+  const chosen=cues.filter(c=>ids.has(c.id));
+  if(!chosen.length||factor===1)return cues;
+  const pivot=chosen.reduce((min,c)=>Math.min(min,c.start),Infinity);
+  const adjusted=new Map<string,Cue>();
+  for(const c of chosen){
+    const start=round3(pivot+(c.start-pivot)*factor),end=round3(pivot+(c.end-pivot)*factor);
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end-start<.079999)throw Error('校准后存在无效时间或小于80毫秒的字幕，已取消整批修改');
+    adjusted.set(c.id,{...c,start,end});
+  }
+  return sorted(cues.map(c=>adjusted.get(c.id)??c));
+}
