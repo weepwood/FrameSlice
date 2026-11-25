@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "chrome": "158.0.8127.88",
+  "commit": "622a5bf32188c4ef2b973f71aec42b5f660097af",
+  "images": [
+    {
+      "name": "split-light-1440.png",
+      "sha256": "d93bd608f5c513c5ef7ed0e85603d819bc8e362acca1ccbd2c3dc074e48e34ff",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "frames-light-1440.png",
+      "sha256": "863dfb574afacc41e418eb1f482ee6fef02ff807bd25ea1d6859290b69684cf9",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "captions-light-1440.png",
+      "sha256": "c1790698c0a4c99015b8f36dafe13ea53bc4ab35d41de1a5dcc08e0096612ff5",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "jobs-light-1440.png",
+      "sha256": "26f2e7fd5c6e8698436ac291d359410b8bce34ccd508e99f6ef984b2cbc39a32",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "split-dark-1440.png",
+      "sha256": "618934e1023462cb9a088748ef5cf3c77a2bbab5286ea1e74c5ac8b280460c39",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "frames-dark-1440.png",
+      "sha256": "cfe56cd0bc1a7d0d536326f0d5571d86800be0cf51c08c04a26d5d41096381b3",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "captions-dark-1440.png",
+      "sha256": "4a920f2d782f536520778fad486293e83ec76c9d2a2a238308ba62f8a171e1a2",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "jobs-dark-1440.png",
+      "sha256": "3c35a24ca744f584861d5129fc2b70eb1d15e17e8d3ce0015955a8a114941937",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "split-light-390.png",
+      "sha256": "2327e45a38b315e62f7e598126b746330f26ab9667035d93e95eed11c01820de",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "frames-light-390.png",
+      "sha256": "8eeea5064727b2d3cc676574e225eeb760d5c347d3c5f5047c4b4bc68c6fc445",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "captions-light-390.png",
+      "sha256": "dac4905d04a796f6dccf1f451388e79abb63a434f6f079ca28b4e92434985f9b",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "jobs-light-390.png",
+      "sha256": "f91028de88a23b61b50dcbc8a0e60217359c81582100a357baa4a65434879202",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "split-dark-390.png",
+      "sha256": "36b0819f7d182297e78a40689f288d1b16df5fbd808a70da48960c38a35b232b",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "frames-dark-390.png",
+      "sha256": "506618da10dcf07398d22a2b961168e9222527e7d9a3c9eff3a4a916e763883e",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "captions-dark-390.png",
+      "sha256": "f6b6fe44db8e1762ffbb90655e7c11507c9a6a449d14a4e7259eff2b7d01855e",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "jobs-dark-390.png",
+      "sha256": "e64daa5cb300fb9303b0b8e1fbc4e6563e7d0351286dea5c9a2460367d78cfa0",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "head": "52f48f66d1bbe06b497d980ea2717d63bf347030",
+  "runId": 45473929237,
+  "runAttempt": 1,
+  "artifactId": 14959330626,
+  "artifactDigest": "sha256:58d4a5e59f239e9dc6d5828e540ad1f2881e1bd662ca6231281377a2e005bb18",
+  "releaseTag": "v0.7.1",
+  "assetName": "visual-baseline-ui-pr18-52f48f6.zip",
+  "reviewedOn": "2026-11-25",
+  "scope": "用户反馈专项：16张固定视口候选SHA-256与尺寸逐一验证，4工作区双主题及桌面/移动端审核，另看真实窄屏工程菜单及未遮罩存储区；旧基线4.38%–24.57%为预期紧凑布局变化。批准该空态范围，保留2%阈值。后续公共进度条抽象在Mac Edge的16张候选像素文件哈希均未变化，仍待正式Chrome复验。"
+}
