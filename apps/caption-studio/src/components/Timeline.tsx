@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Minus,Plus,StepForward} from 'lucide-react';
+import {Minus,Plus,StepForward,Check} from 'lucide-react';
+import {Checkbox} from '@base-ui/react/checkbox';
 import {shortTime,type Cue} from '../lib/captions';
 interface Props {
   duration:number;cues:Cue[];peaks:number[];time:number;selectedId:string|null;
@@ -76,7 +77,7 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
     <div className="section-title timeline-top">
       <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
       <div className="timeline-actions">
-        <label className="inline-checkbox"><input type="checkbox" checked={follow} onChange={e=>setFollow(e.target.checked)}/> 跟随播放</label>
+        <div className="inline-checkbox"><Checkbox.Root className="caption-checkbox" aria-label="跟随播放" checked={follow} onCheckedChange={v=>setFollow(v===true)}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
         <button className="icon-btn" aria-label="缩小时间轴" onClick={()=>setSpan(Math.min(600,span*2))}><Minus size={15}/></button>
         <span className="zoom-label">{visible >=60?`${Math.round(visible/60)} min`:`${visible}s`}</span>
         <button className="icon-btn" aria-label="放大时间轴" onClick={()=>setSpan(Math.max(10,span/2))}><Plus size={15}/></button>
@@ -84,10 +85,10 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
       </div>
     </div>
     <div className="timeline-ruler">
-      {ticks.map(t=><span key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
+      {ticks.map(t=><span className={t-start<visible*.04?'tick-start':start+visible-t<visible*.04?'tick-end':undefined} key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
     </div>
     <div ref={track} className="timeline-track" onPointerMove={move} onPointerUp={endDrag} onPointerCancel={()=>setDrag(null)} onClick={e=>{if(!(e.target as HTMLElement).closest('.cue-bar'))onSeek(point(e))}}>
-      <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">尚未生成音频波形</span>}
+      <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">无音频波形</span>}
       <div className="cue-track">
         {displayCues.map(c=>{
           const s=drag?.id===c.id&&drag.side==='start'?drag.value:c.start;
@@ -103,6 +104,6 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
       {time>=start&&time<=start+visible&&<div className="playhead" style={{left:`${(time-start)/visible*100}%`}}/>}
     </div>
     <div className="timeline-scroll"><input type="range" aria-label="移动时间轴视窗" min={0} max={Math.max(0,duration-visible)} step={.1} value={start} disabled={duration<=visible} onChange={e=>{setViewStart(Number(e.target.value));setFollow(false)}}/></div>
-    <div className="timeline-foot">拖动字幕块两端可调整时间；点击波形跳转。{peaks.length?'已显示音频波形':'转录后显示音频波形'}</div>
+
   </section>;
 }

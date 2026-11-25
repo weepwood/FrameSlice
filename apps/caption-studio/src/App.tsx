@@ -13,6 +13,7 @@ import {chunksToCues,defaultStyle,fmt,lintCue,mergeNext,parseSubtitles,parseTime
 import {clearProject,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
 import type {Device} from './workers/transcribe.worker';
 import {workspace} from '../../../src/core/workspace';
+import {version} from '../package.json';
 
 const MODELS=[
   {id:'onnx-community/whisper-tiny',title:'Tiny · 快速',size:'~40 MB'},
@@ -287,7 +288,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         <div className="rail-spacer"/>
         <div className="rail-info"><ShieldCheck size={17}/><div><b>纯本地处理</b><small>媒体不会上传到服务端。模型与运行资源需首次联网下载。</small></div></div>
         <button className="rail-item reset" onClick={()=>{if(window.confirm('确定新建空白工程？未导出的媒体不会保存。'))void reset()}}><RotateCcw size={17}/>新建工程</button>
-        <div className="rail-version">FRAMESLICE / CAPTION STUDIO · 0.4.0</div>
+        <div className="rail-version">FRAMESLICE / CAPTION STUDIO · {version}</div>
       </aside>}
       <main className="editor-area">
         {embedded&&<div className="caption-action-toolbar" role="toolbar" aria-label="字幕工作台操作">
@@ -370,12 +371,12 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
                 onToggleIssues={setOnlyIssues} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
-              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" onClick={()=>setCuePage(p=>Math.max(0,p-1))}>‹</button><span>{currentPage+1}/{pageCount}</span><button disabled={currentPage>=pageCount-1} title="下一页字幕" onClick={()=>setCuePage(p=>Math.min(pageCount-1,p+1))}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {problemCount} 项检查提示</span></div>
+              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" onClick={()=>setCuePage(p=>Math.max(0,p-1))}>‹</button><span>{currentPage+1}/{pageCount}</span><button disabled={currentPage>=pageCount-1} title="下一页字幕" onClick={()=>setCuePage(p=>Math.min(pageCount-1,p+1))}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
               <div className="cue-list" ref={cueListRef}>
-                {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3><button className="btn outline" onClick={()=>insertAfter()}><Plus size={15}/>新增字幕</button></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
+                {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=lintCue(c,cues[index+1]);return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
                     <div className="cue-row-top"><button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在当前位置拆分" onClick={()=>setCues(xs=>splitCue(xs,c.id))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
-                    <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(2,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
+                    <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
                     <div className="cue-row-bottom"><TimeEditor label="开始时间" time={c.start} onCommit={v=>updateCue(c.id,{start:v})}/><span>→</span><TimeEditor label="结束时间" time={c.end} onCommit={v=>updateCue(c.id,{end:v})}/><button className="cue-seek" onClick={()=>{seek(c.start);setSelectedId(c.id)}} title="跳转到字幕"><Play size={12}/></button></div>
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
                   </article>})}

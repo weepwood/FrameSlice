@@ -48,7 +48,8 @@ jobs:
           npm run build
       - name: 正式版本必须具备人工审核基线
         run: |
-          if test "$(node -p 'require("./package.json").version')" = '0.7.1'; then test -s visual-baseline/approval.json; fi
+          test -s visual-baseline/approval.json
+          test "$(jq -r .releaseTag visual-baseline/approval.json)" = "v$(node -p 'require("./package.json").version')"
       - name: 配置 GitHub Pages
         uses: actions/configure-pages@v5
       - name: 写入生产版本标识
@@ -110,12 +111,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          test "$VERSION" = "0.7.1" || exit 0
-          node -e 'const v=require("./package.json").version; for(const p of ["./package-lock.json","./apps/caption-studio/package.json","./apps/caption-studio/package-lock.json"]){const x=require(p);if(x.version!==v||(x.packages&&x.packages[""].version!==v))throw Error("版本不一致 "+p)}'
-          awk '/^## v0\.7\.1$/{p=1;next} /^## /{if(p)exit} p' CHANGELOG.md > /tmp/frameslice-release-notes.md
-          test -s /tmp/frameslice-release-notes.md
+          case "$VERSION" in 0.7.1|0.8.0) ;; *) exit 0 ;; esac
           set -euo pipefail
+          node -e 'const v=require("./package.json").version; for(const p of ["./package-lock.json","./apps/caption-studio/package.json","./apps/caption-studio/package-lock.json"]){const x=require(p);if(x.version!==v||(x.packages&&x.packages[""].version!==v))throw Error("版本不一致 "+p)}'
+          awk -v heading="## v$VERSION" '$0==heading{p=1;next} /^## /{if(p)exit} p' CHANGELOG.md > /tmp/frameslice-release-notes.md
+          test -s /tmp/frameslice-release-notes.md
           test -s visual-baseline/approval.json
+          test "$(jq -r .releaseTag visual-baseline/approval.json)" = "v$VERSION"
           bash scripts/fetch-approved-visual.sh /tmp/frameslice-approved
           python3 scripts/verify-approved-visual.py /tmp/frameslice-approved
           ASSET=$(python3 -c 'import json; a=json.load(open("visual-baseline/approval.json")); print(a.get("assetName","visual-baseline-"+a["releaseTag"]+".zip"))')
@@ -130,7 +132,7 @@ jobs:
           if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             if test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = false; then
               # Preserve the original release asset. Archive a reviewed UI revision separately, never clobber.
-              gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx 'visual-baseline-v0.7.1.zip'
+              gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx "visual-baseline-v$VERSION.zip"
               if ! gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"; then
                 gh release upload "v$VERSION" "/tmp/$ASSET"
               fi
@@ -149,6 +151,21 @@ jobs:
           else
             gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "FrameSlice v$VERSION" --notes-file /tmp/frameslice-release-notes.md --draft
           fi
-          gh release upload "v$VERSION" "/tmp/$ASSET" --clobber
+          if ! gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"; then
+            gh release upload "v$VERSION" "/tmp/$ASSET"
+          fi
+          gh release download "v$VERSION" --pattern "$ASSET" --dir /tmp/frameslice-new-release-check
+          mkdir -p /tmp/frameslice-new-release-images
+          python3 - "$ASSET" <<'PY'
+          import pathlib, zipfile, sys
+          with zipfile.ZipFile("/tmp/frameslice-new-release-check/"+sys.argv[1]) as z:
+              for n in z.namelist():
+                  if n.endswith(".png") and pathlib.Path(n).name == n:
+                      pathlib.Path("/tmp/frameslice-new-release-images",n).write_bytes(z.read(n))
+          PY
+          python3 scripts/verify-approved-visual.py /tmp/frameslice-new-release-images
           gh release edit "v$VERSION" --draft=false
-          gh release view "v$VERSION" --json tagName,isDraft,assets | jq -e --arg asset "$ASSET" '.tagName=="v0.7.1" and .isDraft==false and any(.assets[];.name==$asset)'
+          if test "$VERSION" = "0.8.0"; then
+            test "$(git ls-remote origin "refs/tags/v$VERSION" | cut -f1)" = "$GITHUB_SHA"
+          fi
+          gh release view "v$VERSION" --json tagName,isDraft,assets | jq -e --arg asset "$ASSET" --arg tag "v$VERSION" '.tagName==$tag and .isDraft==false and any(.assets[];.name==$asset)'
