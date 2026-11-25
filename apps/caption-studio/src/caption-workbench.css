@@ -1,0 +1,181 @@
+/* Caption workspace: restrained Fluent desktop editing surfaces. */
+.app-shell.embedded .caption-action-toolbar{
+  margin:0 0 10px;padding:3px 0 7px;background:transparent;border:0;border-radius:0;box-shadow:none;gap:6px 12px;
+}
+.caption-project-group{gap:9px}
+.app-shell.embedded .caption-project-field{gap:6px;color:var(--fs-muted);flex-basis:205px}
+.app-shell.embedded .caption-project-field input{border-color:transparent;background:transparent;height:32px;font-size:13px;font-weight:600;padding:0 5px}
+.app-shell.embedded .caption-project-field input:hover,.app-shell.embedded .caption-project-field input:focus{border-color:var(--fs-border);background:var(--fs-surface)}
+.app-shell.embedded .caption-toolbar-actions{gap:6px}
+.app-shell.embedded .caption-action-toolbar .btn,.caption-action-toolbar .fs-caption-fluent-button{min-height:32px}
+.app-shell.embedded .caption-action-toolbar .caption-more{border-color:transparent;background:transparent}
+.app-shell.embedded .caption-editor-layout{--ce-pad:12px;--ce-cue-lane:40px}
+.app-shell.embedded .caption-editor-layout :is(.main-column,.side-panel){border-radius:6px;box-shadow:none;border:1px solid var(--fs-border)}
+.app-shell .caption-editor-layout .video-panel>.section-title{min-height:36px;padding:6px var(--ce-pad)}
+.caption-viewer-heading,.caption-inspector-heading>div{display:flex;align-items:center;gap:7px;min-width:0}
+.caption-viewer-heading>svg,.caption-inspector-heading svg{color:var(--fs-muted);flex:none}
+.caption-media-name{font-size:11px;color:var(--fs-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.caption-viewer-state{font-size:11px;color:var(--fs-muted);white-space:nowrap}
+.app-shell.embedded .empty-media{background:#202020;color:#bcbcbc;gap:7px}
+.app-shell.embedded .empty-media .empty-icon{width:48px;height:48px;display:grid;place-items:center;background:#303030;border:1px solid #444;border-radius:10px;color:#d6e7fa;margin:0 0 3px}
+.app-shell.embedded .empty-media h2{font-size:16px;letter-spacing:0;font-weight:600;margin:0;color:#f5f5f5}
+.app-shell.embedded .empty-media p{margin:0 0 7px;color:#bcbcbc;font-size:12px}
+.app-shell.embedded .empty-media .empty-actions{gap:8px;margin:0}
+.app-shell.embedded .empty-media .text-button{font-size:11px;color:#b4d6fa;margin:4px 0 0;padding:3px 6px}
+.caption-media-formats{font-size:10px;letter-spacing:.04em;color:#a6a6a6;margin-top:4px}
+.app-shell .caption-editor-layout .playback-controls{min-height:40px;padding:4px 12px;gap:6px;background:var(--fs-surface)}
+.app-shell .caption-editor-layout .playback-controls[data-virtual-empty=true] .speed-control{opacity:.6}
+.app-shell .caption-editor-layout .playback-controls[data-virtual-empty=true] .playback-time{color:var(--fs-muted)}
+.caption-inspector-heading{display:flex;align-items:center;justify-content:space-between;min-height:36px;padding:6px 12px;gap:8px;border-bottom:1px solid var(--fs-border);color:var(--fs-muted);font-size:11px}
+.caption-inspector-heading strong{font-size:13px;font-weight:600;color:var(--fs-text)}
+.app-shell.embedded .caption-editor-layout .side-tabs{min-height:40px;padding:0 7px;gap:0;background:var(--fs-surface)}
+.app-shell.embedded .caption-editor-layout .side-tabs button{position:relative;border-radius:0;min-height:40px;font-weight:500;color:var(--fs-muted);background:transparent;gap:5px}
+.app-shell.embedded .caption-editor-layout .side-tabs button.active{background:transparent;color:var(--colorBrandForeground1);font-weight:600}
+.app-shell.embedded .caption-editor-layout .side-tabs button.active::after{content:"";position:absolute;bottom:0;left:22%;right:22%;height:2px;background:var(--colorBrandBackground);border-radius:2px}
+.app-shell.embedded .caption-editor-layout .side-tabs button:hover:not(:disabled){background:var(--colorSubtleBackgroundHover)}
+.app-shell .caption-editor-layout .cue-list:has(.empty-cues){place-items:start center;padding-top:clamp(24px,6vh,60px)}
+.app-shell .caption-editor-layout .empty-cues{width:100%;max-width:320px;padding:18px 12px;gap:8px;text-align:center}
+.caption-empty-cue-icon{width:48px;height:48px;display:grid;place-items:center;margin-bottom:4px;border-radius:10px;background:var(--colorBrandBackground2);color:var(--colorBrandForeground1)}
+.caption-editor-layout .empty-cues h3{font-size:14px;font-weight:600;color:var(--fs-text)}
+.caption-editor-layout .empty-cues p{font-size:12px;color:var(--fs-muted);line-height:1.7}
+.caption-empty-cue-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:7px}
+.app-shell .caption-editor-layout .cue-list{padding:4px 8px}
+.app-shell .caption-editor-layout .cue-row{gap:3px;border-bottom-color:var(--colorNeutralStroke2)}
+.app-shell .caption-editor-layout .cue-row:hover:not(.selected){background:var(--colorNeutralBackground1Hover)}
+.app-shell.embedded .caption-editor-layout .cue-row.selected{background:var(--colorBrandBackground2);box-shadow:inset 2px 0 var(--colorBrandBackground)}
+.app-shell.embedded .caption-editor-layout .cue-row textarea{font-size:13px;line-height:1.55}
+.app-shell.embedded .caption-editor-layout .cue-row-bottom .time-input{font-variant-numeric:tabular-nums;background:var(--colorNeutralBackground1);border-color:var(--colorNeutralStroke2)}
+.app-shell .caption-editor-layout .cue-number{font-weight:600;color:var(--fs-muted)}
+.app-shell .caption-editor-layout .cue-row-actions button{border-radius:4px}
+.app-shell .caption-editor-layout .timeline-top{background:var(--fs-surface);min-height:38px;padding:6px 12px}
+.app-shell .caption-editor-layout .timeline-lane-labels{font-size:11px}
+.app-shell .caption-editor-layout .timeline-lanes .timeline-track{border:1px solid var(--fs-border);overflow:hidden}
+.caption-editor-layout .timeline-ruler span{font-size:10px}
+.caption-editor-layout .timeline[data-empty=true] .waveform-empty{font-size:11px;color:var(--fs-muted)}
+.app-shell .caption-editor-layout .timeline-scroll{margin-top:4px;margin-bottom:3px}
+.app-shell.embedded .bottom-meta{font-size:11px}
+@media(max-width:600px){
+ .app-shell.embedded .caption-action-toolbar{padding:0 0 6px;gap:5px}
+ .app-shell.embedded .caption-project-field{flex:1}
+ .app-shell.embedded .caption-editor-layout{--ce-pad:10px}
+ .app-shell.embedded .caption-editor-layout .video-frame{height:238px}
+ .app-shell .caption-editor-layout .timeline-lane-labels{font-size:10px;padding-inline:2px}
+ .app-shell .caption-editor-layout .cue-list:has(.empty-cues){padding-top:12px}
+ .caption-media-name{max-width:100px}
+}
+
+.app-shell.embedded .caption-editor-layout .cue-row:not(.selected):not(.playing):not(:hover){background:transparent}
+.app-shell.embedded .caption-editor-layout .cue-row textarea:not(:focus){background:transparent;border-color:transparent}
+.app-shell.embedded .caption-project-group .caption-project-field input:not(:hover):not(:focus){background:transparent;border-color:transparent}
+
+/* One full-width timeline dock below the preview and inspector. No remount on resize. */
+.app-shell.embedded .caption-editor-layout[data-stacked=false]{height:clamp(610px,calc(100dvh - 176px),1000px)}
+.caption-editor-layout .caption-upper-part{min-height:0}
+.caption-editor-layout .caption-upper-part>.caption-panel-group{height:100%}
+.caption-editor-layout .caption-timeline-part{min-height:0;display:flex;flex-direction:column}
+.app-shell .caption-editor-layout .caption-timeline-part>.timeline{border:1px solid var(--fs-border);border-radius:6px;box-shadow:none;background:var(--fs-surface);margin:0;min-height:0;height:100%}
+.caption-editor-layout .caption-height-divider{height:10px;min-height:10px;background:transparent;border:0}
+.caption-editor-layout .caption-height-divider:after{top:4px}
+.caption-editor-layout .caption-timeline-clock{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums;font-size:11px;color:var(--fs-muted);white-space:nowrap}
+.caption-timeline-clock b{color:var(--fs-text);font-weight:600}
+.caption-editor-layout .timeline-action-divider{height:18px;width:1px;background:var(--fs-border);margin:0 3px}
+.app-shell .caption-editor-layout .timeline-actions .icon-btn{border-radius:4px}
+.app-shell .caption-editor-layout .timeline-actions .zoom-label{min-width:42px;padding:3px 5px;border-radius:4px;background:var(--fs-raised);text-align:center;font-variant-numeric:tabular-nums}
+.app-shell .caption-editor-layout .timeline-lanes{grid-template-columns:84px minmax(0,1fr);gap:0;--ce-cue-lane:42px}
+.app-shell .caption-editor-layout .timeline-lane-labels{background:var(--colorNeutralBackground3);padding:0;border-radius:4px 0 0 4px;border:1px solid var(--fs-border);border-right:0;align-items:stretch;justify-content:initial;overflow:hidden}
+.app-shell .caption-editor-layout .timeline-lane-labels span{display:flex;gap:6px;align-items:center;padding:7px 9px;margin:0}
+.app-shell .caption-editor-layout .timeline-lane-labels span:first-child{flex:1;align-items:flex-start}
+.app-shell .caption-editor-layout .timeline-lane-labels span:last-child{height:var(--ce-cue-lane);border-top:1px solid var(--fs-border)}
+.app-shell .caption-editor-layout .timeline-lanes .timeline-track{border-radius:0 4px 4px 0}
+.app-shell .caption-editor-layout .timeline-ruler,.app-shell .caption-editor-layout .timeline-scroll{margin-left:calc(var(--ce-pad) + 84px)}
+.app-shell .caption-editor-layout .timeline-lanes .waveform{color:var(--colorBrandForeground1);background:var(--colorNeutralBackground3)}
+.app-shell .caption-editor-layout .timeline-lanes .cue-track{background:var(--colorNeutralBackground1)}
+.app-shell .caption-editor-layout .cue-bar{border-radius:3px;font-size:11px}
+.app-shell .caption-editor-layout .timeline-track .playhead{width:1px}
+.app-shell .caption-editor-layout .caption-tab-content:not(.caption-cues-panel){padding:14px 12px}
+.app-shell .caption-editor-layout .transcribe-panel{padding:0;margin:0;background:transparent}
+.caption-tool-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 16px}
+.caption-tool-heading strong{font-size:14px;color:var(--fs-text);font-weight:600}
+.caption-tool-heading p{font-size:11px;line-height:1.6;color:var(--fs-muted);margin:4px 0 0}
+.caption-local-label{display:inline-flex;align-items:center;gap:4px;flex:none;font-size:10px;color:var(--fs-muted);padding:3px 6px;background:var(--fs-raised);border-radius:4px}
+.app-shell .caption-editor-layout .transcribe-panel .settings-grid{padding:0;gap:12px}
+.app-shell .caption-editor-layout .transcribe-bottom{padding:12px 0 0;background:transparent}
+.app-shell .caption-editor-layout .transcribe-helper{background:transparent;padding:0}
+.caption-style-sample{display:grid;place-items:center;min-height:78px;border-radius:5px;background:#242424;margin-bottom:14px;padding:12px}
+.caption-style-sample span{padding:3px 9px;border-radius:3px;line-height:1.6}
+.app-shell .caption-editor-layout .style-fields{gap:9px;margin-bottom:12px}
+.app-shell .caption-editor-layout .style-note{border:0;background:var(--fs-raised);border-radius:5px;padding:9px;margin-top:12px}
+.app-shell .caption-editor-layout .export-grid{gap:8px;margin-bottom:10px}
+.app-shell .caption-editor-layout .export-grid button{border-radius:5px;padding:10px;gap:4px;background:var(--fs-surface);border-color:var(--fs-border)}
+.app-shell .caption-editor-layout .export-grid button:not(:disabled):hover{background:var(--colorNeutralBackground1Hover)}
+.app-shell .caption-editor-layout .export-grid button>svg:first-child{color:var(--colorBrandForeground1)}
+.app-shell .caption-editor-layout .export-grid small{color:var(--fs-muted)}
+.caption-editor-layout[data-stacked=true] .caption-upper-part,.caption-editor-layout[data-stacked=true] .caption-timeline-part{height:auto!important;overflow:visible!important}
+.caption-editor-layout[data-stacked=true] .caption-height-group{gap:12px}
+.caption-editor-layout[data-stacked=true] .caption-upper-part>.caption-panel-group{height:auto!important}
+.caption-editor-layout[data-stacked=true] .caption-timeline-part>.timeline{height:auto}
+@media(max-width:600px){
+ .app-shell .caption-editor-layout .timeline-lanes{grid-template-columns:34px minmax(0,1fr)}
+ .app-shell .caption-editor-layout .timeline-lane-labels span{padding:5px 3px;font-size:10px;justify-content:center}
+ .app-shell .caption-editor-layout .timeline-lane-labels svg{display:none}
+ .app-shell .caption-editor-layout .timeline-ruler,.app-shell .caption-editor-layout .timeline-scroll{margin-left:calc(var(--ce-pad) + 34px)}
+ .caption-editor-layout .timeline-action-divider{margin:0 1px}
+}
+
+/* The upper inspector must remain usable when the timeline is enlarged. */
+.app-shell .caption-editor-layout .caption-inspector-heading,
+.app-shell .caption-editor-layout .side-tabs,
+.app-shell .caption-editor-layout .cue-footer{flex-shrink:0}
+.app-shell .caption-editor-layout[data-stacked=false] .caption-cues-panel:not([hidden]){overflow:auto}
+.app-shell .caption-editor-layout[data-stacked=false] .cue-list{min-height:64px;max-height:none}
+.app-shell .caption-editor-layout .cue-row{padding:6px 5px}
+.app-shell.embedded .caption-editor-layout .cue-row textarea{margin:2px 0;min-height:30px;padding:3px 5px}
+.app-shell .caption-editor-layout .cue-footer{gap:5px;padding:6px 10px}
+.app-shell .caption-editor-layout .cue-footer .full{min-height:32px}
+.app-shell.embedded .bottom-meta{padding:4px 2px;margin-top:5px;min-height:24px}
+.caption-style-sample[data-position=top]{align-items:start}
+.caption-style-sample[data-position=bottom]{align-items:end}
+@media(max-width:600px){.app-shell .caption-editor-layout .cue-list{max-height:320px}}
+
+/* Detailed editor states and stable typography; retain existing interaction primitives. */
+.app-shell .caption-editor-layout .cue-row{border-radius:4px;position:relative}
+.app-shell .caption-editor-layout .cue-row-top{gap:5px}
+.app-shell .caption-editor-layout .cue-number{min-width:28px;height:24px;background:var(--fs-raised);font-variant-numeric:tabular-nums}
+.app-shell .caption-editor-layout .cue-duration{font-size:11px;font-variant-numeric:tabular-nums;color:var(--fs-muted)}
+.cue-current-indicator{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--colorBrandForeground1);white-space:nowrap}
+.cue-current-indicator>span,.caption-media-dot{width:6px;height:6px;border-radius:50%;background:var(--colorBrandForeground1);flex:none}
+.caption-media-dot{background:var(--fs-muted)}
+.caption-media-dot.ready{background:var(--fs-success)}
+.caption-viewer-state{display:inline-flex;align-items:center;gap:6px}
+.app-shell.embedded .caption-editor-layout .cue-row textarea{width:100%;box-sizing:border-box;max-height:160px;overflow:auto;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere}
+@supports(field-sizing:content){.app-shell.embedded .caption-editor-layout .cue-row textarea{field-sizing:content}}
+.app-shell.embedded .caption-editor-layout .cue-row-bottom .time-input{flex:1 1 110px;max-width:135px;width:0;min-height:28px;font-family:var(--fs-font);font-size:11px;color:var(--fs-text)}
+.cue-time-divider{color:var(--fs-muted);flex:none}
+.app-shell .caption-editor-layout .cue-row-actions button:disabled{opacity:.35}
+.app-shell .caption-editor-layout .cue-row-actions button:focus-visible,.app-shell .caption-editor-layout .cue-seek:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:-2px}
+.app-shell .caption-editor-layout .cue-row.playing:not(.selected){box-shadow:inset 2px 0 var(--colorBrandForeground1);background:var(--colorSubtleBackgroundSelected)}
+.app-shell .caption-editor-layout .timeline-ruler{height:28px;border-bottom:0;background:transparent}
+.app-shell .caption-editor-layout .timeline-ruler span{color:var(--fs-muted);font-weight:500}
+.app-shell .caption-editor-layout .timeline-ruler span::after{top:15px;height:7px;background:var(--fs-border)}
+.app-shell .caption-editor-layout .timeline-track .cue-bar{height:30px;top:5px;min-width:2px;gap:0}
+.app-shell .caption-editor-layout .cue-bar .resize-handle{width:7px;border-radius:2px;background:transparent;position:relative}
+.app-shell .caption-editor-layout .cue-bar:is(:hover,.selected,[data-trimming=true],:focus-within) .resize-handle{background:color-mix(in srgb,var(--colorBrandForeground1) 32%,transparent)}
+.app-shell .caption-editor-layout .cue-bar[data-current=true]:not(.selected){border-color:var(--colorBrandForeground1)}
+.app-shell .caption-editor-layout .cue-bar[data-trimming=true]{outline:1px solid var(--colorBrandForeground1);outline-offset:1px;z-index:5}
+.caption-trim-readout{font-size:11px;display:inline-flex;align-items:center;gap:5px;color:var(--colorBrandForeground1);white-space:nowrap;font-variant-numeric:tabular-nums}
+.caption-trim-readout b{font-weight:600}
+.app-shell .caption-editor-layout .video-frame{background:#202020}
+.app-shell .caption-editor-layout .video-frame .fs-media-player{--media-background-color:#202020}
+.app-shell .caption-editor-layout .video-frame .fs-player-controls{background:#202020;border-top:1px solid #383838}
+.app-shell .caption-editor-layout .video-frame media-control-bar{gap:3px}
+.app-shell .caption-editor-layout .video-frame .fs-media-player video{object-fit:contain}
+@media(max-width:600px){
+ .app-shell .caption-editor-layout .cue-row-top{gap:4px}
+ .app-shell .caption-editor-layout .cue-row-actions{gap:0}
+ .caption-trim-readout{font-size:10px}
+ .app-shell .caption-editor-layout .video-frame media-control-bar{gap:0}
+}
+/* Keep the controller on the bottom edge of the public Media Chrome layer,
+   independent of centered loading/audio chrome and active subtitle overlays. */
+.app-shell .caption-editor-layout .fs-media-player::part(vertical-layer){justify-content:flex-end}
+.app-shell .caption-editor-layout .video-frame .fs-player-controls{position:absolute;inset:auto 0 0;flex:none}

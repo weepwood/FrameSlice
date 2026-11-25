@@ -106,7 +106,12 @@ try{
  const endHandle=wave.locator('.cue-bar').first().getByRole('slider',{name:'调整字幕终点'});
  const hb=await endHandle.boundingBox();r=await wave.boundingBox();
  await page.mouse.move(hb.x+hb.width/2,hb.y+hb.height/2);await page.mouse.down();
- await page.mouse.move(r.x+r.width*2.5/8,hb.y+hb.height/2,{steps:6});await page.mouse.up();
+ await page.mouse.move(r.x+r.width*2.5/8,hb.y+hb.height/2,{steps:6});
+ const readout=host.locator('.caption-trim-readout');
+ await readout.waitFor();
+ const trimText=await readout.innerText();if(!/终点\s*00:00:02\.[0-9]{3}/.test(trimText))throw Error('trim precision readout missing: '+JSON.stringify(trimText));
+ if(await rows.first().getByRole('textbox',{name:'结束时间'}).inputValue()!=='00:00:02.000')throw Error('trim committed before release');
+ await page.mouse.up();await readout.waitFor({state:'detached'});
  if(Math.abs(Number((await rows.first().getByRole('textbox',{name:'结束时间'}).inputValue()).slice(6))-2.5)>.1)throw Error('subtitle endpoint drag failed');
  await host.getByRole('button',{name:/撤销/}).click();
  if(await rows.first().getByRole('textbox',{name:'结束时间'}).inputValue()!=='00:00:02.000')throw Error('drag undo failed');
@@ -120,5 +125,5 @@ try{
  await wave.getByRole('img',{name:'声音波形'}).waitFor({timeout:60000});
  await wave.scrollIntoViewIfNeeded();
  await page.screenshot({path:'visual-regression/professional-caption-waveform-dark.png',animations:'disabled'});
- console.log(JSON.stringify({actualAudioWaveform:'passed',cancelAndRelease:'passed',cutPointer:'passed',cueBoundaryDragUndo:'passed',safeSnap:'passed',cutMove:'passed',zoom:'passed',thumbnailBudget:'passed',rangeDrag:'passed',rangeHandle:'passed',captionScaleAndUndo:'passed',waveformScrub:'passed',mobile:'passed'}));
+ console.log(JSON.stringify({actualAudioWaveform:'passed',cancelAndRelease:'passed',cutPointer:'passed',trimReadoutAndDeferredCommit:'passed',cueBoundaryDragUndo:'passed',safeSnap:'passed',cutMove:'passed',zoom:'passed',thumbnailBudget:'passed',rangeDrag:'passed',rangeHandle:'passed',captionScaleAndUndo:'passed',waveformScrub:'passed',mobile:'passed'}));
 }finally{await browser.close()}
