@@ -10,7 +10,6 @@
 .app-shell.embedded .caption-action-toolbar .btn,.caption-action-toolbar .fs-caption-fluent-button{min-height:32px}
 .app-shell.embedded .caption-action-toolbar .caption-more{border-color:transparent;background:transparent}
 .app-shell.embedded .caption-editor-layout{--ce-pad:12px;--ce-cue-lane:40px}
-.app-shell.embedded .caption-editor-layout[data-stacked=false]{height:clamp(610px,calc(100dvh - 142px),1000px)}
 .app-shell.embedded .caption-editor-layout :is(.main-column,.side-panel){border-radius:6px;box-shadow:none;border:1px solid var(--fs-border)}
 .app-shell .caption-editor-layout .video-panel>.section-title{min-height:36px;padding:6px var(--ce-pad)}
 .caption-viewer-heading,.caption-inspector-heading>div{display:flex;align-items:center;gap:7px;min-width:0}
@@ -40,32 +39,26 @@
 .caption-editor-layout .empty-cues h3{font-size:14px;font-weight:600;color:var(--fs-text)}
 .caption-editor-layout .empty-cues p{font-size:12px;color:var(--fs-muted);line-height:1.7}
 .caption-empty-cue-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:7px}
-.app-shell .caption-editor-layout .cue-footer{padding:8px 12px}
 .app-shell .caption-editor-layout .cue-list{padding:4px 8px}
-.app-shell .caption-editor-layout .cue-row{padding:8px 6px;gap:3px;border-bottom-color:var(--colorNeutralStroke2)}
+.app-shell .caption-editor-layout .cue-row{gap:3px;border-bottom-color:var(--colorNeutralStroke2)}
 .app-shell .caption-editor-layout .cue-row:hover:not(.selected){background:var(--colorNeutralBackground1Hover)}
 .app-shell.embedded .caption-editor-layout .cue-row.selected{background:var(--colorBrandBackground2);box-shadow:inset 2px 0 var(--colorBrandBackground)}
-.app-shell.embedded .caption-editor-layout .cue-row textarea{font-size:13px;line-height:1.55;min-height:32px;padding:4px 6px}
+.app-shell.embedded .caption-editor-layout .cue-row textarea{font-size:13px;line-height:1.55}
 .app-shell.embedded .caption-editor-layout .cue-row-bottom .time-input{font-variant-numeric:tabular-nums;background:var(--colorNeutralBackground1);border-color:var(--colorNeutralStroke2)}
-.app-shell .caption-editor-layout .cue-number{font-variant-numeric:tabular-nums;font-weight:600;color:var(--fs-muted)}
+.app-shell .caption-editor-layout .cue-number{font-weight:600;color:var(--fs-muted)}
 .app-shell .caption-editor-layout .cue-row-actions button{border-radius:4px}
 .app-shell .caption-editor-layout .timeline-top{background:var(--fs-surface);min-height:38px;padding:6px 12px}
-.caption-editor-layout .caption-height-divider{background:var(--fs-raised);height:9px;min-height:9px;border-top:1px solid var(--fs-border)}
-.app-shell .caption-editor-layout .timeline-lanes{gap:5px;grid-template-columns:44px minmax(0,1fr)}
-.app-shell .caption-editor-layout .timeline-lane-labels{background:var(--fs-raised);border-radius:4px;padding:7px 5px;font-size:11px}
-.app-shell .caption-editor-layout .timeline-lanes .timeline-track{border:1px solid var(--fs-border);border-radius:4px;overflow:hidden}
-.app-shell .caption-editor-layout .timeline-lanes .waveform{background:var(--colorNeutralBackground3)}
-.app-shell .caption-editor-layout .timeline-lanes .cue-track{background:var(--colorNeutralBackground2)}
+.app-shell .caption-editor-layout .timeline-lane-labels{font-size:11px}
+.app-shell .caption-editor-layout .timeline-lanes .timeline-track{border:1px solid var(--fs-border);overflow:hidden}
 .caption-editor-layout .timeline-ruler span{font-size:10px}
 .caption-editor-layout .timeline[data-empty=true] .waveform-empty{font-size:11px;color:var(--fs-muted)}
 .app-shell .caption-editor-layout .timeline-scroll{margin-top:4px;margin-bottom:3px}
-.app-shell.embedded .bottom-meta{margin-top:6px;font-size:11px}
+.app-shell.embedded .bottom-meta{font-size:11px}
 @media(max-width:600px){
  .app-shell.embedded .caption-action-toolbar{padding:0 0 6px;gap:5px}
  .app-shell.embedded .caption-project-field{flex:1}
  .app-shell.embedded .caption-editor-layout{--ce-pad:10px}
  .app-shell.embedded .caption-editor-layout .video-frame{height:238px}
- .app-shell .caption-editor-layout .timeline-lanes{grid-template-columns:30px minmax(0,1fr)}
  .app-shell .caption-editor-layout .timeline-lane-labels{font-size:10px;padding-inline:2px}
  .app-shell .caption-editor-layout .cue-list:has(.empty-cues){padding-top:12px}
  .caption-media-name{max-width:100px}
