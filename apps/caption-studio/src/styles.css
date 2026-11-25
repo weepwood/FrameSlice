@@ -520,3 +520,5 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .cue-batch-offset input{width:66px;max-width:100%;font:inherit;padding:4px;border:1px solid var(--fs-border,#dce3e7);border-radius:var(--fs-radius,6px);background:var(--fs-input,#fff);color:var(--fs-text,#24303b)}
 .cue-batch-notice{font-size:11px;color:var(--fs-text,#24303b);overflow-wrap:anywhere}
 .cue-batch-panel .cue-batch-danger{color:var(--fs-danger,#b04c43)}
+
+.cue-quality-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 12px 8px}.cue-quality-tools .caption-select-trigger{flex:1;min-width:130px}

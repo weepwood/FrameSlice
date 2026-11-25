@@ -377,3 +377,5 @@
 
 .fs-library-search{width:100%;min-width:0;margin:6px 0}
 .fs-job-pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:12px;color:var(--fs-muted);font-size:12px}
+
+.fs-result-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:12px 0 8px}.fs-result-toolbar>div{display:grid;gap:3px;min-width:0}.fs-result-toolbar strong{font-size:13px}.fs-result-toolbar small{font-size:11px;color:var(--fs-muted)}.fs-result-toolbar input{width:min(100%,220px)}

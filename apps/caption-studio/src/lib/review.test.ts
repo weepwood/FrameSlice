@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cleanCaptionText,getProblemCueIds,repairOverlaps,replaceCaptionText} from './review';
+import {cleanCaptionText,getProblemCueIds,repairOverlaps,replaceCaptionText,reviewCues} from './review';
 import type {Cue} from './captions';
 const cues:Cue[]=[
   {id:'one',start:0,end:2.8,text:'你好，世界'},
@@ -12,6 +12,12 @@ describe('subtitle review actions',()=>{
   });
   it('identifies issue cues',()=>{
     expect(getProblemCueIds(cues)).toEqual(['one','three']);
+  });
+  it('counts affected cues separately from individual findings',()=>{
+    const review=reviewCues([...cues,{id:'bad',start:8,end:7,text:''}]);
+    expect(review.affected).toBe(3);expect(review.total).toBe(4);
+    expect(review.counts).toEqual({empty:2,time:1,overlap:1,fast:0,long:0});
+    expect(review.byId.get('bad')).toEqual(['empty','time']);
   });
   it('repairs safe overlaps without mutating inputs',()=>{
     const result=repairOverlaps(cues);

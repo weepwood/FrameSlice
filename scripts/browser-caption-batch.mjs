@@ -48,6 +48,23 @@ try{
  if(await panel.evaluate(el=>el.scrollWidth>el.clientWidth+1))throw Error('mobile batch overflow');
  await panel.getByRole('button',{name:'退出多选'}).click();
  await page.setViewportSize({width:1440,height:900});
+ await host.getByRole('textbox',{name:'搜索字幕'}).fill('');
+ const bad={version:1,name:'Quality',duration:10,cues:[{id:'a',start:0,end:2,text:' '},{id:'b',start:1.5,end:3,text:'Readable'},{id:'c',start:5,end:4,text:' '},{id:'d',start:6,end:6.1,text:'Read this very fast'},{id:'e',start:7,end:9,text:'Good'}],style:{}};
+ const confirmQuality=page.waitForEvent('dialog').then(d=>d.accept());
+ await host.locator('input[accept=".json"]').setInputFiles({name:'quality.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(bad))});
+ await confirmQuality;
+ await host.getByRole('textbox',{name:'第 5 条字幕',exact:true}).waitFor();
+ await host.getByRole('button',{name:/问题筛选/}).click();
+ const kind=host.getByRole('combobox',{name:'字幕问题类型'});
+ await kind.click();await host.getByRole('option',{name:'空白内容 · 2',exact:true}).click();
+ if(await host.locator('.cue-row').count()!==2)throw Error('quality category filter incorrect');
+ await host.getByRole('button',{name:'下一项'}).click();
+ const selected=host.locator('.cue-row.selected');
+ if(await selected.count()!==1||await host.locator('.cue-row').count()!==2)throw Error('quality navigation lost category');
+ const [qualityDownload]=await Promise.all([page.waitForEvent('download'),host.getByRole('button',{name:'导出质量报告'}).click()]);
+ const report=JSON.parse(await readFile(await qualityDownload.path(),'utf8'));
+ if(report.totalCues!==5||report.affectedCues!==3||report.totalFindings!==5||report.counts.empty!==2||report.counts.time!==1||report.counts.overlap!==1||report.counts.fast!==1)throw Error('quality report mismatch '+JSON.stringify(report));
+ if(report.findings.some(f=>'text' in f))throw Error('quality export unnecessarily includes subtitle text');
  await page.getByRole('button',{name:'任务中心'}).click();
  const list=page.getByRole('region',{name:'任务列表'});
  await page.getByRole('combobox',{name:'任务类型筛选'}).click();
@@ -58,5 +75,5 @@ try{
  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'导出历史 JSON'}).click()]);
  const jobs=JSON.parse(await readFile(await download.path(),'utf8'));
  if(jobs.length!==36||jobs.some(j=>j.type!=='split')||jobs[0].createdAt!==1000||jobs.at(-1).createdAt!==1070)throw Error('filtered export incorrect');
- console.log(JSON.stringify({crossPageSelection:'passed',filteredSelection:'passed',invalidShiftRejected:'passed',selectedShiftAndUndo:'passed',cleanupAndUndo:'passed',deleteCancelAndUndo:'passed',mobileLayout:'passed',jobTypeAndSort:'passed',export:'passed'}));
+ console.log(JSON.stringify({crossPageSelection:'passed',filteredSelection:'passed',invalidShiftRejected:'passed',selectedShiftAndUndo:'passed',cleanupAndUndo:'passed',deleteCancelAndUndo:'passed',mobileLayout:'passed',jobTypeAndSort:'passed',export:'passed',qualityFilter:'passed',qualityNavigation:'passed',qualityReport:'passed'}));
 }finally{await browser.close()}
