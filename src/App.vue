@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkbenchNumber from "./components/WorkbenchNumber.vue"
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, CircleHelp, Clock3,
@@ -126,6 +127,7 @@ const timeline=useTimelinePreviews(file,info,e=>{errorText.value=friendlyError(e
 const timelineThumbnails=timeline.thumbnails,timelineLoading=timeline.loading,loadTimeline=timeline.load
 function clearTimeline(){timeline.clear();timelineTime.value=0;manualCuts.value=[]}
 function seekTimeline(time:number){if(!Number.isFinite(time))return;const next=Math.max(0,Math.min(info.value?.duration??0,time));timelineTime.value=next;const video=previewVideo.value;if(video&&video.readyState>=1&&Math.abs(video.currentTime-next)>.001){try{video.currentTime=next}catch{/* unsupported browser preview; processing remains available */}}}
+function moveManualCut(old:number,time:number){const key=nearestKey(mediaAnalysis.value?.safeKeyframeIndex??[],time);if(key===undefined||key<=0||key>=(info.value?.duration??0)||!manualCuts.value.includes(old)||manualCuts.value.some(x=>x===key&&x!==old))return;manualCuts.value=manualCuts.value.map(x=>x===old?key:x).sort((a,b)=>a-b)}
 function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
 const verificationLevel = ref<VerificationLevel>('quick')
@@ -656,7 +658,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="file&&info" class="fs-preview-panel" aria-label="视频预览"><div class="fs-preview-header"><h2>视频预览</h2><span>{{humanTime(timelineTime)}} / {{humanTime(info.duration)}}</span></div><video ref="previewVideo" :key="videoUrl" :src="videoUrl" controls playsinline preload="metadata" aria-label="源视频播放器" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="timelineTime>0 && seekTimeline(timelineTime)"/><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>
-        <MediaTimeline v-if="file && info" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
+        <MediaTimeline v-if="file && info" :source="videoUrl" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @cancel="timeline.cancel" @move-cut="moveManualCut" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">
             <div class="fs-analysis-heading">
@@ -708,11 +710,11 @@ onBeforeUnmount(() => {
           </div>
           <div v-if="splitStrategy === 'size'" class="config-row">
             <div class="setting-copy"><div class="setting-icon"><Layers2 :size="19"/></div><div><strong>单个文件大小</strong></div></div>
-            <div class="config-control"><input type="number" v-model.number="size" :disabled="status === 'running'" min="0.032" step="0.1" class="number-input" aria-label="每份目标大小"/><WorkbenchSelect v-model="sizeUnit" label="单位" :disabled="status==='running'" :options="([{value:'GB',label:'GB'},{value:'GiB',label:'GiB'}] as const)"/></div>
+            <div class="config-control"><WorkbenchNumber  v-model="size" :disabled="status === 'running'" :min="0.032" :step="0.1"   label="每份目标大小"/><WorkbenchSelect v-model="sizeUnit" label="单位" :disabled="status==='running'" :options="([{value:'GB',label:'GB'},{value:'GiB',label:'GiB'}] as const)"/></div>
           </div>
           <div v-else class="config-row">
             <div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>每段视频时长</strong></div></div>
-            <div class="config-control"><input type="number" v-model.number="splitMinutes" :disabled="status === 'running'" min="0.01" max="100000" step="0.5" class="number-input" aria-label="每段时长（分钟）"/><span class="input-suffix">分钟</span></div>
+            <div class="config-control"><WorkbenchNumber  v-model="splitMinutes" :disabled="status === 'running'" :min="0.01" :max="100000" :step="0.5"   label="每段时长（分钟）"/><span class="input-suffix">分钟</span></div>
           </div>
           <div class="config-row">
             <div class="setting-copy"><div class="setting-icon"><ShieldCheck :size="19"/></div><div><strong>输出完整性校验</strong><span>深度校验额外逐包读取 CRC32</span></div></div>
@@ -727,11 +729,11 @@ onBeforeUnmount(() => {
 
         <section class="config-panel" v-else>
           <div class="config-row"><div class="setting-copy"><div><strong>抽帧策略</strong></div></div><WorkbenchSelect v-model="frameStrategy" label="抽帧策略" :disabled="status==='running'" :options="([{value:'interval',label:'定时抽帧'},{value:'sharpest',label:'最清晰帧'},{value:'scene',label:'场景变化'},{value:'keyframes',label:'关键帧'}] as const)"/></div>
-          <div v-if="frameStrategy==='sharpest'" class="config-row"><label>每窗口候选数 <input type="number" v-model.number="candidateCount" min="1" max="12" :disabled="status==='running'"/></label><label>最低清晰度 <input type="number" v-model.number="minSharpness" min="0" max="260100" step="10" :disabled="status==='running'"/></label></div>
+          <div v-if="frameStrategy==='sharpest'" class="config-row"><label>每窗口候选数 <WorkbenchNumber  v-model="candidateCount" :min="1" :max="12" :disabled="status==='running'" label="每窗口候选数"/></label><label>最低清晰度 <WorkbenchNumber  v-model="minSharpness" :min="0" :max="260100" :step="10" :disabled="status==='running'" label="最低清晰度"/></label></div>
           <div v-if="frameStrategy==='scene'" class="config-row"><label>场景差异阈值 {{sceneThreshold.toFixed(2)}} <input type="range" v-model.number="sceneThreshold" min="0" max="1" step=".01" :disabled="status==='running'"/></label></div>
           <div class="config-row"><WorkbenchCheckbox v-model="deduplicate" :disabled="status==='running'">过滤最近 64 张近似重复画面</WorkbenchCheckbox></div>
-          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong></div></div><div class="config-control"><input class="number-input" type="number" min="0.1" max="36000" step="0.5" v-model.number="interval" :disabled="status === 'running'" aria-label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
-          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong></div></div><div class="range-control"><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameStart" :disabled="status === 'running'" aria-label="截图开始秒数"/><span>至</span><input class="number-input" type="number" min="0" :max="info?.duration" step="0.1" v-model.number="frameEnd" :disabled="status === 'running'" aria-label="截图结束秒数"/><span>秒</span></div></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><Clock3 :size="19"/></div><div><strong>截图间隔</strong></div></div><div class="config-control"><WorkbenchNumber   :min="0.1" :max="36000" :step="0.5" v-model="interval" :disabled="status === 'running'"  label="抽帧间隔秒数"/><span class="input-suffix">秒</span></div></div>
+          <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>截图时间范围</strong></div></div><div class="range-control"><WorkbenchNumber   :min="0" :max="info?.duration" :step="0.1" v-model="frameStart" :disabled="status === 'running'"  label="截图开始秒数"/><span>至</span><WorkbenchNumber   :min="0" :max="info?.duration" :step="0.1" v-model="frameEnd" :disabled="status === 'running'"  label="截图结束秒数"/><span>秒</span></div></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong></div></div><WorkbenchSelect v-model="imageFormat" label="图片格式" :disabled="status==='running'" :options="([{value:'image/jpeg',label:'JPEG'},{value:'image/png',label:'PNG'},{value:'image/webp',label:'WebP'}] as const)"/></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>输出分辨率</strong><span>不放大原图</span></div></div><WorkbenchSelect v-model="imageWidth" label="最大输出宽度" :disabled="status==='running'" :options="([{value:0,label:'原始尺寸'},{value:1280,label:'1280 px'},{value:1920,label:'1920 px'},{value:3840,label:'3840 px'}] as const)"/></div>
           <div v-if="imageFormat !== 'image/png'" class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>图片压缩质量</strong></div></div><div class="range-control"><SliderRoot class="fs-slider" :model-value="[jpegQuality]" :min="0.5" :max="1" :step="0.05" :disabled="status==='running'" @update:model-value="v=>{if(v?.length)jpegQuality=v[0]}"><SliderTrack class="fs-slider-track"><SliderRange class="fs-slider-range"/></SliderTrack><SliderThumb class="fs-slider-thumb" aria-label="截图质量"/></SliderRoot><span>{{ Math.round(jpegQuality * 100) }}%</span></div></div>

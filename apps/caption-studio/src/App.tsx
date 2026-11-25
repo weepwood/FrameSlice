@@ -1,3 +1,5 @@
+import {EditorPanels} from './components/EditorPanels';
+import {CaptionNumberField} from './components/CaptionNumberField';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
 import {Tabs} from '@base-ui/react/tabs';
@@ -372,8 +374,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         }
         {error&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>{error}</span><button aria-label="关闭错误提示" onClick={()=>setError('')}><X size={16}/></button></div>}
         {mediaMissing&&<div className="notice-banner"><Info size={16}/>已恢复字幕工程，但媒体文件不会自动保存。请重新打开「{originalMediaName}」以继续视频预览。</div>}
-        <div className="content-grid">
-          <div className="main-column">
+        <EditorPanels viewer={
             <section className="video-panel surface">
               <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
@@ -398,12 +399,8 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <button className={`icon-btn loop-button ${loopSelected?'active':''}`} disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
                 <label className="speed-control"><span>倍速</span><CaptionSelect label="播放速度" value={playbackRate} onChange={setPlaybackRate} options={[.5,.75,1,1.25,1.5,2].map(value=>({value,label:value+"×"}))}/></label>
               </div>
-              <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
-            </section>
-            <Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
-
-          </div>
-          <aside className="side-panel surface">
+              {file&&<div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{sizeText(file.size)}</span></div>}
+            </section>} timeline={<Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>} inspector={<aside className="side-panel surface">
             <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">
             <Tabs.List className="side-tabs" aria-label="工作区功能">
               <Tabs.Tab value="cues" className={tab==='cues'?'active':''}><Subtitles size={16}/>字幕</Tabs.Tab>
@@ -418,7 +415,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <div className="caption-field"><span>识别模型</span><CaptionSelect label="识别模型" value={model} disabled={busy} onChange={setModel} options={MODELS.map(m=>({value:m.id,label:m.title+" ("+m.size+")"}))}/></div>
                 <div className="caption-field"><span>原文语言</span><CaptionSelect label="原文语言" value={language} disabled={busy||model.endsWith('.en')} onChange={setLanguage} options={LANGS.map(([value,label])=>({value,label}))}/></div>
                 <div className="caption-field"><span>计算后端</span><CaptionSelect<Device> label="计算后端" value={device} disabled={busy} onChange={setDevice} options={[{value:"auto",label:"自动（GPU 优先）"},{value:"webgpu",label:"WebGPU"},{value:"wasm",label:"CPU / WASM"}]}/></div>
-                <label>每条字幕最大字符 <input type="number" min={8} max={120} value={maxChars} disabled={busy} onChange={e=>setMaxChars(Math.min(120,Math.max(8,Number(e.target.value)||30)))}/></label>
+                <label>每条字幕最大字符 <CaptionNumberField label="每条字幕最大字符" min={8} max={120} value={maxChars} disabled={busy} onChange={v=>{if(v!==null)setMaxChars(Math.min(120,Math.max(8,Math.round(v))))}}/></label>
               </div>
               <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>首次转录需下载模型。</span></div>
                 {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
@@ -429,16 +426,16 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               {transcriber.state.phase==='error'&&<div className="task-status failed"><AlertTriangle size={15}/>{transcriber.state.message}</div>}
             </section>
             </Tabs.Panel>
-            <Tabs.Panel value="cues" className="caption-tab-content">
-              <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>changeQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
+            <Tabs.Panel value="cues" className="caption-tab-content caption-cues-panel">
+              {(cues.length>0||canUndo||canRedo)&&<div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>changeQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>}
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
                 review={review} visibleCues={shown} batchMode={batchMode} onOpenBatch={()=>{setBatchMode(true);setFollowPlayback(false)}} onToggleIssues={changeIssueFilter} onFollowPlayback={setFollowPlayback} onNavigate={reviewNavigate} onChange={setCues}/>
               {onlyIssues&&<div className="cue-quality-tools"><CaptionSelect label="字幕问题类型" value={issueKind} options={[{value:'all',label:'全部问题 · '+review.affected},...(Object.entries(issueNames) as [Issue,string][]).map(([value,label])=>({value,label:label+' · '+review.counts[value]}))]} onChange={value=>{setIssueKind(value);setCuePage(0)}}/><button className="review-chip" onClick={exportQuality}>导出质量报告</button></div>}
               {batchMode&&<BatchCueTools cues={cues} page={pageCues} shown={shown} selected={batchIds} onSelect={setBatchIds} onChange={setCues} onClose={closeBatch}/>}
 
-              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" aria-label="上一页字幕" onClick={()=>browsePage(currentPage-1)}>‹</button>{pageCount>1?<label className="cue-page-jump"><input aria-label="字幕页码" inputMode="numeric" value={pageDraft??String(currentPage+1)} onChange={e=>setPageDraft(e.target.value)} onBlur={commitPage} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setPageDraft(null)}}/><span>/{pageCount}</span></label>:<span>1/1</span>}<button disabled={currentPage>=pageCount-1} title="下一页字幕" aria-label="下一页字幕" onClick={()=>browsePage(currentPage+1)}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
+              {cues.length>0&&<div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" aria-label="上一页字幕" onClick={()=>browsePage(currentPage-1)}>‹</button>{pageCount>1?<label className="cue-page-jump"><input aria-label="字幕页码" inputMode="numeric" value={pageDraft??String(currentPage+1)} onChange={e=>setPageDraft(e.target.value)} onBlur={commitPage} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setPageDraft(null)}}/><span>/{pageCount}</span></label>:<span>1/1</span>}<button disabled={currentPage>=pageCount-1} title="下一页字幕" aria-label="下一页字幕" onClick={()=>browsePage(currentPage+1)}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>}
               <div className="cue-list" ref={cueListRef}>
-                {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
+                {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3><p>从上方导入 SRT / VTT，或创建第一条字幕。</p></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=review.byId.get(c.id)??[];return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
                     <div className="cue-row-top">{batchMode&&<Checkbox.Root className="caption-checkbox" aria-label={'选择第 '+(index+1)+' 条字幕'} checked={batchIds.has(c.id)} onCheckedChange={checked=>setBatchIds(old=>{const next=new Set(old);if(checked)next.add(c.id);else next.delete(c.id);return next})}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root>}<button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
                     <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
@@ -446,7 +443,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
                   </article>})}
               </div>
-              <div className="cue-footer"><div className="shift-controls"><span>整体偏移</span><input aria-label="偏移秒数" type="number" step="0.1" value={shift} onChange={e=>setShift(e.target.value)}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div><button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
+              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
             </Tabs.Panel>
             <Tabs.Panel value="style" className="style-editor caption-tab-content">
               <div className="section-subheading"><strong>预览样式</strong></div>
@@ -473,8 +470,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>
             </Tabs.Panel>
             </Tabs.Root>
-          </aside>
-        </div>
+          </aside>}/>
         
         <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${(cueIndex.get(selectedId??'')??-1)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
       </main>

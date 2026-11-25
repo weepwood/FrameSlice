@@ -1,3 +1,4 @@
+@import "./number-field.css";
 /* Media editor visual layer. No new runtime dependency; keep legacy structural classes for E2E. */
 :root {font-family:var(--fs-font);font-size:14px;accent-color:var(--fs-accent)}
 .fs-workbench {max-width:none}
@@ -81,11 +82,16 @@
 .fs-workbench .summary-label,.fs-workbench .execution-summary strong {font-size:12px}
 .fs-workbench .fs-output-location {display:block;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .fs-workbench .fs-analysis {margin:14px 0 18px;padding:14px 16px}
-.fs-workbench .fs-analysis-heading span,.fs-workbench .fs-analysis-chart-heading,.fs-workbench .fs-analysis-chart-footer {color:var(--fs-muted)}
+.fs-workbench .fs-analysis-heading span,.fs-workbench .fs-analysis-chart-heading,.fs-workbench .fs-analysis-chart-heading span:last-child,.fs-workbench .fs-analysis-chart-footer {color:var(--fs-muted)}
+.fs-workbench .fs-analysis-heading strong{color:var(--fs-text)}
+.fs-workbench :is(.fs-analysis-metrics,.fs-analysis-chart){border-color:var(--fs-border)}
+.fs-workbench .fs-analysis-assessment{background:color-mix(in srgb,var(--fs-success) 10%,var(--fs-surface));color:var(--fs-success);border:1px solid color-mix(in srgb,var(--fs-success) 30%,var(--fs-border))}
+.fs-workbench .fs-analysis-assessment.caution{background:color-mix(in srgb,var(--fs-warning) 10%,var(--fs-surface));color:var(--fs-warning);border-color:color-mix(in srgb,var(--fs-warning) 30%,var(--fs-border))}
+.fs-workbench .fs-analysis-warning{color:var(--fs-warning)}
 .fs-workbench .fs-analysis-icon,.fs-workbench .ct-track-kind {background:var(--fs-raised);color:var(--fs-muted)}
 .fs-workbench .fs-analysis-chart {background:var(--fs-raised)}
 .fs-workbench .fs-analysis-chart>span,.fs-workbench .progress-fill,.fs-workbench .ct-progress span {background:var(--fs-accent)}
-.fs-workbench .fs-timeline-track {height:88px;background:var(--fs-preview)}
+.fs-workbench .fs-timeline-track {background:var(--fs-preview)}
 .fs-workbench .fs-timeline-track .fs-timeline-play {background:#f2c16f}
 .fs-workbench .fs-timeline-toolbar {font-size:12px}
 .fs-workbench .result-section {margin-top:26px}
@@ -369,7 +375,6 @@
 .fs-workbench .fs-timeline-slider{gap:var(--fs-space-2)}
 .fs-workbench .fs-timeline-toolbar{gap:var(--fs-space-2)}
 .fs-workbench .fs-center-toolbar{gap:var(--fs-space-2)}
-.fs-workbench .fs-timeline-track{height:76px}
 .fs-workbench .fs-inspector-section{padding:var(--fs-space-3) 0}
 .fs-workbench .fs-inspector-section dl{gap:var(--fs-space-2)}
 .fs-workbench .fs-settings-target .config-row{padding:var(--fs-space-2) 0}
@@ -391,3 +396,20 @@
 .fs-part-results .result-list{margin-top:0}
 
 .fs-capability-notice{display:flex;align-items:flex-start;gap:var(--fs-space-2);padding:var(--fs-space-3);margin-top:var(--fs-space-3);border:1px solid var(--fs-border);border-radius:var(--fs-radius);background:var(--fs-raised);color:var(--fs-muted);font-size:12px;line-height:1.6}.fs-capability-notice>svg{flex:none;margin-top:2px;color:var(--fs-accent)}
+
+.fs-timeline-track{touch-action:none;outline-offset:3px}.fs-timeline-track:focus-visible{outline:2px solid var(--fs-accent)}.fs-timeline-track .fs-timeline-play,.fs-timeline-track .fs-timeline-key{pointer-events:none}.fs-workbench .fs-timeline-track .fs-cut-handle,.fs-workbench .fs-timeline-track .fs-range-handle{position:absolute;top:0;bottom:0;width:14px;border:0;padding:0;transform:translateX(-50%);z-index:5;cursor:ew-resize;background:transparent}.fs-cut-handle::before,.fs-range-handle::before{content:"";position:absolute;inset:0 6px;background:#ef8e5b;border-radius:2px}.fs-range-handle::before{background:#a5c4ff;inset:0 5px}.fs-range-handle.start{transform:translateX(0)}.fs-range-handle.end{transform:translateX(-100%)}.fs-snap-toggle[aria-pressed=true]{background:var(--fs-selected);color:var(--fs-accent);border-color:var(--fs-accent)}.fs-timeline-thumbs{pointer-events:none}.fs-timeline-tools{row-gap:6px}.fs-timeline-toolbar small{line-height:1.45}
+
+/* Shared desktop controls and flat workbench groups. */
+.fs-workbench .config-control>.fs-number-field{flex:0 1 124px}
+.fs-workbench .range-control>.fs-number-field{flex:1 1 104px;max-width:136px}
+.fs-workbench .fs-center-toolbar .fs-number-field{width:112px}
+.fs-workbench .fs-timeline-toolbar .fs-number-field{width:124px}
+.fs-workbench .fs-number-group .fs-number-value{min-height:32px}
+.fs-workbench .fs-center-toolbar>label{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fs-workbench :is(.config-panel,.fs-analysis,.file-card,.status-card,.result-list,.ct-card,.fs-storage-diagnostics){box-shadow:none;border-radius:8px}
+.fs-workbench :is(.config-row,.fs-job-row,.fs-center-job,.result-item){border-color:var(--fs-border)}
+.fs-workbench .fs-analysis-header>strong{font-size:13px;font-weight:600;color:var(--fs-text)}
+.fs-workbench :is(.fs-analysis-header,.fs-result-toolbar,.fs-center-toolbar){gap:var(--fs-space-2)}
+.fs-workbench .fs-timeline-track .fs-timeline-key{opacity:.55}
+.fs-workbench .fs-timeline-range{background:color-mix(in srgb,var(--fs-accent) 20%,transparent)}
+@media(max-width:720px){.fs-workbench .range-control>.fs-number-field{max-width:120px}.fs-workbench .fs-timeline-toolbar .fs-number-field{width:112px}}

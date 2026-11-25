@@ -18,6 +18,12 @@ try{
     if(mode==='captions'){const host=page.locator('.caption-react-host');await host.locator('.caption-action-toolbar').waitFor({timeout:30000});await host.locator('.caption-save-state[data-save="saved"]').waitFor({timeout:30000})}
     if(mode==='jobs')await page.locator('.fs-job-center').waitFor()
     await page.evaluate(async()=>{await document.fonts.ready;window.scrollTo(0,0);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})
+    if(mode==='captions'&&viewport.width===1440){
+      const host=page.locator('.caption-react-host'),frame=host.locator('.video-frame'),root=await host.locator('.caption-editor-layout').boundingBox(),box=await frame.boundingBox();
+      const actions=frame.getByRole('button',{name:/选择媒体文件|导入 SRT/});
+      if(!root||root.height<609||!box||box.height<210||await actions.count()!==2)throw Error('desktop empty caption preview collapsed');
+      for(const action of await actions.all()){const b=await action.boundingBox();if(!b||b.y<box.y||b.y+b.height>box.y+box.height+1)throw Error('empty media action clipped')}
+    }
     if(mode==='jobs'){if(await page.locator('.fs-storage-values').count()!==2)throw Error('storage mask missing');const meter=page.getByRole('progressbar',{name:'站点存储使用量'});await meter.waitFor();if(await meter.evaluate(el=>el.tagName==='PROGRESS'||el.getBoundingClientRect().height!==7||!el.querySelector('.fs-workbench-progress-fill')))throw Error('storage meter is not custom styled')}if(viewport.width===390&&await page.getByRole('button',{name:/隐藏检查器|显示检查器/}).count())throw Error('unavailable inspector visible on mobile');if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error(mode+' horizontal overflow')
     const name=mode+'-'+theme+'-'+viewport.width+'.png',path=join(dir,name)
     // Storage estimates vary by runner, so mask only their diagnostic value block.

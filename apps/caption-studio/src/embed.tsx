@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
+import './editor-layout.css'
 
 /**
  * Standalone React island, mounted within the FrameSlice Vue workspace.

@@ -218,7 +218,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .workspace{min-height:0;display:block}
 .app-shell.embedded .editor-area{max-width:none;padding:0 0 28px;margin:0}
 
-.app-shell.embedded .main-column{gap:16px}
 .app-shell.embedded .surface{border:1px solid #e6e9e2;border-radius:12px;box-shadow:0 1px 5px rgba(30,55,33,.025);background:#fff}
 .app-shell.embedded .section-title{border-bottom-color:#ecf0ea}
 .app-shell.embedded .section-title strong{color:#354439}
@@ -233,8 +232,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .btn.outline{border:1px solid #dce5d9;background:#fff;color:#4e6653}
 .app-shell.embedded .btn.outline:hover:not(:disabled){background:#f2f6f0;border-color:#b7cbb5}
 .app-shell.embedded .chip{color:#6b836f;background:#f2f7f0;border-color:#dfe8db}
-.app-shell.embedded .cue-row.selected{background:#f5faf3;border-color:#96b29c}
-.app-shell.embedded .cue-row.playing{box-shadow:inset 3px 0 0 #6b9470}
+
 .app-shell.embedded .side-tabs button.active{color:#446b4a}
 .app-shell.embedded .side-tabs button.active::after{background:#62846a}
 .app-shell.embedded .rail-item.selected{background:#edf3eb}
@@ -256,7 +254,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-save-state::before{content:'';display:block;width:6px;height:6px;border-radius:100%;background:#84a48a}
 .app-shell.embedded .editor-header{margin-bottom:0}
 .app-shell.embedded .bottom-meta{color:#829081}
-.app-shell.embedded .video-frame{background:#17221a}
+
 .app-shell.embedded .empty-media{color:#a5b4a4}
 .app-shell.embedded .empty-icon{background:#293d30;color:#c4dac3;border-color:#47614a}
 .app-shell.embedded .empty-media h2{color:#eff3ec}
@@ -282,7 +280,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .empty-actions .btn.outline{background:#283b2e;border-color:#4a634f;color:#e6eee4}
 
 .app-shell.embedded :is(.workflow-strip,.timeline-ruler,.timeline-track,.cue-footer,.cue-number,.shift-controls button,.btn.danger-ghost){background:var(--fs-surface,#fff);color:var(--fs-text,#292d27);border-color:var(--fs-border,#e4e9e1)}
-.app-shell.embedded :is(.workflow-step>span,.cue-number,.timeline-track){background:var(--fs-selected,#e8ede6)}
+.app-shell.embedded :is(.workflow-step>span,.cue-number){background:var(--fs-selected,#e8ede6)}
 .app-shell.embedded .workflow-step+.workflow-step:before{background:var(--fs-border,#e4e9e1)}
 .app-shell.embedded .workflow-step:disabled{opacity:.65;background:var(--fs-surface,#fff)}
 .app-shell.embedded .cue-row.playing:not(.selected){background:var(--fs-selected,#e8ede6)}
@@ -302,7 +300,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .workflow-step small,.app-shell.embedded .subtle {color:var(--fs-muted,#566371)}
 .app-shell.embedded .workflow-step>span {color:var(--fs-muted,#566371)}
 .app-shell.embedded .workflow-step.current {border-color:var(--fs-accent,#305fb1)}
-.app-shell.embedded .video-frame {background:var(--fs-preview,#171e29)}
+
 .app-shell.embedded .empty-icon {background:transparent;color:#b7c3d2;border-color:#465365}
 .app-shell.embedded .empty-actions .btn.outline {background:#252e3c;border-color:#465365;color:#e5eaf1}
 .app-shell.embedded .empty-media {color:#bbc6d4}
@@ -313,40 +311,32 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .timeline-ruler span,.app-shell.embedded .cue-row-bottom,.app-shell.embedded .time-input,.app-shell.embedded .shift-controls {color:var(--fs-muted,#566371)}
 .app-shell.embedded .cue-bar {background:var(--fs-wave,#537cae);border-color:var(--fs-wave,#537cae);color:#101722}
 .app-shell.embedded .cue-bar.selected {background:var(--fs-accent,#305fb1);border-color:var(--fs-accent,#305fb1);color:var(--fs-on-accent,#fff)}
-.app-shell.embedded .cue-row.playing {box-shadow:inset 2px 0 0 var(--fs-accent,#305fb1)}
+
 .app-shell.embedded .playhead,.app-shell.embedded .playhead:before {border-color:#d79a42;background:#d79a42}
 .app-shell.embedded .playhead {background:transparent}
 .app-shell.embedded :is(button,a,input,select,textarea):focus-visible {outline-color:var(--fs-focus,#4678ce)}
 @media(max-width:600px) {.app-shell.embedded .caption-action-toolbar {padding:8px}.app-shell.embedded .caption-action-toolbar .btn {font-size:11px}.app-shell.embedded .workflow-step {padding:6px}}
 
 /* Put the timeline directly beneath the viewer, not after transcription settings. */
-.app-shell.embedded .main-column {gap:12px}
+
 .app-shell.embedded .timeline {margin-top:0}
-.app-shell.embedded .video-frame {max-height:clamp(220px,40vh,390px);display:grid;place-items:center;background:var(--fs-preview,#171e29)}
+
 .app-shell.embedded .empty-media {width:100%;height:100%;min-height:0;background:var(--fs-preview,#171e29);padding:12px}
 .app-shell.embedded .empty-icon {width:38px;height:38px;border-radius:6px;margin-bottom:7px}
 .app-shell.embedded .empty-media h2 {font-size:15px}
 .app-shell.embedded .empty-media p {margin-bottom:10px}
 .app-shell.embedded .empty-media .text-button {color:#bcc8d6}
-.app-shell.embedded .side-panel {min-height:0;align-self:start}
+
 .app-shell.embedded .side-tabs {height:42px}
 .app-shell.embedded .side-tabs button {color:var(--fs-muted)}
 .app-shell.embedded .side-tabs button.active {color:var(--fs-accent)}
-.app-shell.embedded .cue-list {min-height:180px;max-height:clamp(200px,55vh,640px);padding:0 9px}
-.app-shell.embedded .cue-row {border-radius:var(--fs-radius);margin-bottom:5px;padding:9px}
-.app-shell.embedded .cue-row textarea {line-height:1.6;font-size:13px}
-.app-shell.embedded .cue-row-actions button {min-width:26px;min-height:26px;color:var(--fs-muted)}
-.app-shell.embedded .cue-row.selected {border-color:var(--fs-accent)}
+
 .app-shell.embedded .section-title {height:40px}
 .app-shell.embedded .playback-controls {gap:7px}
 .app-shell.embedded .playback-time {color:var(--fs-text);font-variant-numeric:tabular-nums}
-.app-shell.embedded .timeline-ruler,.app-shell.embedded .timeline-track {margin-inline:10px}
-.app-shell.embedded .timeline-ruler {height:24px}
-.app-shell.embedded .timeline-track {height:118px;border:1px solid var(--fs-border)}
-.app-shell.embedded .waveform {height:70px}
-.app-shell.embedded .cue-track {top:76px;border-color:var(--fs-border)}
+
 .waveform-empty {position:absolute;top:22px;left:0;right:0;text-align:center;pointer-events:none;font-size:12px;color:var(--fs-muted,#566371)}
-.app-shell.embedded .timeline-scroll {margin-inline:10px}
+
 .app-shell.embedded .timeline-foot {font-size:11px}
 .app-shell.embedded .workflow-step {min-width:0}
 @media(max-width:600px) {
@@ -366,9 +356,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 
 /* Calm editor: viewer + timeline, one inspector with four task tabs. */
 
-
-
-.app-shell.embedded .side-panel{position:static;max-height:none;min-height:0}
 .app-shell.embedded .side-tabs button{gap:4px;font-size:12px}
 .app-shell.embedded .transcribe-panel{border:0;box-shadow:none;border-radius:0}
 .app-shell.embedded .transcribe-panel .settings-grid{grid-template-columns:minmax(0,1fr);padding:12px;gap:12px}
@@ -386,7 +373,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-select-popup [data-highlighted]{background:var(--fs-selected,#e7effc);color:var(--fs-text,#27313b)}
 .app-shell.embedded .transcribe-bottom{flex-direction:column;align-items:stretch;padding:12px;gap:8px}
 .caption-running-dot{width:6px;height:6px;border-radius:50%;background:var(--fs-accent,#346dc1)}
-.app-shell.embedded .cue-list{max-height:min(65vh,700px)}
 
 @media(max-width:600px){.app-shell.embedded .caption-action-toolbar{gap:4px}.app-shell.embedded .caption-action-toolbar .btn{min-height:34px}.app-shell.embedded .side-tabs button{font-size:11px;gap:3px}}
 
@@ -402,7 +388,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-checkbox span{display:grid;place-items:center}
 
 .app-shell.embedded .side-tabs button{min-height:36px}
-.app-shell.embedded .cue-row{border-radius:var(--fs-radius,6px)}
+
 .app-shell.embedded .side-panel .surface{box-shadow:none}
 
 .caption-select-positioner{z-index:10000;min-width:var(--anchor-width);max-width:calc(100vw - 16px)}
@@ -448,7 +434,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-menu-divider{height:1px;margin:4px 5px;background:var(--fs-border)}
 @container (max-width:650px){.caption-project-group{flex:1 1 100%}.caption-toolbar-actions{width:100%;justify-content:flex-end}.caption-project-field{flex:1}}
 @container (max-width:330px){.app-shell.embedded .caption-action-toolbar .btn{padding:0 8px;font-size:11px;gap:4px}.caption-more span{display:none}.caption-toolbar-actions{gap:5px}}
-.app-shell.embedded .content-grid,.app-shell.embedded .main-column{gap:var(--fs-space-4,16px)}
 .app-shell.embedded .section-title{min-height:42px;padding:10px 12px}
 .app-shell.embedded .caption-tab-content .settings-grid{gap:12px}
 
@@ -458,8 +443,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 
 /* Shared control dimensions and compact, container-relative editor. */
 .app-shell.embedded .editor-area{container-type:inline-size}
-.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr) minmax(280px,340px);align-items:start}
-@container(max-width:740px){.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr)}}
+
 .app-shell.embedded :is(.caption-select-trigger,input[type=number],.subtitle-search,.review-chip,.time-input){min-height:var(--fs-control-height,34px);border-radius:var(--fs-radius,6px);font-size:12px}
 .app-shell.embedded input[type=number]{min-width:0;padding:6px 9px;font-variant-numeric:tabular-nums}
 .app-shell.embedded .subtitle-search input{min-width:0;font-size:12px}
@@ -470,25 +454,23 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .timeline-top{gap:8px;flex-wrap:wrap}
 .app-shell.embedded .timeline-actions{gap:4px;flex-wrap:wrap}
 .app-shell.embedded .timeline-actions .inline-checkbox{display:flex;align-items:center;gap:5px;font-size:11px;margin-right:4px}
-.app-shell.embedded .timeline-scroll{margin:8px 12px}
+
 .app-shell.embedded input[type=range]{appearance:none;-webkit-appearance:none;height:20px;min-width:0;background:transparent;border:0;padding:0;cursor:pointer}
 .app-shell.embedded input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;background:var(--fs-raised)}
 .app-shell.embedded input[type=range]::-moz-range-track{height:5px;border-radius:3px;background:var(--fs-raised)}
 .app-shell.embedded input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:13px;height:13px;margin-top:-4px;border-radius:50%;background:var(--fs-accent);border:1px solid var(--fs-surface)}
 .app-shell.embedded input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fs-accent);border:1px solid var(--fs-surface)}
 .app-shell.embedded input[type=range]:disabled{opacity:.45;cursor:not-allowed}
-.app-shell.embedded .cue-list{padding:0 8px;min-height:120px;max-height:clamp(160px,56vh,600px)}
-.app-shell.embedded .cue-row{padding:8px;gap:4px;box-shadow:none}
-.app-shell.embedded .cue-row textarea{min-height:34px;padding:6px 8px;line-height:1.45;resize:vertical}
+
 .app-shell.embedded .cue-row-top,.app-shell.embedded .cue-row-bottom{gap:6px}
 .app-shell.embedded .cue-row-actions{gap:2px}
-.app-shell.embedded .cue-row-actions button{min-width:26px;min-height:26px}
+
 .app-shell.embedded .side-tools{gap:8px;padding:10px 12px}
 .app-shell.embedded .review-toolbox{padding-inline:var(--fs-space-3,12px);border-color:var(--fs-border)}
 .app-shell.embedded .review-batch-actions>span,.app-shell.embedded .review-batch-actions button{color:var(--fs-muted)}
 .app-shell.embedded .review-batch-actions button:hover:not(:disabled){color:var(--fs-accent);background:var(--fs-selected)}
 .app-shell.embedded .cue-stats{padding:var(--fs-space-2,8px) var(--fs-space-3,12px);border-color:var(--fs-border)}
-.app-shell.embedded .side-panel{min-height:0}
+
 @container(max-width:450px){.app-shell.embedded .playback-controls{flex-wrap:wrap}.app-shell.embedded .playback-controls>input[type=range]{order:2;flex-basis:100%;margin:2px 0}.app-shell.embedded .timeline-top>div:first-child{flex:1 1 100%}.app-shell.embedded .timeline-actions{justify-content:flex-start}}
 
 .app-shell.embedded .timeline-ruler .tick-start{transform:none}
@@ -509,7 +491,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .cue-page-jump{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
 .cue-page-jump input{width:4ch;min-width:30px;padding:2px 3px;text-align:center;font:inherit;font-variant-numeric:tabular-nums;color:var(--fs-text,#33424e);border:1px solid var(--fs-border,#dfe4e7);border-radius:var(--fs-radius,6px);background:var(--fs-input,#fff)}
 .app-shell.embedded .cue-page-jump input{min-height:26px}
-.app-shell.embedded .cue-row-bottom .time-input{min-width:0;text-align:center}
+
 @container(max-width:450px){.app-shell.embedded .cue-stats{flex-wrap:wrap;column-gap:6px;row-gap:4px}.app-shell.embedded .cue-row-bottom{gap:4px}.app-shell.embedded .time-input{font-size:11px;padding-inline:2px}}
 
 /* Scoped batch operations: reuse existing checkbox and chip primitives. */
@@ -523,3 +505,11 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .cue-batch-panel .cue-batch-danger{color:var(--fs-danger,#b04c43)}
 
 .cue-quality-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 var(--fs-space-3,12px) var(--fs-space-2,8px)}.cue-quality-tools .caption-select-trigger{flex:1;min-width:130px}
+
+.cue-scale-tools{border-top:1px solid var(--fs-border,#dce3e7);padding-top:6px;font-size:11px;color:var(--fs-muted,#657280)}
+.cue-scale-tools summary{cursor:pointer;padding:3px 0;color:var(--fs-text,#24303b)}
+.cue-scale-tools[open] .cue-batch-actions{margin:6px 0}
+.timeline-track{touch-action:none;outline-offset:3px}
+.timeline-track:focus-visible{outline:2px solid var(--fs-accent,#305fb1)}
+.timeline-track .resize-handle:focus-visible{outline:2px solid var(--fs-on-accent,#fff);outline-offset:-2px}
+.timeline-track .playhead{pointer-events:none}

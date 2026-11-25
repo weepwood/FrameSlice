@@ -1,7 +1,9 @@
-import {useMemo,useState} from 'react';
-import {ArrowDownUp,CheckCheck,ChevronDown,ChevronUp,LocateFixed,Replace,ScanText,ShieldAlert,ListChecks} from 'lucide-react';
+import {useMemo,useState,useLayoutEffect,useRef} from 'react';
+import {ArrowDownUp,CheckCheck,LocateFixed,Replace,ScanText,ShieldAlert,ListChecks,Ellipsis} from 'lucide-react';
 import {cleanCaptionText,reviewCues,repairOverlaps,replaceCaptionText} from '../lib/review';
 import type {Cue} from '../lib/captions';
+import {Toolbar} from '@base-ui/react/toolbar';
+import {Menu} from '@base-ui/react/menu';
 
 interface Props {
   cues:Cue[];
@@ -23,6 +25,9 @@ export function ReviewTools({cues,review,visibleCues,query,onlyIssues,followPlay
   const [replaceOpen,setReplaceOpen]=useState(false);
   const [replacement,setReplacement]=useState('');
   const [notice,setNotice]=useState('');
+  const trigger=useRef<HTMLButtonElement>(null);
+  const [container,setContainer]=useState<HTMLElement|ShadowRoot|null>(null);
+  useLayoutEffect(()=>{const root=trigger.current?.getRootNode();setContainer(root instanceof ShadowRoot?root:document.body)},[cues.length>0]);
   const problems=useMemo(()=>visibleCues.filter(c=>review.byId.has(c.id)).map(c=>c.id),[visibleCues,review]);
   const term=query.trim();
   const replacements=useMemo(()=>term?cues.filter(c=>c.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())).length:0,[cues,term]);
@@ -48,18 +53,26 @@ export function ReviewTools({cues,review,visibleCues,query,onlyIssues,followPlay
     onChange(list=>list.map(c=>({...c,text:replaceCaptionText(c.text,term,replacement)})));
     setNotice(`已替换 ${replacements} 条字幕，可通过撤销恢复`);
   };
+  if(!cues.length)return null;
   return <div className="review-toolbox">
-    <div className="review-controls">
-      <button className={`review-chip ${onlyIssues?'active':''}`} aria-pressed={onlyIssues} onClick={()=>onToggleIssues(!onlyIssues)} title="仅显示需要校对的字幕"><ShieldAlert size={14}/>问题筛选 <span>{review.affected}</span></button>
-      <button className="review-chip" disabled={!problems.length} onClick={goNext} title="定位下一条存在问题的字幕"><LocateFixed size={14}/>下一项</button>
-      <button className={`review-chip ${followPlayback?'active':''}`} aria-pressed={followPlayback} onClick={()=>onFollowPlayback(!followPlayback)} title="播放时自动滚动字幕列表"><ScanText size={14}/>跟随</button>
-      <button className={`review-chip ${replaceOpen?'active':''}`} aria-expanded={replaceOpen} disabled={!cues.length} onClick={()=>setReplaceOpen(v=>!v)} title="批量查找和替换字幕"><Replace size={14}/>替换 {replaceOpen?<ChevronUp size={12}/>:<ChevronDown size={12}/>}</button>
-    </div>
+    <Toolbar.Root className="review-controls" aria-label="字幕校对工具">
+      <Toolbar.Button className={`review-chip ${onlyIssues?'active':''}`} aria-pressed={onlyIssues} onClick={()=>onToggleIssues(!onlyIssues)} title="仅显示需要校对的字幕"><ShieldAlert size={14}/>问题筛选 <span>{review.affected}</span></Toolbar.Button>
+      <Toolbar.Button className="review-chip review-icon" aria-label="下一项" disabled={!problems.length} onClick={goNext} title="下一条问题字幕"><LocateFixed size={15}/></Toolbar.Button>
+      <Toolbar.Button className={`review-chip review-icon ${followPlayback?'active':''}`} aria-label="跟随" aria-pressed={followPlayback} onClick={()=>onFollowPlayback(!followPlayback)} title="播放时跟随字幕"><ScanText size={15}/></Toolbar.Button>
+      <Toolbar.Separator className="review-separator"/>
+      {!batchMode&&<Toolbar.Button className="review-chip" onClick={onOpenBatch}><ListChecks size={14}/>多选编辑</Toolbar.Button>}
+      <Menu.Root><Toolbar.Button render={<Menu.Trigger ref={trigger}/>} className="review-chip review-icon" aria-label="更多字幕操作" title="替换、整理与修复"><Ellipsis size={17}/></Toolbar.Button>
+      {container&&<Menu.Portal container={container}><Menu.Positioner align="end" sideOffset={6} collisionPadding={10} className="caption-menu-positioner"><Menu.Popup className="caption-project-menu">
+        <Menu.Item className="caption-menu-item" onClick={()=>setReplaceOpen(v=>!v)}><Replace size={15}/>{replaceOpen?'关闭替换':'查找并替换'}</Menu.Item>
+        <Menu.Separator className="caption-menu-divider"/>
+        <Menu.Item className="caption-menu-item" onClick={cleanup}><CheckCheck size={15}/>整理文本</Menu.Item>
+        <Menu.Item className="caption-menu-item" onClick={fixTime}><ArrowDownUp size={15}/>修复重叠</Menu.Item>
+      </Menu.Popup></Menu.Positioner></Menu.Portal>}</Menu.Root>
+    </Toolbar.Root>
     {replaceOpen&&<div className="replace-panel">
       <div className="replace-panel-heading"><span>查找并替换</span><small>使用上方搜索词，按原样匹配文本</small></div>
       <div className="replace-input-row"><input value={replacement} maxLength={200} onChange={e=>setReplacement(e.target.value)} aria-label="替换为" placeholder="替换为…"/><button className="btn small primary" disabled={!query||!replacements} onClick={replaceAll}>替换 {replacements} 条</button></div>
     </div>}
-    <div className="review-batch-actions"><span>批量处理</span><button onClick={cleanup} disabled={!cues.length} title="清理重复空格与标点前空格，不更改说话内容"><CheckCheck size={14}/>整理文本</button><button onClick={fixTime} disabled={!cues.length} title="只修复能保持最小时长的重叠字幕"><ArrowDownUp size={14}/>修复重叠</button>{cues.length>0&&!batchMode&&<button onClick={onOpenBatch}><ListChecks size={14}/>多选编辑</button>}</div>
     {notice&&<div className="review-notice" role="status">{notice}<button aria-label="关闭提示" onClick={()=>setNotice('')}>×</button></div>}
   </div>;
 }

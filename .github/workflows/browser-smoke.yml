@@ -71,6 +71,9 @@ jobs:
           node scripts/browser-caption-conflict.mjs
           node scripts/browser-caption-batch.mjs
           node scripts/browser-media-lifecycle.mjs
+          node scripts/browser-timeline-professional.mjs
+          node scripts/browser-caption-layout.mjs
+          node scripts/browser-desktop-workbench.mjs
           BROWSER_ENGINE=chromium node scripts/browser-capability.mjs
       - name: 正式版本跨浏览器能力边界（Firefox / WebKit）
         env:
@@ -81,6 +84,8 @@ jobs:
           failed=0
           BROWSER_ENGINE=firefox node scripts/browser-capability.mjs || failed=1
           BROWSER_ENGINE=webkit node scripts/browser-capability.mjs || failed=1
+          BROWSER_ENGINE=firefox node scripts/browser-desktop-workbench.mjs || failed=1
+          BROWSER_ENGINE=webkit node scripts/browser-desktop-workbench.mjs || failed=1
           exit "$failed"
       - name: 独立固定视口视觉候选
         id: visual
@@ -99,6 +104,13 @@ jobs:
           bash scripts/fetch-approved-visual.sh /tmp/frameslice-approved
           python3 scripts/verify-approved-visual.py /tmp/frameslice-approved visual-candidate
           python3 scripts/compare-visual.py /tmp/frameslice-approved visual-candidate --output visual-diff --threshold 0.02
+      - name: 缩略图缓存与资源循环压力（120秒）
+        if: always() && steps.preview.outcome == 'success'
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          APP_URL: http://127.0.0.1:4173/FrameSlice/
+          SOAK_MS: '120000'
+        run: node scripts/browser-resource-soak.mjs
       - name: 短样本真实浏览器性能基准
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
@@ -117,4 +129,6 @@ jobs:
             visual-diff/
             browser-benchmark.json
             browser-capability-*.json
+            browser-desktop-*.json
+            browser-resource-soak.json
           if-no-files-found: warn

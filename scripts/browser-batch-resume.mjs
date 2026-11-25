@@ -16,7 +16,7 @@ try{
  await page.getByRole('button',{name:'任务中心'}).click()
  await center.getByLabel('批量媒体文件').setInputFiles(files)
  await selectOption(page,'批处理方式','定时抽帧',center)
- await center.locator('.fs-batch input[type=number]').fill('0.5')
+ await center.getByRole('spinbutton',{name:'批量抽帧间隔秒数'}).fill('0.5')
  await center.getByRole('button',{name:'选择目录并开始批处理'}).click()
  const waitBatch=async()=>{await page.waitForFunction(()=>{const b=JSON.parse(localStorage.getItem('frameslice.batch.v1')||'null');return b?.rows?.length===2&&b.rows.every(r=>r.status==='completed')},{},{timeout:60000});await center.getByRole('button',{name:'选择目录并开始批处理'}).waitFor({timeout:30000});await page.waitForFunction(async()=>navigator.locks.request('frameslice-batch-v1',{ifAvailable:true},lock=>!!lock),{},{timeout:30000})}
  await waitBatch()
