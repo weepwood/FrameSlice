@@ -17,6 +17,7 @@ try{
   await video.evaluate(v=>v.readyState>=1?Promise.resolve():new Promise((resolve,reject)=>{v.addEventListener('loadedmetadata',resolve,{once:true});v.addEventListener('error',reject,{once:true})}));
   const bar=player.locator('.fs-player-controls');const p=await player.boundingBox(),b=await bar.boundingBox();
   if(Math.abs(b.width-p.width)>2||b.height>105)throw Error('player toolbar size '+JSON.stringify({p,b}));
+  if(await player.evaluate(el=>!!el.closest('.caption-editor-layout'))&&Math.abs(b.y+b.height-p.y-p.height)>2)throw Error('caption toolbar not docked '+JSON.stringify({p,b}));
   await player.locator('media-seek-forward-button').click();
   await video.evaluate(v=>v.seeking?new Promise(resolve=>v.addEventListener('seeked',resolve,{once:true})):Promise.resolve());
   if(await video.evaluate(v=>v.currentTime)<4.9)throw Error('seek forward failed');
@@ -93,6 +94,8 @@ try{
  await host.getByRole('textbox',{name:'第 1 条字幕'}).waitFor();
  await cv.evaluate(v=>{v.currentTime=28});
  await host.locator('.caption-overlay').getByText('Fluent 字幕同步测试').waitFor();
+ const checkDock=async()=>{const p=await cp.boundingBox(),b=await cp.locator('.fs-player-controls').boundingBox();if(Math.abs(b.y+b.height-p.y-p.height)>2)throw Error('caption toolbar detached from bottom '+JSON.stringify({p,b}))};
+ await checkDock();
  const editor=host.getByRole('textbox',{name:'第 1 条字幕'});
  await editor.click();const oldMuted=await cv.evaluate(v=>v.muted);await editor.press('m');if(await cv.evaluate(v=>v.muted)!==oldMuted)throw Error('shortcut intercepted subtitle editing');await editor.fill('Fluent 字幕同步测试');
 
@@ -124,5 +127,5 @@ try{
  await page.screenshot({path:'visual-regression/fluent-player-caption-'+engine+'-mobile.png',animations:'disabled'});
  if(runtimeRequests.length!==1)throw Error('expected one shared runtime request, got '+runtimeRequests.length);
  if(errors.length)throw Error(errors.join('; '));
- console.log(JSON.stringify({engine,version:browser.version(),pip:pipResult,cueLoop:'passed',scopedShortcuts:'passed',lazySharedRuntime:'passed',preferences:'passed',fluentButton:'passed',vuePlayer:'passed',captionPlayer:'passed',seek:'passed',volume:'passed',mute:'passed',rate:'passed',playPause:'passed',captionSync:'passed',fullscreenRoundTrip:'passed',mobile:'passed'}));
+ console.log(JSON.stringify({captionToolbarDock:'passed',engine,version:browser.version(),pip:pipResult,cueLoop:'passed',scopedShortcuts:'passed',lazySharedRuntime:'passed',preferences:'passed',fluentButton:'passed',vuePlayer:'passed',captionPlayer:'passed',seek:'passed',volume:'passed',mute:'passed',rate:'passed',playPause:'passed',captionSync:'passed',fullscreenRoundTrip:'passed',mobile:'passed'}));
 }finally{await browser.close()}

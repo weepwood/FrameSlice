@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Minus,Plus,StepForward,AudioLines,Subtitles,ScanLine} from 'lucide-react';
 import {CaptionCheckbox} from './CaptionCheckbox';
-import {shortTime,type Cue} from '../lib/captions';
+import {fmt,shortTime,type Cue} from '../lib/captions';
 import type {buildCueIndex} from '../lib/cue-index';
 interface Props {
   intervalIndex:ReturnType<typeof buildCueIndex>;
@@ -10,7 +10,7 @@ interface Props {
   onUpdate:(id:string,patch:Partial<Cue>)=>void;
   onWaveform:()=>void;waveformDisabled:boolean;
 }
-type Drag={id:string;side:'start'|'end';value:number};
+type Drag={id:string;pointerId:number;side:'start'|'end';value:number};
 export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSeek,onSelect,onUpdate,onWaveform,waveformDisabled}:Props){
   const [span,setSpan]=useState(60);
   const [viewStart,setViewStart]=useState(0);
@@ -84,26 +84,26 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     if(e.button!==0||liveDrag.current)return;e.preventDefault();e.stopPropagation();onSelect(id);setFollow(false);
     e.currentTarget.setPointerCapture(e.pointerId);
     const cue=cues.find(c=>c.id===id);
-    if(cue){const next={id,side,value:cue[side]};liveDrag.current=next;setDrag(next)};
+    if(cue){const next={id,side,pointerId:e.pointerId,value:cue[side]};liveDrag.current=next;setDrag(next)};
   };
   const move=(e:React.PointerEvent)=>{
     if(scrub.current===e.pointerId){onSeek(point(e));return}
-    const current=liveDrag.current;if(!current)return;
+    const current=liveDrag.current;if(!current||current.pointerId!==e.pointerId)return;
     const cue=cues.find(c=>c.id===current.id);if(!cue)return;
     const raw=point(e),value=Math.round(Math.max(current.side==='start'?0:cue.start+.08,Math.min(current.side==='start'?Math.max(0,cue.end-.08):Math.max(duration,cue.end),raw))*1000)/1000;
     const next={...current,value};liveDrag.current=next;setDrag(next);
   };
   const endDrag=(e:React.PointerEvent)=>{
     if(scrub.current===e.pointerId){onSeek(point(e));scrub.current=null;return}
-    if(!liveDrag.current)return;
+    if(!liveDrag.current||liveDrag.current.pointerId!==e.pointerId)return;
     move(e);const current=liveDrag.current;liveDrag.current=null;setDrag(null);
     if(current)onUpdate(current.id,{[current.side]:current.value});
   };
-  const cancelDrag=()=>{liveDrag.current=null;scrub.current=null;setDrag(null)};
+  const cancelDrag=(e:React.PointerEvent)=>{if(liveDrag.current?.pointerId===e.pointerId){liveDrag.current=null;setDrag(null)}if(scrub.current===e.pointerId)scrub.current=null};
   const displayCues=useMemo(()=>intervalIndex.visible(start,start+visible),[intervalIndex,start,visible]);
-  return <section className="timeline surface" data-empty={!duration} aria-label="字幕时间轴">
+  return <section className="timeline surface" data-empty={!duration} aria-label="字幕时间轴" data-trimming={!!drag}>
     <div className="section-title timeline-top">
-      <div><strong>时间轴</strong><span className="caption-timeline-clock"><b>{shortTime(time)}</b><span>/ {shortTime(duration)}</span></span></div>
+      <div><strong>时间轴</strong><span className="caption-timeline-clock"><b>{shortTime(time)}</b><span>/ {shortTime(duration)}</span></span>{drag&&<span className="caption-trim-readout" role="status">{drag.side==='start'?'起点':'终点'} <b>{fmt(drag.value,'vtt')}</b></span>}</div>
       <div className="timeline-actions"><button className="icon-btn timeline-wave-action" disabled={waveformDisabled} onClick={onWaveform} title={peaks.length?'重新提取波形':'提取音频波形'} aria-label={peaks.length?'重新提取波形':'提取音频波形'}><AudioLines size={16}/></button><span className="timeline-action-divider" aria-hidden="true"/>
         <div className="inline-checkbox"><CaptionCheckbox label="跟随播放" checked={follow} onChange={setFollow}/><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
         <button className="icon-btn" aria-label="缩小时间轴" disabled={visible>=Math.min(600,duration)} onClick={()=>zoom(visible*2)}><Minus size={15}/></button>
@@ -115,14 +115,14 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     <div className="timeline-ruler">
       {ticks.map(t=><span className={t-start<visible*.04?'tick-start':start+visible-t<visible*.04?'tick-end':undefined} key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
     </div>
-    <div className="timeline-lanes"><div className="timeline-lane-labels" aria-hidden="true"><span><AudioLines size={14}/>音频</span><span><Subtitles size={14}/>字幕</span></div><div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
+    <div className="timeline-lanes"><div className="timeline-lane-labels" aria-hidden="true"><span><AudioLines size={14}/>音频</span><span><Subtitles size={14}/>字幕</span></div><div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||liveDrag.current||scrub.current!==null||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
       <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">{duration?'尚未生成音频波形':'导入媒体后显示音频波形'}</span>}
       <div className="cue-track">
         {displayCues.map(c=>{
           const s=drag?.id===c.id&&drag.side==='start'?drag.value:c.start;
           const end=drag?.id===c.id&&drag.side==='end'?drag.value:c.end;
           const left=Math.max(0,(s-start)/visible*100),right=Math.min(100,(end-start)/visible*100);
-          return <div key={c.id} className={`cue-bar ${selectedId===c.id?'selected':''}`} style={{left:`${left}%`,width:`${Math.max(.25,right-left)}%`}} onClick={e=>{e.stopPropagation();if((e.target as HTMLElement).closest('.resize-handle'))return;onSelect(c.id);onSeek(c.start)}} title={c.text}>
+          return <div key={c.id} className={`cue-bar ${selectedId===c.id?'selected':''}`} data-trimming={drag?.id===c.id} data-current={time>=c.start&&time<c.end} style={{left:`${left}%`,width:`${Math.max(.25,right-left)}%`}} onClick={e=>{e.stopPropagation();if((e.target as HTMLElement).closest('.resize-handle'))return;onSelect(c.id);onSeek(c.start)}} title={c.text}>
             <span className="resize-handle left" role="slider" aria-label="调整字幕起点" aria-valuemin={0} aria-valuemax={Math.max(0,c.end-.08)} aria-valuenow={s} aria-valuetext={shortTime(s)} tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'start')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{start:Math.min(c.end-.08,Math.max(0,c.start+(e.key==='ArrowRight'?.1:-.1)))})}}}/>
             <span className="cue-bar-label">{c.text}</span>
             <span className="resize-handle right" role="slider" aria-label="调整字幕终点" aria-valuemin={c.start+.08} aria-valuemax={Math.max(c.start+.08,duration,c.end)} aria-valuenow={end} aria-valuetext={shortTime(end)} tabIndex={0} onPointerDown={e=>dragStart(e,c.id,'end')} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();onUpdate(c.id,{end:Math.min(Math.max(duration,c.end,c.start+.08),Math.max(c.start+.08,c.end+(e.key==='ArrowRight'?.1:-.1)))})}}}/>

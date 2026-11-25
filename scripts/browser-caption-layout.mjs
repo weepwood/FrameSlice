@@ -12,7 +12,7 @@ try{
  const align=async()=>{const a=await main.boundingBox(),b=await side.boundingBox();if(Math.abs(a.y-b.y)>1||Math.abs(a.y+a.height-b.y-b.height)>1)throw Error('editor panels not aligned')};
  await align();
  const dock=host.getByRole('region',{name:'字幕时间轴'});
- const checkDock=async()=>{const a=await main.boundingBox(),b=await side.boundingBox(),t=await dock.boundingBox();if(Math.abs(t.x-a.x)>2||Math.abs(t.x+t.width-b.x-b.width)>2||t.y<a.y+a.height)throw Error('timeline is not full width below both panels')};
+ const checkDock=async()=>{await dock.evaluate(el=>new Promise((resolve,reject)=>{const root=el.closest('.caption-editor-layout'),main=root.querySelector('.main-column'),side=root.querySelector('.side-panel');const start=performance.now();function check(){const a=main.getBoundingClientRect(),b=side.getBoundingClientRect(),t=el.getBoundingClientRect();if(Math.abs(t.x-a.x)<=2&&Math.abs(t.right-b.right)<=2&&t.y>=a.bottom-1){resolve();return}if(performance.now()-start>3000){reject(Error('timeline layout mismatch '+JSON.stringify({a:a.toJSON(),b:b.toJSON(),t:t.toJSON()})));return}requestAnimationFrame(check)}check()}))};
  await checkDock();
  const frame=host.locator('.video-frame');
  const emptyButtons=frame.getByRole('button',{name:/选择媒体文件|导入 SRT/});
@@ -42,6 +42,14 @@ try{
  await toolbar.getByRole('button',{name:'更多字幕操作'}).click();
  await host.getByRole('menuitem',{name:'关闭替换'}).click();
  await host.getByRole('textbox',{name:'替换为'}).waitFor({state:'detached'});
+ const first=host.getByRole('textbox',{name:'第 1 条字幕',exact:true});
+ const original=await first.inputValue();
+ const textHeight=(await first.boundingBox()).height;
+ await first.fill('第一行\n第二行\n第三行\n第四行');
+ if((await first.boundingBox()).height<=textHeight)throw Error('multiline text editor did not expand');
+ await first.fill(original);
+ await host.locator('.cue-row').first().getByRole('button',{name:'跳转到字幕',exact:true}).click();
+ await host.locator('.cue-row').first().locator('.cue-current-indicator').waitFor();
  await align();await checkDock();
  const checkFooter=async()=>{const p=await side.boundingBox(),b=await host.getByRole('button',{name:'新增字幕',exact:true}).boundingBox();if(!b||b.y+b.height>p.y+p.height+1)throw Error('caption footer clipped')};
  await checkFooter();
@@ -67,5 +75,5 @@ try{
  const labels=await host.locator('.timeline-ruler span').evaluateAll(els=>els.map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right})));
  if(labels.length<2||labels.some((r,i)=>i>0&&r.left<labels[i-1].right+2))throw Error('narrow ruler labels overlap');
  await page.screenshot({path:'visual-regression/editor-redesign-dark-390.png',animations:'disabled'});
- console.log(JSON.stringify({fullWidthTimeline:'passed',footerVisible:'passed',auxiliaryPanels:'passed',emptyEntryRouting:'passed',emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
+ console.log(JSON.stringify({multilineEditor:'passed',currentCueIndicator:'passed',fullWidthTimeline:'passed',footerVisible:'passed',auxiliaryPanels:'passed',emptyEntryRouting:'passed',emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
 }finally{await browser.close()}

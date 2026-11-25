@@ -143,3 +143,46 @@
 .caption-style-sample[data-position=top]{align-items:start}
 .caption-style-sample[data-position=bottom]{align-items:end}
 @media(max-width:600px){.app-shell .caption-editor-layout .cue-list{max-height:320px}}
+
+/* Detailed editor states and stable typography; retain existing interaction primitives. */
+.app-shell .caption-editor-layout .cue-row{border-radius:4px;position:relative}
+.app-shell .caption-editor-layout .cue-row-top{gap:5px}
+.app-shell .caption-editor-layout .cue-number{min-width:28px;height:24px;background:var(--fs-raised);font-variant-numeric:tabular-nums}
+.app-shell .caption-editor-layout .cue-duration{font-size:11px;font-variant-numeric:tabular-nums;color:var(--fs-muted)}
+.cue-current-indicator{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--colorBrandForeground1);white-space:nowrap}
+.cue-current-indicator>span,.caption-media-dot{width:6px;height:6px;border-radius:50%;background:var(--colorBrandForeground1);flex:none}
+.caption-media-dot{background:var(--fs-muted)}
+.caption-media-dot.ready{background:var(--fs-success)}
+.caption-viewer-state{display:inline-flex;align-items:center;gap:6px}
+.app-shell.embedded .caption-editor-layout .cue-row textarea{width:100%;box-sizing:border-box;max-height:160px;overflow:auto;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere}
+@supports(field-sizing:content){.app-shell.embedded .caption-editor-layout .cue-row textarea{field-sizing:content}}
+.app-shell.embedded .caption-editor-layout .cue-row-bottom .time-input{flex:1 1 110px;max-width:135px;width:0;min-height:28px;font-family:var(--fs-font);font-size:11px;color:var(--fs-text)}
+.cue-time-divider{color:var(--fs-muted);flex:none}
+.app-shell .caption-editor-layout .cue-row-actions button:disabled{opacity:.35}
+.app-shell .caption-editor-layout .cue-row-actions button:focus-visible,.app-shell .caption-editor-layout .cue-seek:focus-visible{outline:2px solid var(--colorStrokeFocus2);outline-offset:-2px}
+.app-shell .caption-editor-layout .cue-row.playing:not(.selected){box-shadow:inset 2px 0 var(--colorBrandForeground1);background:var(--colorSubtleBackgroundSelected)}
+.app-shell .caption-editor-layout .timeline-ruler{height:28px;border-bottom:0;background:transparent}
+.app-shell .caption-editor-layout .timeline-ruler span{color:var(--fs-muted);font-weight:500}
+.app-shell .caption-editor-layout .timeline-ruler span::after{top:15px;height:7px;background:var(--fs-border)}
+.app-shell .caption-editor-layout .timeline-track .cue-bar{height:30px;top:5px;min-width:2px;gap:0}
+.app-shell .caption-editor-layout .cue-bar .resize-handle{width:7px;border-radius:2px;background:transparent;position:relative}
+.app-shell .caption-editor-layout .cue-bar:is(:hover,.selected,[data-trimming=true],:focus-within) .resize-handle{background:color-mix(in srgb,var(--colorBrandForeground1) 32%,transparent)}
+.app-shell .caption-editor-layout .cue-bar[data-current=true]:not(.selected){border-color:var(--colorBrandForeground1)}
+.app-shell .caption-editor-layout .cue-bar[data-trimming=true]{outline:1px solid var(--colorBrandForeground1);outline-offset:1px;z-index:5}
+.caption-trim-readout{font-size:11px;display:inline-flex;align-items:center;gap:5px;color:var(--colorBrandForeground1);white-space:nowrap;font-variant-numeric:tabular-nums}
+.caption-trim-readout b{font-weight:600}
+.app-shell .caption-editor-layout .video-frame{background:#202020}
+.app-shell .caption-editor-layout .video-frame .fs-media-player{--media-background-color:#202020}
+.app-shell .caption-editor-layout .video-frame .fs-player-controls{background:#202020;border-top:1px solid #383838}
+.app-shell .caption-editor-layout .video-frame media-control-bar{gap:3px}
+.app-shell .caption-editor-layout .video-frame .fs-media-player video{object-fit:contain}
+@media(max-width:600px){
+ .app-shell .caption-editor-layout .cue-row-top{gap:4px}
+ .app-shell .caption-editor-layout .cue-row-actions{gap:0}
+ .caption-trim-readout{font-size:10px}
+ .app-shell .caption-editor-layout .video-frame media-control-bar{gap:0}
+}
+/* Keep the controller on the bottom edge of the public Media Chrome layer,
+   independent of centered loading/audio chrome and active subtitle overlays. */
+.app-shell .caption-editor-layout .fs-media-player::part(vertical-layer){justify-content:flex-end}
+.app-shell .caption-editor-layout .video-frame .fs-player-controls{position:absolute;inset:auto 0 0;flex:none}
