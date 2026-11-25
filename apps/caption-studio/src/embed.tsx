@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import './editor-layout.css'
+import '../../../src/assets/fluent-controls.css'
+import '../../../src/assets/fluent-player.css'
 
 /**
  * Standalone React island, mounted within the FrameSlice Vue workspace.

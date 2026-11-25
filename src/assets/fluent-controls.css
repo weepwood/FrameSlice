@@ -1,0 +1,79 @@
+/* Shared Fluent appearance for retained Reka/Base UI primitives and native editing controls. */
+.fs-workbench,.app-shell.embedded{font-family:var(--fs-font),'Microsoft YaHei',sans-serif}
+.fs-workbench :is(.secondary-button,.fs-tool-button,.fs-select-trigger,.fs-number-group),.app-shell :is(.btn.outline,.caption-select-trigger,.fs-number-group){border-radius:var(--borderRadiusMedium,4px);font-weight:500;box-shadow:none}
+.fs-workbench :is(.primary-button,.cancel-button),.app-shell .btn.primary{border-radius:var(--borderRadiusMedium,4px);font-weight:600}
+.fs-workbench :is(.secondary-button,.fs-tool-button,.fs-select-trigger):hover:not(:disabled),.app-shell :is(.btn.outline,.icon-btn):hover:not(:disabled){background:var(--colorNeutralBackground1Hover,var(--fs-raised));color:var(--fs-text)}
+.fs-workbench .primary-button:hover:not(:disabled),.app-shell .btn.primary:hover:not(:disabled){background:var(--colorBrandBackgroundHover,var(--fs-accent));filter:none;transform:none}
+.fs-workbench :is(.primary-button,.secondary-button,.fs-select-trigger,.fs-tool-button):focus-visible,.app-shell :is(.btn,.icon-btn,.caption-select-trigger):focus-visible{outline:2px solid var(--colorStrokeFocus2,var(--fs-focus));outline-offset:2px}
+.fs-workbench .nav-item.active{background:var(--colorSubtleBackgroundSelected,var(--fs-selected))}
+.fs-workbench .nav-item.active:before{background:var(--colorBrandBackground,var(--fs-accent))}
+.fs-workbench .fs-workspace-symbol{color:var(--colorBrandForeground1,var(--fs-accent));background:var(--colorBrandBackground2,var(--fs-selected));border-radius:var(--borderRadiusLarge,8px)}
+.fs-workbench fluent-button.fs-fluent-button{min-width:0;max-width:100%;font-size:12px;min-height:32px;--spacingHorizontalM:10px}
+.fs-fluent-button::part(content){display:flex;align-items:center;gap:6px}
+.fs-workbench .fs-workspace-header{letter-spacing:0}
+.fs-workbench .fs-workspace-title h1{font-weight:600;letter-spacing:0}
+.fs-select-content,.caption-project-menu,.caption-select-popup{box-shadow:var(--shadow8,0 4px 12px #0002);border-radius:var(--borderRadiusMedium,4px)}
+.app-shell .caption-editor-layout .cue-row.selected{background:var(--colorNeutralBackground1Selected,var(--fs-selected))}
+
+.fs-fluent-button svg{fill:none;stroke:currentColor;flex:none}
+
+/* Brand text and filled controls use distinct Fluent tokens for dark-theme contrast. */
+.fs-workbench :is(.mark,.drop-action,.primary-button,.cancel-button),.app-shell.embedded :is(.btn.primary,.play-button),.app-shell .caption-editor-layout .cue-bar.selected{background:var(--fs-brand-fill,var(--fs-accent));color:var(--fs-on-accent)}
+.fs-workbench .primary-button:hover:not(:disabled),.app-shell.embedded .btn.primary:hover:not(:disabled){background:var(--colorBrandBackgroundHover,var(--fs-brand-fill));filter:none}
+
+.fs-fluent-checkbox{flex:none;margin:1px 0 0;width:16px;height:16px}
+.fs-fluent-checkbox[disabled]+label{color:var(--fs-muted);cursor:not-allowed}
+
+/* Portals are siblings of the app, so these rules deliberately do not rely on
+   a workspace ancestor. Retain the libraries' focus and collision behavior. */
+.fs-select-content,.caption-select-popup,.caption-project-menu,.fs-dialog-content{border-color:var(--colorNeutralStroke2,var(--fs-border));background:var(--fs-surface);box-shadow:var(--shadow8,0 4px 12px #0002)}
+.fs-select-item[data-highlighted],.caption-select-item[data-highlighted],.caption-menu-item[data-highlighted]{background:var(--colorNeutralBackground1Hover,var(--fs-selected))}
+.fs-select-item[data-state=checked],.caption-select-item[data-selected]{color:var(--colorBrandForeground1,var(--fs-accent))}
+.fs-workbench :is(.fs-select-trigger,.fs-number-group),.app-shell.embedded :is(.caption-select-trigger,.fs-number-group,.subtitle-search,.caption-project-field input,.time-input){border-bottom-color:var(--colorNeutralStrokeAccessible,var(--fs-border))}
+.fs-workbench :is(.fs-select-trigger,.fs-number-group):focus-within,.app-shell.embedded :is(.caption-select-trigger,.fs-number-group,.subtitle-search,.caption-project-field input,.time-input):focus-within{border-bottom-color:var(--colorCompoundBrandStroke,var(--fs-focus))}
+.fs-workbench .fs-segmented .secondary-button[data-state=on]{color:var(--colorBrandForeground1,var(--fs-accent));border-color:var(--colorNeutralStroke2,var(--fs-border))}
+.app-shell .caption-editor-layout .side-tabs button.active{color:var(--colorBrandForeground1,var(--fs-accent));background:var(--colorSubtleBackgroundSelected,var(--fs-selected))}
+
+fluent-progress-bar.fs-workbench-progress{height:7px;background:var(--colorNeutralBackground6,var(--fs-raised))}
+.fs-job-row fluent-progress-bar.fs-workbench-progress{height:4px}
+fluent-progress-bar.fs-workbench-progress::part(indicator){background-color:var(--colorCompoundBrandBackground,var(--fs-brand-fill))}
+@media(prefers-reduced-motion:reduce){fluent-progress-bar.fs-workbench-progress::part(indicator){transition:none;animation:none}}
+
+/* React uses the same registered Fluent controls as the Vue host. */
+.fs-fluent-caption-checkbox{width:16px;height:16px;flex:none;vertical-align:middle}
+.fs-caption-fluent-button{display:inline-flex;min-height:34px;min-width:0;max-width:100%;font-size:12px;white-space:nowrap;--spacingHorizontalM:10px}
+.fs-caption-fluent-button::part(content){display:flex;gap:6px;align-items:center;justify-content:center}
+.fs-caption-fluent-button svg{fill:none;stroke:currentColor;flex:none}
+.fs-caption-fluent-button.full{width:100%}
+.empty-actions .fs-caption-fluent-button[appearance=outline]{--colorNeutralForeground1:#f5f5f5;--colorNeutralStroke1:#777;--colorNeutralBackground1:transparent;--colorNeutralBackground1Hover:#414141;--colorNeutralForeground1Hover:#fff}
+.caption-progress.fs-workbench-progress{display:block;width:100%}
+@media(max-width:480px){.fs-caption-fluent-button{font-size:11px;--spacingHorizontalM:6px}}
+
+
+/* Common visual contract: framework wrappers keep their own focus, portal and precision logic. */
+.fs-fluent-select,.fs-fluent-number{min-height:var(--fs-control-height,34px);border-radius:var(--borderRadiusMedium,4px);font-size:12px;box-shadow:none}
+.fs-fluent-select{font-weight:400;gap:8px}
+.fs-fluent-select[aria-expanded=true],.fs-fluent-select:focus-visible,.fs-fluent-number:focus-within{border-bottom-color:var(--colorCompoundBrandStroke,var(--fs-focus));box-shadow:0 1px 0 var(--colorCompoundBrandStroke,var(--fs-focus))}
+.fs-fluent-popup{padding:4px;border-radius:var(--borderRadiusMedium,4px);box-shadow:var(--shadow8);border:1px solid var(--colorNeutralStroke2,var(--fs-border))}
+.fs-fluent-option{min-height:30px;padding:5px 8px;gap:8px;border-radius:var(--borderRadiusMedium,4px);font-size:12px}
+.fs-fluent-option[data-highlighted]{background:var(--colorNeutralBackground1Hover,var(--fs-raised))}
+.fs-fluent-option:is([data-state=checked],[data-selected]){background:var(--colorNeutralBackground1Selected,var(--fs-selected));color:var(--colorBrandForeground1,var(--fs-accent))}
+.fs-fluent-number .fs-number-value{font-variant-numeric:tabular-nums;font-weight:400}
+.fs-fluent-number .fs-number-step:hover:not(:disabled){background:var(--colorNeutralBackground1Hover,var(--fs-raised))}
+.fs-fluent-number .fs-number-step:focus-visible{outline:2px solid var(--colorStrokeFocus2,var(--fs-focus));outline-offset:-2px}
+.fs-fluent-select:disabled,.fs-fluent-number:has(input:disabled){background:var(--colorNeutralBackgroundDisabled,var(--fs-raised));color:var(--colorNeutralForegroundDisabled,var(--fs-muted))}
+.app-shell .error-banner>.fs-caption-fluent-button{flex:none}
+.app-shell .transcribe-bottom>.fs-caption-fluent-button{flex-shrink:0}
+
+/* Shared media timeline semantics, including the canvas waveform's inherited token. */
+:root,:host{--fs-wave:var(--colorBrandForeground1,#0f6cbd);--fs-wave-bg:var(--colorNeutralBackground3,#f5f5f5);--fs-timeline-playhead:var(--colorPaletteDarkOrangeForeground1,#a9510a);--fs-timeline-selection:var(--colorBrandBackground2,#ebf3fc);--fs-timeline-selection-stroke:var(--colorCompoundBrandStroke,#0f6cbd)}
+.fs-workbench .fs-timeline-track .fs-timeline-range{background:color-mix(in srgb,var(--fs-timeline-selection-stroke) 18%,transparent);border-color:var(--fs-timeline-selection-stroke)}
+.fs-workbench .fs-range-handle::before{background:var(--fs-timeline-selection-stroke)}
+.app-shell .caption-editor-layout .cue-bar{background:var(--fs-timeline-selection);border-color:color-mix(in srgb,var(--fs-timeline-selection-stroke) 50%,transparent);color:var(--fs-text)}
+.app-shell .caption-editor-layout .cue-bar.selected{background:var(--fs-brand-fill);border-color:var(--fs-brand-fill);color:var(--fs-on-accent)}
+.app-shell .caption-editor-layout .timeline-lanes .waveform{background:var(--fs-wave-bg)}
+.fs-workbench .fs-timeline-track .fs-timeline-play,.app-shell .caption-editor-layout .timeline-track .playhead{background:var(--fs-timeline-playhead);color:var(--fs-timeline-playhead)}
+.fs-workbench .fs-timeline-ruler,.app-shell .caption-editor-layout .timeline-ruler{font-variant-numeric:tabular-nums;color:var(--fs-muted)}
+
+.fs-workbench .legend-play{background:var(--fs-timeline-playhead)}
+.fs-workbench .legend-range{background:var(--fs-timeline-selection-stroke)}

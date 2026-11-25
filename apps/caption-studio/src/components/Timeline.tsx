@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Minus,Plus,StepForward,Check} from 'lucide-react';
-import {Checkbox} from '@base-ui/react/checkbox';
+import {Minus,Plus,StepForward} from 'lucide-react';
+import {CaptionCheckbox} from './CaptionCheckbox';
 import {shortTime,type Cue} from '../lib/captions';
 import type {buildCueIndex} from '../lib/cue-index';
 interface Props {
@@ -19,6 +19,8 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
   const scrub=useRef<number|null>(null);
   const canvas=useRef<HTMLCanvasElement>(null);
   const track=useRef<HTMLDivElement>(null);
+  const [trackWidth,setTrackWidth]=useState(0);
+  useEffect(()=>{const el=track.current;if(!el)return;const update=()=>setTrackWidth(el.clientWidth);const observer=new ResizeObserver(update);observer.observe(el);update();return()=>observer.disconnect()},[]);
   const visible=Math.max(1,Math.min(span,Math.max(1,duration)));
   const start=Math.max(0,Math.min(viewStart,Math.max(0,duration-visible)));
   function zoom(next:number,anchor=time){
@@ -65,11 +67,13 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     const scheme=matchMedia('(prefers-color-scheme: dark)');scheme.addEventListener('change',paint);paint();return()=>{ro.disconnect();theme.disconnect();scheme.removeEventListener('change',paint)};
   },[peaks,visible,start,duration]);
   const ticks=useMemo(()=>{
-    const step=visible<=5?1:visible<=15?2:visible<=30?5:visible<=90?10:visible<=240?30:60;
+    const base=visible<=5?1:visible<=15?2:visible<=30?5:visible<=90?10:visible<=240?30:60;
+    const minSpacing=visible*76/Math.max(76,trackWidth||600);
+    const step=base*Math.max(1,Math.ceil(minSpacing/base));
     const values:number[]=[];
     for(let v=Math.ceil(start/step)*step;v<start+visible;v+=step)values.push(v);
     return values;
-  },[visible,start]);
+  },[visible,start,trackWidth]);
   const point=(e:{clientX:number})=>{
     const r=track.current?.getBoundingClientRect();
     if(!r)return 0;
@@ -100,7 +104,7 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     <div className="section-title timeline-top">
       <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
       <div className="timeline-actions">
-        <div className="inline-checkbox"><Checkbox.Root className="caption-checkbox" aria-label="跟随播放" checked={follow} onCheckedChange={v=>setFollow(v===true)}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
+        <div className="inline-checkbox"><CaptionCheckbox label="跟随播放" checked={follow} onChange={setFollow}/><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
         <button className="icon-btn" aria-label="缩小时间轴" disabled={visible>=Math.min(600,duration)} onClick={()=>zoom(visible*2)}><Minus size={15}/></button>
         <span className="zoom-label">{visible >=60?`${Number((visible/60).toFixed(1))} min`:`${Number(visible.toFixed(2))}s`}</span>
         <button className="icon-btn" aria-label="放大时间轴" disabled={visible<=1} onClick={()=>zoom(visible/2)}><Plus size={15}/></button>

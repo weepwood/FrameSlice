@@ -43,6 +43,8 @@ try{
  await page.setViewportSize({width:390,height:844});
  await toolbar.scrollIntoViewIfNeeded();
  if(await toolbar.evaluate(el=>el.scrollWidth>el.clientWidth+1)||await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('mobile editor overflow');
+ const labels=await host.locator('.timeline-ruler span').evaluateAll(els=>els.map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right})));
+ if(labels.length<2||labels.some((r,i)=>i>0&&r.left<labels[i-1].right+2))throw Error('narrow ruler labels overlap');
  await page.screenshot({path:'visual-regression/editor-redesign-dark-390.png',animations:'disabled'});
  console.log(JSON.stringify({emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
 }finally{await browser.close()}

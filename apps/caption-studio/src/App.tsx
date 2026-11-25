@@ -1,9 +1,14 @@
+import {playerShortcut} from '../../../src/player/shortcuts';
+import {loadMediaPlayer} from '../../../src/player/load';
+import {readPlaybackPreferences,restorePlayback,savePlayback} from '../../../src/player/preferences';
+import {CaptionFullscreen} from './components/CaptionFullscreen';
 import {EditorPanels} from './components/EditorPanels';
 import {CaptionNumberField} from './components/CaptionNumberField';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
 import {Tabs} from '@base-ui/react/tabs';
-import {Checkbox} from '@base-ui/react/checkbox';
+import {CaptionCheckbox} from './components/CaptionCheckbox';
+import {CaptionButton} from './components/CaptionButton';
 import {ProjectMenu} from './components/ProjectMenu';
 import {CaptionProgress} from './components/CaptionProgress';
 import {CaptionSelect} from './components/CaptionSelect';
@@ -66,7 +71,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [cuePage,setCuePage]=useState(0);
   const [pageDraft,setPageDraft]=useState<string|null>(null);
   const [followPlayback,setFollowPlayback]=useState(true);
-  const [playbackRate,setPlaybackRate]=useState(1);
+  const [playbackRate,setPlaybackRate]=useState(()=>readPlaybackPreferences().rate);
   const [loopSelected,setLoopSelected]=useState(false);
   const [shortcutsOpen,setShortcutsOpen]=useState(false);
   const [dragging,setDragging]=useState(false);
@@ -96,6 +101,15 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   useEffect(()=>()=>renderAbort.current?.abort(),[]);
   const {value:cues,set:setCues,reset:resetCues,undo,redo,canUndo,canRedo}=useHistory<Cue[]>([]);
   const [mediaURL,setMediaURL]=useState<string|null>(null);
+  const [playerReady,setPlayerReady]=useState(false);
+  const [playerFailed,setPlayerFailed]=useState(false);
+  useEffect(()=>{
+    if(!mediaURL)return;
+    let active=true;setPlayerFailed(false);
+    loadMediaPlayer().then(()=>{if(active)setPlayerReady(true)},()=>{if(active)setPlayerFailed(true)});
+    return()=>{active=false};
+  },[mediaURL]);
+
   useEffect(()=>{
     if(!file){setMediaURL(null);return}
     const url=URL.createObjectURL(file);setMediaURL(url);
@@ -341,9 +355,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     <input ref={projectInput} type="file" accept=".json" hidden onChange={e=>{if(e.target.files?.[0])void importProject(e.target.files[0]);e.target.value=''}}/>
     <input ref={fontInput} type="file" accept=".ttf,.otf" hidden onChange={e=>{setFont(e.target.files?.[0]??null);e.target.value=''}}/>
 
-    {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><button className="btn outline" onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</button></div>}
-    {hydrated&&saved==='conflict'&&<div className="error-banner draft-conflict" role="alert"><AlertTriangle size={16}/><span>另一标签页已更新草稿。当前编辑仍保留，自动保存已暂停；可导出备份后重新读取。</span><button className="btn outline" onClick={exportProject}>导出当前备份</button><button className="btn outline" onClick={()=>{if(window.confirm('重新读取将替换本页未保存的编辑。请先导出备份。确定继续？')){transcriber.stop();renderAbort.current?.abort();setHydrated(false);setSaved('loading');setLoadAttempt(n=>n+1)}}}>读取最新草稿</button></div>}
-    {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><button className="btn outline" onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</button><button className="btn outline" onClick={exportProject}>导出备份</button></div>}
+    {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><CaptionButton onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</CaptionButton></div>}
+    {hydrated&&saved==='conflict'&&<div className="error-banner draft-conflict" role="alert"><AlertTriangle size={16}/><span>另一标签页已更新草稿。当前编辑仍保留，自动保存已暂停；可导出备份后重新读取。</span><CaptionButton onClick={exportProject}>导出当前备份</CaptionButton><CaptionButton onClick={()=>{if(window.confirm('重新读取将替换本页未保存的编辑。请先导出备份。确定继续？')){transcriber.stop();renderAbort.current?.abort();setHydrated(false);setSaved('loading');setLoadAttempt(n=>n+1)}}}>读取最新草稿</CaptionButton></div>}
+    {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><CaptionButton onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</CaptionButton><CaptionButton onClick={exportProject}>导出备份</CaptionButton></div>}
     <div className="workspace" inert={!hydrated}>
       {!embedded&&<aside className="nav-rail" aria-label="工作区">
         <span className="rail-label">FRAMESLICE / WORKSPACE</span>
@@ -362,9 +376,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
           </div>
           <div className="caption-toolbar-actions">
             {(busy||transcriber.state.phase==='error'||transcriber.state.phase==='done')&&tab!=='transcribe'&&<button className="btn outline caption-task-status" onClick={()=>setTab('transcribe')}>{busy?'转录 / 波形 '+Math.round(transcriber.state.progress)+'%':transcriber.state.phase==='error'?'处理失败 · 查看':'处理完成 · 查看'}</button>}
-            <button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={15}/>导入字幕</button>
+            <CaptionButton onClick={()=>captionsInput.current?.click()}><FileText size={15}/>导入字幕</CaptionButton>
             <ProjectMenu onOpen={()=>projectInput.current?.click()} onExport={exportProject} onNew={()=>{if(window.confirm('确定新建空白工程？未导出的内容可能丢失。'))void reset()}} canPackage={!!file&&!!cues.length&&!busy} onPackage={()=>{if(!file||!cues.length||busy)return;window.dispatchEvent(new CustomEvent('frameslice:subtitle-package',{detail:{file,subtitle:new File([toSRT(cues)],'caption-export.srt',{type:'text/plain;charset=utf-8'})}}))}}/>
-            <button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={15}/>打开媒体</button>
+            <CaptionButton primary onClick={()=>mediaInput.current?.click()}><FileVideo size={15}/>打开媒体</CaptionButton>
           </div>
         </div>}
         {!embedded&&<div className="editor-header">
@@ -378,19 +392,29 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             <section className="video-panel surface">
               <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
-                {mediaURL?<>
-                  <video ref={video} src={mediaURL} playsInline onTimeUpdate={e=>{
+                {mediaURL?<media-controller className="fs-media-player" noautohide="" gesturesdisabled="" nohotkeys="" tabIndex={0} aria-label="字幕媒体播放控制" onKeyDown={e=>playerShortcut(e.nativeEvent,e.currentTarget)}>
+                  <video ref={video} src={mediaURL} slot="media" playsInline preload="metadata" controls={!playerReady} onTimeUpdate={e=>{
                      const v=e.currentTarget;
                      if(loopSelected&&selectedCue&&selectedCue.end>selectedCue.start&&!v.paused&&(v.currentTime>=selectedCue.end||v.currentTime<selectedCue.start)){
                        v.currentTime=selectedCue.start;
                      }
                      setTime(v.currentTime);
-                   }} onLoadedMetadata={e=>{if(Number.isFinite(e.currentTarget.duration))setDuration(e.currentTarget.duration);e.currentTarget.playbackRate=playbackRate}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onClick={play}/>
-                  {activeCue&&<div className={`caption-overlay ${style.position}`}><span style={{color:style.textColor,backgroundColor:colorAlpha(style.boxColor,style.boxOpacity),fontSize:`clamp(14px,${(style.fontSize/1080*100).toFixed(2)}cqh,${style.fontSize}px)`,fontWeight:style.bold?700:400}}>{activeCue.text}</span></div>}
-                  {!isVideo&&<div className="audio-backdrop"><Activity size={50} strokeWidth={1.1}/><p>音频预览</p></div>}
-                </>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
+                   }} onLoadedMetadata={e=>{if(Number.isFinite(e.currentTarget.duration))setDuration(e.currentTarget.duration);restorePlayback(e.currentTarget);setPlaybackRate(e.currentTarget.playbackRate)}} onVolumeChange={e=>savePlayback(e.currentTarget)} onRateChange={e=>{setPlaybackRate(e.currentTarget.playbackRate);savePlayback(e.currentTarget)}} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onClick={play}/>
+                  {activeCue&&<div slot="middle-chrome" className={`caption-overlay ${style.position}`}><span style={{color:style.textColor,backgroundColor:colorAlpha(style.boxColor,style.boxOpacity),fontSize:`clamp(14px,${(style.fontSize/1080*100).toFixed(2)}cqh,${style.fontSize}px)`,fontWeight:style.bold?700:400}}>{activeCue.text}</span></div>}
+                  {!isVideo&&<div slot="centered-chrome" className="audio-backdrop"><Activity size={50} strokeWidth={1.1}/><p>音频预览</p></div>}
+                  {playerReady&&<><media-loading-indicator slot="centered-chrome"/>
+                  <div className="fs-player-controls">
+                    <media-time-range/>
+                    <media-control-bar>
+                      <media-seek-backward-button seekoffset="5"/><media-play-button/><media-seek-forward-button seekoffset="5"/><media-time-display showduration=""/>
+                      <button className="fs-player-loop" disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
+                      <span className="fs-player-spacer"/><media-mute-button/><media-volume-range/><media-playback-rate-menu-button/>{isVideo&&<media-pip-button/>}<CaptionFullscreen video={video} onError={setError}/>
+                    </media-control-bar>
+                  </div><media-playback-rate-menu anchor="auto" hidden rates="0.25 0.5 0.75 1 1.25 1.5 2"/></>}
+                </media-controller>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><CaptionButton primary onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</CaptionButton><CaptionButton onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</CaptionButton></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
               </div>
-              <div className="playback-controls">
+              {playerFailed&&mediaURL&&<div role="status" className="media-info">专业播放器加载失败，已使用浏览器原生控件。</div>}
+              {!mediaURL&&<div className="playback-controls">
                 <button className="play-button" onClick={play} disabled={!file} aria-label={playing?'暂停':'播放'}>{playing?<Pause size={17} fill="currentColor"/>:<Play size={17} fill="currentColor"/>}</button>
                 <button className="icon-btn" aria-label="后退 5 秒" title="后退 5 秒" onClick={()=>seek(time-5)}><SkipBack size={17}/></button>
                 <button className="icon-btn" aria-label="前进 5 秒" title="前进 5 秒" onClick={()=>seek(time+5)}><SkipForward size={17}/></button>
@@ -398,7 +422,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <input type="range" min={0} max={effectiveDuration||1} step={.01} value={Math.min(time,effectiveDuration)} aria-label="跳转播放位置" onChange={e=>seek(Number(e.target.value))}/>
                 <button className={`icon-btn loop-button ${loopSelected?'active':''}`} disabled={!selectedCue||!file} aria-pressed={loopSelected} title="循环播放已选字幕" aria-label="循环播放选中字幕" onClick={()=>{if(!loopSelected&&selectedCue)seek(selectedCue.start);setLoopSelected(v=>!v)}}><Repeat2 size={17}/></button>
                 <label className="speed-control"><span>倍速</span><CaptionSelect label="播放速度" value={playbackRate} onChange={setPlaybackRate} options={[.5,.75,1,1.25,1.5,2].map(value=>({value,label:value+"×"}))}/></label>
-              </div>
+              </div>}
               {file&&<div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{sizeText(file.size)}</span></div>}
             </section>} timeline={<Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>} inspector={<aside className="side-panel surface">
             <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">
@@ -418,7 +442,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>每条字幕最大字符 <CaptionNumberField label="每条字幕最大字符" min={8} max={120} value={maxChars} disabled={busy} onChange={v=>{if(v!==null)setMaxChars(Math.min(120,Math.max(8,Math.round(v))))}}/></label>
               </div>
               <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>首次转录需下载模型。</span></div>
-                {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
+                {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<CaptionButton primary disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</CaptionButton>}</div>
               {transcriber.state.phase==='loading'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在准备模型 {Math.round(transcriber.state.progress)}% <CaptionProgress value={transcriber.state.progress} label="转录进度"/></div>}
               {transcriber.state.phase==='extracting'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在从媒体分段提取音轨 · {Math.round(transcriber.state.progress)}% <CaptionProgress value={transcriber.state.progress} label="转录进度"/></div>}
               {transcriber.state.phase==='running'&&<div className="task-status"><LoaderCircle className="spin" size={15}/>正在使用 {transcriber.state.device==='webgpu'?'WebGPU':'WASM'} 分段识别 · {Math.round(transcriber.state.progress)}% · {transcriber.state.segments} 段完成 <CaptionProgress value={transcriber.state.progress} label="转录进度"/> {transcriber.state.partial&&<span className="transcript-snippet">{transcriber.state.partial}</span>}</div>}
@@ -437,13 +461,13 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="cue-list" ref={cueListRef}>
                 {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3><p>从上方导入 SRT / VTT，或创建第一条字幕。</p></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=review.byId.get(c.id)??[];return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
-                    <div className="cue-row-top">{batchMode&&<Checkbox.Root className="caption-checkbox" aria-label={'选择第 '+(index+1)+' 条字幕'} checked={batchIds.has(c.id)} onCheckedChange={checked=>setBatchIds(old=>{const next=new Set(old);if(checked)next.add(c.id);else next.delete(c.id);return next})}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root>}<button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
+                    <div className="cue-row-top">{batchMode&&<CaptionCheckbox label={'选择第 '+(index+1)+' 条字幕'} checked={batchIds.has(c.id)} onChange={checked=>setBatchIds(old=>{const next=new Set(old);if(checked)next.add(c.id);else next.delete(c.id);return next})}/>}<button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
                     <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
                     <div className="cue-row-bottom"><TimeEditor label="开始时间" time={c.start} onCommit={v=>updateCue(c.id,{start:v})}/><span>→</span><TimeEditor label="结束时间" time={c.end} onCommit={v=>updateCue(c.id,{end:v})}/><button className="cue-seek" onClick={()=>{seek(c.start);setSelectedId(c.id)}} title="跳转到字幕"><Play size={12}/></button></div>
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
                   </article>})}
               </div>
-              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
+              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<CaptionButton full onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</CaptionButton></div>
             </Tabs.Panel>
             <Tabs.Panel value="style" className="style-editor caption-tab-content">
               <div className="section-subheading"><strong>预览样式</strong></div>
@@ -453,18 +477,18 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>背景颜色 <input type="color" value={style.boxColor} onChange={e=>setStyle(s=>({...s,boxColor:e.target.value}))}/></label>
                 <label>背景透明度 <div className="size-range"><input type="range" min={0} max={100} value={style.boxOpacity*100} onChange={e=>setStyle(s=>({...s,boxOpacity:Number(e.target.value)/100}))}/><output>{Math.round(style.boxOpacity*100)}%</output></div></label>
                 <div className="caption-field"><span>字幕位置</span><CaptionSelect<CaptionStyle["position"]> label="字幕位置" value={style.position} onChange={position=>setStyle(s=>({...s,position}))} options={[{value:"bottom",label:"底部居中"},{value:"middle",label:"画面居中"},{value:"top",label:"顶部居中"}]}/></div>
-                <div className="switch-row"><label htmlFor="caption-bold">文字加粗</label><Checkbox.Root id="caption-bold" aria-label="文字加粗" className="caption-checkbox" checked={style.bold} onCheckedChange={checked=>setStyle(s=>({...s,bold:checked===true}))}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root></div>
+                <div className="switch-row"><label htmlFor="caption-bold">文字加粗</label><CaptionCheckbox id="caption-bold" label="文字加粗" checked={style.bold} onChange={bold=>setStyle(s=>({...s,bold}))}/></div>
               </div>
-              <button className="btn outline full" onClick={()=>setStyle(defaultStyle)}>恢复默认样式</button>
+              <CaptionButton full onClick={()=>setStyle(defaultStyle)}>恢复默认样式</CaptionButton>
               <div className="style-note"><Info size={15}/> 浏览器字幕预览与 FFmpeg 烧录可能存在字体度量差异。中文烧录建议手动选择支持中文的字体文件。</div>
             </Tabs.Panel>
             <Tabs.Panel value="export" className="export-editor caption-tab-content">
               <div className="section-subheading"><strong>字幕文件</strong></div>
               <div className="export-grid"><button disabled={!cues.length} onClick={()=>exportAs('srt')}><FileText size={22}/><strong>SRT</strong><small>通用字幕文件</small><Download size={15}/></button><button disabled={!cues.length} onClick={()=>exportAs('vtt')}><FileText size={22}/><strong>VTT</strong><small>网页视频字幕</small><Download size={15}/></button></div>
-              <button className="btn outline full" onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</button>
+              <CaptionButton full onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</CaptionButton>
               <div className="section-subheading render-heading"><strong>烧录字幕到视频</strong><small>实验功能 · 适合短视频</small></div>
               <button className="file-pick" onClick={()=>fontInput.current?.click()}><Languages size={17}/>{font?.name||'选择中文字体 .ttf / .otf（推荐）'}<ChevronDown size={14}/></button>
-              {renderState.phase==='working'?<div className="render-progress"><CaptionProgress value={renderState.progress} max={1} label="烧录进度"/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><button className="btn outline full" onClick={()=>renderAbort.current?.abort()}>取消烧录</button></div>:<button className="btn primary full" disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</button>}
+              {renderState.phase==='working'?<div className="render-progress"><CaptionProgress value={renderState.progress} max={1} label="烧录进度"/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><CaptionButton full onClick={()=>renderAbort.current?.abort()}>取消烧录</CaptionButton></div>:<CaptionButton primary full disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</CaptionButton>}
               {renderState.phase==='error'&&<div className="style-note warning">{renderState.message}</div>}
               {renderState.message&&renderState.phase==='idle'&&<div className="task-status done"><Check size={15}/>{renderState.message}</div>}
               <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>
@@ -478,7 +502,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     {shortcutsOpen&&<div className="shortcut-scrim" onMouseDown={e=>{if(e.target===e.currentTarget)setShortcutsOpen(false)}}>
       <div className="shortcut-dialog" role="dialog" aria-modal="true" aria-label="键盘快捷键">
         <div className="shortcut-heading"><div><Keyboard size={20}/><strong>键盘快捷键</strong></div><button aria-label="关闭快捷键" onClick={()=>setShortcutsOpen(false)}><X size={18}/></button></div>
-        <div className="shortcut-grid"><span>播放 / 暂停</span><kbd>Space</kbd><span>后退 / 前进 5 秒</span><div><kbd>J</kbd> <kbd>L</kbd></div><span>查找字幕</span><kbd>Ctrl / ⌘ + K</kbd><span>撤销</span><kbd>Ctrl / ⌘ + Z</kbd><span>重做</span><kbd>Ctrl / ⌘ + Shift + Z</kbd><span>查看帮助</span><kbd>?</kbd></div>
+        <div className="shortcut-grid"><span>播放 / 暂停</span><kbd>Space</kbd><span>后退 / 前进 5 秒</span><div><kbd>J</kbd> <kbd>L</kbd></div><span>播放器聚焦：静音 / 全屏</span><div><kbd>M</kbd> <kbd>F</kbd></div><span>播放器聚焦：音量</span><div><kbd>↑</kbd> <kbd>↓</kbd></div><span>查找字幕</span><kbd>Ctrl / ⌘ + K</kbd><span>撤销</span><kbd>Ctrl / ⌘ + Z</kbd><span>重做</span><kbd>Ctrl / ⌘ + Shift + Z</kbd><span>查看帮助</span><kbd>?</kbd></div>
         <p>编辑文本时不会触发播放快捷键，支持时间轴拖拽校时。</p>
       </div>
     </div>}

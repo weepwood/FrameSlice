@@ -1,0 +1,53 @@
+/* Media Chrome is the playback controller; only its presentation is themed here. */
+.fs-media-player{
+ display:block;position:relative;width:100%;min-width:0;line-height:normal;overflow:hidden;
+ --media-background-color:#141414;--media-primary-color:#f5f5f5;--media-secondary-color:#242424;
+ --media-control-background:transparent;--media-control-hover-background:rgba(255,255,255,.13);
+ --media-font-family:var(--fs-font,'Segoe UI',sans-serif);--media-font-size:12px;
+ --media-range-bar-color:#479ef5;--media-range-thumb-background:#479ef5;
+ --media-range-thumb-width:12px;--media-range-thumb-height:12px;
+ --media-range-track-background:#777;--media-range-track-border-radius:3px;--media-range-track-height:3px;
+ --media-control-height:24px;--media-control-padding:4px;--media-button-padding:7px;--media-range-padding:4px;--media-button-icon-width:18px;--media-button-icon-height:18px;
+ background:#141414;color:#f5f5f5;
+}
+.fs-media-player video[slot=media]{display:block;width:100%;height:100%;object-fit:contain;background:#141414}
+.fs-preview-panel .fs-media-player{aspect-ratio:16/9;max-height:clamp(220px,46vh,440px)}
+.fs-preview-panel .fs-media-player video{aspect-ratio:auto;max-height:none}
+.fs-media-player .fs-player-controls{display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:4px 8px 6px;width:100%;align-self:stretch;container-type:inline-size;background:#242424;min-width:0;box-sizing:border-box;line-height:1.4}
+.fs-media-player .fs-player-controls media-control-bar{display:flex;align-items:center;gap:2px;width:100%;min-width:0;background:transparent;flex-wrap:wrap}
+.fs-media-player media-time-range{width:100%;min-height:22px;--media-control-height:16px}
+.fs-media-player media-control-bar>*{border-radius:4px}
+.fs-media-player media-time-display{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fs-media-player media-volume-range{width:64px;flex:none}
+.fs-media-player .fs-player-spacer{flex:1;min-width:0}
+.fs-media-player .fs-player-loop{height:32px;min-width:32px;display:grid;place-items:center;padding:0 6px;border:0;border-radius:4px;background:transparent;color:#f5f5f5}
+.fs-media-player .fs-player-loop[aria-pressed=true]{background:#0f6cbd}
+.fs-media-player .fs-player-loop:hover:not(:disabled){background:#414141}
+.fs-media-player .fs-player-loop:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.fs-media-player .fs-player-loop:disabled{opacity:.4}
+.fs-media-player .caption-overlay.bottom{bottom:calc(70px + 3%)}
+.fs-media-player .caption-overlay{pointer-events:none!important;z-index:2}
+.fs-media-player .audio-backdrop{pointer-events:none!important;bottom:65px;z-index:1;background:#202020}
+.fs-media-player .fs-player-controls{position:relative;z-index:4;opacity:1!important}
+.fs-media-player:fullscreen{width:100%;height:100%;max-height:none;aspect-ratio:auto}
+.fs-media-player:fullscreen video[slot=media]{height:100%;max-height:none}
+.fs-media-player media-loading-indicator{--media-loading-icon-width:34px;--media-loading-icon-height:34px}
+.app-shell .caption-editor-layout .video-frame>.fs-media-player{height:100%;min-height:0;align-self:stretch}
+.app-shell .caption-editor-layout .video-frame>.fs-media-player video{height:100%;max-height:none}
+@media(max-width:560px){.fs-media-player media-volume-range{width:44px}.fs-media-player .fs-player-controls{padding-inline:4px}.fs-media-player media-control-bar{gap:0}.fs-media-player .caption-overlay.bottom{bottom:calc(108px + 2%)}}
+
+@container(max-width:440px){
+.fs-media-player media-control-bar{gap:0;--media-button-padding:4px;--media-control-height:20px;--media-font-size:11px}
+.fs-media-player media-volume-range{width:38px;--media-range-padding:2px}
+.fs-media-player .fs-player-loop{min-width:26px;height:28px;padding:0 4px}
+.fs-media-player .fs-player-spacer{display:none}
+}
+@container(max-width:320px){.fs-media-player media-volume-range{width:30px}.fs-media-player media-control-bar{--media-button-padding:3px}}
+
+.fs-media-player:not(:defined){display:block}
+.fs-media-player:not(:defined) video[slot=media]{position:relative}
+
+.fs-media-player{--media-menu-background:#292929;--media-menu-border-radius:6px;--media-menu-item-hover-background:#414141;--media-menu-item-checked-background:#383838}
+.fs-media-player:focus-visible{outline:2px solid #479ef5;outline-offset:-2px}
+.fs-media-player media-playback-rate-menu{z-index:8;min-width:100px;--media-menu-max-height:220px;box-shadow:0 4px 12px #0006}
+@media(prefers-reduced-motion:reduce){.fs-media-player media-playback-rate-menu{--media-menu-transition-in:none;--media-menu-transition-out:none}}
