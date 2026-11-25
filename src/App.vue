@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import WorkspaceHeader from './components/WorkspaceHeader.vue'
+import SidebarStatus from './components/SidebarStatus.vue'
+import JobStatus from './components/JobStatus.vue'
+import { ChevronDown, ListChecks, FileVideo } from 'lucide-vue-next'
 import WorkbenchNumber from "./components/WorkbenchNumber.vue"
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ArrowDownToLine, ArrowRight, BadgeCheck, Check, CircleHelp, Clock3,
-  Subtitles, PackageOpen, Folder, FolderOpen, Github, Image as ImageIcon, Info, Layers2,
-  LockKeyhole, PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
+  Subtitles, PackageOpen, Folder, FolderOpen, Image as ImageIcon, Info, Layers2,
+  PauseCircle, Play, RotateCcw, Scissors, ShieldCheck, SlidersHorizontal,
   Upload, X, AlertTriangle, Film, PanelRight,
 } from 'lucide-vue-next'
 import { humanBytes, humanTime, plannedFrameCount, friendlyError, baseName } from './lib/format'
@@ -116,6 +120,9 @@ const candidateCount=ref(3),minSharpness=ref(0),sceneThreshold=ref(.24)
 const filteredCount=ref(0)
 const resetResult=Boolean(readResetResult())
 const showJobs=ref(resetResult),jobsVisited=ref(resetResult)
+const pageDescriptor=computed(()=>showJobs.value?{title:'任务中心',description:'查看处理进度、历史记录与批量任务',icon:Layers2}:mode.value==='captions'?{title:'字幕工作台',description:'编辑字幕、语音转录与精确校对',icon:Subtitles}:mode.value==='frames'?{title:'定时抽帧',description:'按时间区间提取和管理视频画面',icon:ImageIcon}:videoTool.value==='container'?{title:'轨道与封装',description:'提取轨道、重新封装与无损剪辑',icon:PackageOpen}:{title:'视频分割',description:'按大小或时长无损分割本地视频',icon:Scissors})
+const activeJobs=computed(()=>recentJobs.value.filter(j=>['queued','running','canceling'].includes(j.status)).length)
+
 const settingsTarget=ref<HTMLElement|null>(null)
 const actionTarget=ref<HTMLElement|null>(null)
 const actionInToolbar=computed(()=>Boolean(actionTarget.value&&wideLayout.value&&!showJobs.value&&mode.value!=='captions'&&!(mode.value==='split'&&videoTool.value==='container')))
@@ -592,52 +599,41 @@ onBeforeUnmount(() => {
         <button type="button" class="nav-item" :class="{ active: !showJobs&&mode === 'captions' }" :aria-current="!showJobs&&mode === 'captions' ? 'page' : undefined" :disabled="status === 'running' || containerBusy" @click="showJobs=false;changeMode('captions')"><Subtitles :size="18" stroke-width="1.9"/><span>字幕工作台</span></button>
         <button type="button" class="nav-item" :class="{active:showJobs}" :aria-current="showJobs ? 'page' : undefined" @click="showJobs=true;jobsVisited=true"><Layers2 :size="18"/><span>任务中心</span></button>
       </nav>
+      <div class="fs-sidebar-collections">
       <MediaResourceLibrary :assets="mediaLibrary" :current="file" :disabled="status==='running'||containerBusy" @import="importMedia" @select="loadFile" @remove="removeMedia"/>
-
       <CollapsibleRoot class="fs-job-history">
-        <CollapsibleTrigger class="fs-history-trigger">任务记录 <span>{{ recentJobs.filter(j => ['queued','running','canceling'].includes(j.status)).length }} 进行中</span></CollapsibleTrigger><CollapsibleContent>
-        <div v-if="!recentJobs.length" class="fs-job-empty">暂无任务</div>
-        <div v-for="job in recentJobs.slice(0, 8)" :key="job.id" class="fs-job-row" :title="job.error?.message || job.asset.name">
-          <strong>{{ jobLabels[job.type] }} · {{ jobStates[job.status] }}</strong>
-          <small>{{ job.asset.name }}</small>
+        <CollapsibleTrigger class="fs-history-trigger fs-collection-heading"><span><ListChecks :size="14"/>任务记录</span><span class="fs-collection-count">{{activeJobs ? activeJobs+' 进行中' : recentJobs.length}}<ChevronDown :size="13" class="fs-history-chevron"/></span></CollapsibleTrigger><CollapsibleContent>
+        <div v-if="!recentJobs.length" class="fs-collection-empty">暂无任务</div>
+        <div v-for="job in recentJobs.slice(0, 8)" :key="job.id" class="fs-job-row fs-resource-item" :title="job.error?.message || job.asset.name">
+          <div class="fs-resource-line"><FileVideo :size="15" class="fs-resource-icon"/><div class="fs-resource-copy"><strong>{{ job.asset.name }}</strong><span class="fs-resource-meta"><small>{{ jobLabels[job.type] }}</small><JobStatus :status="job.status" :label="jobStates[job.status]||job.status"/></span></div></div>
           <WorkbenchProgress v-if="['queued','running','canceling'].includes(job.status)" :value="job.progress" :max="1" label="任务进度" />
           <small v-if="job.checkpoint">已写入 {{ job.checkpoint.count }} 项</small>
           <button v-if="job.retry && (job.retry.resumeId || ['failed','canceled','interrupted','partial'].includes(job.status))" type="button" class="fs-job-clear" @click="requestRetry(job)">重新关联并重试</button>
         </div>
         <p v-if="retryNotice" role="status">{{retryNotice}}</p>
-        <button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button>
+        <div v-if="recentJobs.length" class="fs-collection-actions"><button type="button" class="fs-job-clear" @click="showJobs=true;jobsVisited=true">查看全部</button><button type="button" class="fs-job-clear" @click="workspace.clearHistory()">清除已结束记录</button></div>
       </CollapsibleContent></CollapsibleRoot>
-      <div class="sidebar-bottom">
-        <div class="fs-theme-select"><span>外观</span><WorkbenchSelect v-model="theme" label="主题" :options="([{value:'system',label:'跟随系统'},{value:'light',label:'浅色'},{value:'dark',label:'深色'}] as const)" @update:model-value="applyTheme"/></div>
-        <div class="local-notice"><ShieldCheck :size="19"/><div><strong>仅在本地处理</strong></div></div>
-        <a href="https://github.com/weepwood/FrameSlice" target="_blank" rel="noopener noreferrer" class="sidebar-link"><Github :size="17"/> GitHub 仓库 <ArrowRight :size="15"/></a>
-        <div class="sidebar-version">FRAMESLICE / V{{version}}</div>
       </div>
+      <SidebarStatus v-model="theme" :version="version" @update:model-value="applyTheme"/>
     </SplitterPanel>
     <SplitterResizeHandle id="frameslice-resource-handle" class="fs-reka-handle" aria-label="调整资源栏宽度" :disabled="!wideLayout"/>
     <SplitterPanel id="frameslice-editor" :order="2" :min-size="30" as="main" class="workspace">
-      <header class="topbar">
-        <div class="breadcrumbs">工具集 <span class="slash">/</span> <strong>{{ showJobs?'任务中心':mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : mode === 'frames' ? '定时抽帧' : '字幕工作台' }}</strong></div>
-        <div class="top-actions"><span class="privacy-indicator"><LockKeyhole :size="13"/> 本地处理</span><WorkbenchButton v-if="wideLayout&&!showJobs&&mode!=='captions'&&!(mode==='split'&&videoTool==='container')" :label="inspectorOpen?'隐藏检查器':'显示检查器'" :aria-pressed="inspectorOpen" class="fs-inspector-toggle" @click="inspectorOpen=!inspectorOpen;saveLayout()"><PanelRight :size="16"/><span>检查器</span></WorkbenchButton><div ref="actionTarget" class="fs-primary-target"></div></div>
-      </header>
-
+      <WorkspaceHeader :title="pageDescriptor.title" :description="pageDescriptor.description" :icon="pageDescriptor.icon">
+        <WorkbenchButton v-if="wideLayout&&!showJobs&&mode!=='captions'&&!(mode==='split'&&videoTool==='container')" :label="inspectorOpen?'隐藏检查器':'显示检查器'" :aria-pressed="inspectorOpen" class="fs-inspector-toggle" @click="inspectorOpen=!inspectorOpen;saveLayout()"><PanelRight :size="16"/><span>检查器</span></WorkbenchButton><div ref="actionTarget" class="fs-primary-target"></div>
+      </WorkspaceHeader>
       <JobCenter v-if="jobsVisited" v-show="showJobs" :jobs="recentJobs" :labels="jobLabels" :states="jobStates" @retry="job=>{showJobs=false;requestRetry(job)}" @clear="workspace.clearHistory()"/>
-      <div v-if="captionVisited" v-show="!showJobs && mode === 'captions'" class="caption-page">
+      <div v-if="captionVisited" v-show="!showJobs && mode === 'captions'" class="caption-page fs-workspace-body">
         <CaptionWorkspace />
       </div>
 
-      <div v-show="!showJobs && mode !== 'captions'" class="content">
-        <div class="page-head">
-          <h1>{{ mode === 'split' ? (videoTool === 'container' ? '轨道与封装' : '视频分割') : '定时抽帧' }}</h1>
-        </div>
+      <div v-show="!showJobs && mode !== 'captions'" class="content fs-workspace-body">
 
-        <div v-if="mode === 'split'" class="video-tool-switch" role="group" aria-label="视频工具操作">
+        <div class="fs-source-toolbar"><h2>{{mode==='split'&&videoTool==='container'?'媒体操作':'源视频'}}</h2><div v-if="mode === 'split'" class="video-tool-switch" role="group" aria-label="视频工具操作">
           <button type="button" :class="{ active: videoTool === 'split' }" :aria-pressed="videoTool==='split'" :disabled="status === 'running' || containerBusy" @click="changeVideoTool('split')"><Scissors :size="15"/> 无损分割</button>
           <button type="button" :class="{ active: videoTool === 'container' }" :aria-pressed="videoTool==='container'" :disabled="status === 'running' || containerBusy" @click="changeVideoTool('container')"><PackageOpen :size="15"/> 轨道提取与封装</button>
-        </div>
+        </div></div>
         <ContainerWorkspace v-if="containerVisited" v-show="mode === 'split' && videoTool === 'container'" :initial-file="file" :handoff="subtitleHandoff" @busy="containerBusy = $event"/>
         <div v-show="mode !== 'split' || videoTool === 'split'">
-        <div class="step-head"><h2>源视频</h2></div>
         <input ref="fileInput" type="file" accept="video/*,.mp4,.m4v,.mov,.mkv,.webm" class="visually-hidden" @change="onInputChange" />
         <section v-if="!file" class="drop-zone" :class="{ dragging }" tabindex="0" role="button" aria-label="选择视频文件" @click="selectFile" @keydown.enter="selectFile" @keydown.space.prevent="selectFile" @dragover="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
           <div class="drop-icon"><Upload :size="25" :stroke-width="1.6"/></div>
@@ -781,7 +777,7 @@ onBeforeUnmount(() => {
 
         <div v-if="errorText && status === 'idle'" class="inline-error"><AlertTriangle :size="17"/><span>{{ errorText }}</span><button type="button" @click="errorText = ''" aria-label="关闭"><X :size="16"/></button></div>
         </div>
-        <footer class="footer"><span>FrameSlice · v{{version}}</span><span><LockKeyhole :size="13"/> 源媒体在本地处理</span></footer>
+
       </div>
     </SplitterPanel>
     <SplitterResizeHandle v-if="wideLayout&&inspectorOpen&&!showJobs&&mode!=='captions'&&!(mode==='split'&&videoTool==='container')" id="frameslice-inspector-handle" class="fs-reka-handle" aria-label="调整检查器宽度"/>
@@ -825,13 +821,3 @@ onBeforeUnmount(() => {
     </SplitterPanel>
   </SplitterGroup>
 </template>
-
-<style scoped>
-.fs-job-history{margin:12px 12px 0;font-size:11px;min-height:0;max-height:36vh;overflow:auto;color:inherit}
-.fs-job-history .fs-history-trigger{cursor:pointer;font-weight:600;padding:8px 4px;display:flex;justify-content:space-between;gap:4px}
-.fs-job-history .fs-history-trigger span,.fs-job-row small,.fs-job-empty{opacity:.7;font-weight:400}
-.fs-job-row{display:flex;flex-direction:column;gap:4px;padding:8px 4px;border-bottom:1px solid rgba(128,128,128,.16)}
-.fs-job-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-.fs-job-clear{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;padding:8px 4px;text-decoration:underline}
-</style>

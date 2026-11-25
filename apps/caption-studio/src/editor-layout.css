@@ -6,7 +6,7 @@
 }
 .app-shell .caption-editor-layout .main-column{
   min-width:0;display:flex;flex-direction:column;gap:0;overflow:hidden;
-  border:1px solid var(--fs-border,#dce1e7);border-radius:8px;
+  border:1px solid var(--fs-border,#dce1e7);border-radius:var(--fs-panel-radius,9px);
   background:var(--fs-surface,#fff);
 }
 .app-shell .caption-editor-layout .main-column .caption-viewer-part>.surface{border:0;border-radius:0;box-shadow:none;margin:0}
@@ -22,9 +22,9 @@
 .app-shell .caption-editor-layout .timeline-track{border:0;border-radius:4px;background:var(--fs-surface,#fff)}
 .app-shell .caption-editor-layout .timeline-ruler,.app-shell .caption-editor-layout .timeline-track{margin-inline:var(--ce-pad)}
 .app-shell .caption-editor-layout .timeline-scroll{margin:6px var(--ce-pad) 4px}
-.app-shell .caption-editor-layout .side-panel{position:static;min-height:0;max-height:none;min-width:0;align-self:stretch;display:flex;flex-direction:column;border-radius:8px;box-shadow:none;overflow:hidden}
+.app-shell .caption-editor-layout .side-panel{position:static;min-height:0;max-height:none;min-width:0;align-self:stretch;display:flex;flex-direction:column;border-radius:var(--fs-panel-radius,9px);box-shadow:none;overflow:hidden}
 .caption-editor-layout .caption-inspector-tabs{flex:1;min-height:0}
-.caption-editor-layout[data-stacked=false]{height:clamp(610px,calc(100vh - 200px),900px)}
+.caption-editor-layout[data-stacked=false]{height:clamp(610px,calc(100vh - 170px),900px)}
 .caption-editor-layout .caption-panel-group{min-width:0}
 .caption-editor-layout .caption-panel-inner{height:100%;min-height:0;display:flex;flex-direction:column}
 .caption-editor-layout .caption-panel-inner>.main-column,.caption-editor-layout .caption-panel-inner>.side-panel{height:100%;flex:1;min-height:0}
@@ -118,3 +118,10 @@
 .caption-editor-layout[data-stacked=true] .caption-height-divider{display:none!important}
 .caption-editor-layout[data-stacked=true] .timeline-lanes{height:112px;flex:none}
 .caption-editor-layout[data-stacked=true] .timeline{margin:0}
+
+/* Inherit the host workbench's surface and rhythm across the shadow boundary. */
+.app-shell.embedded .caption-action-toolbar{margin-bottom:12px;padding:10px 12px;border-radius:var(--fs-panel-radius,9px);box-shadow:var(--fs-panel-shadow,none)}
+.app-shell.embedded .caption-editor-layout :is(.main-column,.side-panel){border-radius:var(--fs-panel-radius,9px);box-shadow:var(--fs-panel-shadow,none)}
+.app-shell.embedded .caption-editor-layout .side-tabs{min-height:42px}
+.app-shell.embedded .caption-editor-layout .section-title strong{font-size:13px;font-weight:650}
+.app-shell.embedded .caption-editor-layout .timeline-top{padding-block:8px}
