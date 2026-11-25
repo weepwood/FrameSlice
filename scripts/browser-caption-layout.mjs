@@ -11,6 +11,18 @@ try{
  const main=host.locator('.main-column'),side=host.locator('.side-panel');
  const align=async()=>{const a=await main.boundingBox(),b=await side.boundingBox();if(Math.abs(a.y-b.y)>1||Math.abs(a.y+a.height-b.y-b.height)>1)throw Error('editor panels not aligned')};
  await align();
+ const frame=host.locator('.video-frame');
+ const emptyButtons=frame.getByRole('button',{name:/选择媒体文件|导入 SRT/});
+ const checkEmpty=async()=>{
+  const root=await host.locator('.caption-editor-layout').boundingBox(),box=await frame.boundingBox();
+  if(!root||root.height<609||!box||box.height<210||await emptyButtons.count()!==2)throw Error('empty desktop panel collapsed');
+  for(const button of await emptyButtons.all()){
+   const b=await button.boundingBox();if(!b||b.y<box.y||b.y+b.height>box.y+box.height+1)throw Error('empty media action clipped');
+  }
+ };
+ await checkEmpty();
+ await page.setViewportSize({width:1280,height:720});await checkEmpty();
+ await page.setViewportSize({width:1440,height:900});await checkEmpty();
  if(await host.getByRole('toolbar',{name:'字幕校对工具'}).count())throw Error('empty toolbar visible');
  await host.getByRole('button',{name:'加载示例字幕'}).click();
  await host.getByRole('textbox',{name:'第 1 条字幕',exact:true}).waitFor();

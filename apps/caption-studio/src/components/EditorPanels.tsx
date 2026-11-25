@@ -24,7 +24,7 @@ export function EditorPanels({viewer,timeline,inspector}:{viewer:ReactNode;timel
   <Group id="caption-workbench" className="caption-panel-group" orientation={stacked?'vertical':'horizontal'} disabled={stacked} disableCursor defaultLayout={initial} onLayoutChanged={layout=>{if(!stacked&&layout.inspector>=20&&layout.inspector<=50)try{localStorage.setItem(KEY,JSON.stringify(layout))}catch{}}}>
    <Panel id="viewer" defaultSize="70%" minSize={stacked?"0%":"50%"} className="caption-panel-inner"><div className="main-column">
     <Group id="caption-viewer-height" className="caption-height-group" orientation="vertical" disabled={stacked} disableCursor defaultLayout={height} onLayoutChanged={layout=>{if(!stacked&&layout.timeline>=25&&layout.timeline<=55)try{localStorage.setItem(HEIGHT_KEY,JSON.stringify(layout))}catch{}}}>
-     <Panel id="preview" defaultSize="65%" minSize={stacked?"0%":"260px"} className="caption-viewer-part">{viewer}</Panel>
+     <Panel id="preview" defaultSize="65%" minSize={stacked?"0%":"320px"} className="caption-viewer-part">{viewer}</Panel>
      <Separator id="caption-height-divider" className="caption-height-divider" aria-label="调整时间轴高度" disabled={stacked}/>
      <Panel id="timeline" defaultSize="35%" minSize={stacked?"0%":"180px"} maxSize={stacked?"100%":"55%"} className="caption-viewer-part">{timeline}</Panel>
     </Group>
