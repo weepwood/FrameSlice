@@ -10,7 +10,8 @@ import {ReviewTools} from './components/ReviewTools';
 import {useHistory} from './hooks/useHistory';
 import {useTranscriber} from './hooks/useTranscriber';
 import {chunksToCues,defaultStyle,fmt,lintCue,mergeNext,parseSubtitles,parseTime,round3,shiftCues,shortTime,sorted,splitCue,toSRT,toVTT,uid,type CaptionStyle,type Chunk,type Cue,type Issue} from './lib/captions';
-import {clearProject,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
+import {DraftConflictError,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
+import {buildCueIndex} from './lib/cue-index';
 import type {Device} from './workers/transcribe.worker';
 import {workspace} from '../../../src/core/workspace';
 import {version} from '../package.json';
@@ -57,6 +58,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [query,setQuery]=useState('');
   const [onlyIssues,setOnlyIssues]=useState(false);
   const [cuePage,setCuePage]=useState(0);
+  const [pageDraft,setPageDraft]=useState<string|null>(null);
   const [followPlayback,setFollowPlayback]=useState(true);
   const [playbackRate,setPlaybackRate]=useState(1);
   const [loopSelected,setLoopSelected]=useState(false);
@@ -64,11 +66,19 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [dragging,setDragging]=useState(false);
   const dragDepth=useRef(0);
   const [error,setError]=useState('');
-  const [saved,setSaved]=useState<'loading'|'saved'|'saving'|'error'>('loading');
+  const [saved,setSaved]=useState<'loading'|'saved'|'saving'|'error'|'conflict'>('loading');
+  const revision=useRef<string|null>(null);
+  const committed=useRef<string|null>(null);
+  const saveQueue=useRef<Promise<void>>(Promise.resolve());
+  const conflict=useRef(false);
   const [hydrated,setHydrated]=useState(false);
+  const [loadFailed,setLoadFailed]=useState(false);
+  const [loadAttempt,setLoadAttempt]=useState(0);
+  const [saveAttempt,setSaveAttempt]=useState(0);
   const [renderState,setRenderState]=useState<RenderState>({phase:'idle',progress:0,message:''});
   const [font,setFont]=useState<File|null>(null);
   const [shift,setShift]=useState('0.5');
+  const shell=useRef<HTMLDivElement>(null);
   const video=useRef<HTMLVideoElement>(null);
   const mediaInput=useRef<HTMLInputElement>(null);
   const captionsInput=useRef<HTMLInputElement>(null);
@@ -86,25 +96,34 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     return()=>URL.revokeObjectURL(url);
   },[file]);
   const isVideo=Boolean(file?.type.startsWith('video/')||file?.name.match(/\.(mp4|mov|webm|m4v)$/i));
-  const effectiveDuration=cues.reduce((max,cue)=>Math.max(max,cue.end),duration);
-  const activeCue=useMemo(()=>cues.find(c=>time>=c.start&&time<c.end)??null,[cues,time]);
-  const selectedCue=cues.find(c=>c.id===selectedId)??null;
+  const cueDuration=useMemo(()=>cues.reduce((max,cue)=>Math.max(max,cue.end),0),[cues]);
+  const effectiveDuration=Math.max(cueDuration,duration);
+  const intervals=useMemo(()=>buildCueIndex(cues),[cues]);
+  const activeCue=intervals.active(time);
+  const selectedCue=useMemo(()=>cues.find(c=>c.id===selectedId)??null,[cues,selectedId]);
   const problemCount=useMemo(()=>cues.reduce((n,c,i)=>n+lintCue(c,cues[i+1]).length,0),[cues]);
-  const shown=useMemo(()=>cues.filter((c,i)=>(!onlyIssues||lintCue(c,cues[i+1]).length>0)&&c.text.toLocaleLowerCase().includes(query.toLocaleLowerCase())),[cues,query,onlyIssues]);
+  const shown=useMemo(()=>{const term=query.trim().toLocaleLowerCase();return cues.filter((c,i)=>(!onlyIssues||lintCue(c,cues[i+1]).length>0)&&c.text.toLocaleLowerCase().includes(term))},[cues,query,onlyIssues]);
   const cueIndex=useMemo(()=>new Map(cues.map((cue,i)=>[cue.id,i])),[cues]);
   const pageCount=Math.max(1,Math.ceil(shown.length/100));
   const currentPage=Math.min(cuePage,pageCount-1);
-  const pageCues=shown.slice(currentPage*100,(currentPage+1)*100);
-  useEffect(()=>setCuePage(0),[query,onlyIssues]);
+  const pageCues=useMemo(()=>shown.slice(currentPage*100,(currentPage+1)*100),[shown,currentPage]);
+  const changeQuery=(value:string)=>{setQuery(value);setCuePage(0)};
+  const changeIssueFilter=(value:boolean)=>{setOnlyIssues(value);setCuePage(0)};
+  const browsePage=(page:number)=>{setFollowPlayback(false);setCuePage(Math.max(0,Math.min(pageCount-1,page)));setPageDraft(null)};
+  const commitPage=()=>{if(pageDraft!==null){const value=Number(pageDraft);if(pageDraft.trim()&&Number.isInteger(value))browsePage(value-1);else setPageDraft(null)}};
+  useEffect(()=>setPageDraft(null),[query,onlyIssues,pageCount]);
   useEffect(()=>{
     if(!followPlayback||tab!=='cues'||query||onlyIssues||!activeCue)return;
+    const root=cueListRef.current?.getRootNode();
+    const focused=root instanceof ShadowRoot?root.activeElement:document.activeElement;
+    if(cueListRef.current?.contains(focused))return;
     const index=cueIndex.get(activeCue.id);
     if(index!==undefined){
       const nextPage=Math.floor(index/100);
       if(nextPage!==currentPage){setCuePage(nextPage);return;}
     }
     const active=cueListRef.current?.querySelector('[data-current="true"]');
-    if(active && !active.contains(document.activeElement))active.scrollIntoView({block:'nearest',behavior:'smooth'});
+    if(active)active.scrollIntoView({block:'nearest',behavior:'smooth'});
   },[activeCue?.id,followPlayback,tab,query,onlyIssues,cueIndex,currentPage]);
   useEffect(()=>{if(video.current)video.current.playbackRate=playbackRate},[playbackRate,mediaURL]);
   const onChunks=useCallback((chunks:Chunk[])=>{
@@ -116,32 +135,48 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
 
   useEffect(()=>{
     let cancelled=false;
-    loadProject().then(p=>{
-      if(!p||cancelled)return;
-      const clean=verifyProject(p);
+    loadProject().then(({project:p,revision:loadedRevision})=>{
+      if(cancelled)return;
+      const clean=p?verifyProject(p):{version:1 as const,name:'未命名项目',mediaName:'',duration:0,cues:[],style:defaultStyle,updatedAt:0};
+      revision.current=loadedRevision;conflict.current=false;
+      committed.current=JSON.stringify([clean.name,clean.mediaName,clean.cues.reduce((max,c)=>Math.max(max,c.end),clean.duration),clean.cues,clean.style]);
       setProjectName(clean.name);setOriginalMediaName(clean.mediaName);
       setDuration(clean.duration);setStyle(clean.style);resetCues(clean.cues);
-    }).then(()=>{if(!cancelled)setSaved('saved')}).catch(()=>{if(!cancelled)setSaved('error')}).finally(()=>{if(!cancelled)setHydrated(true)});
+      setFile(null);setTime(0);setPeaks([]);setSelectedId(null);setQuery('');setOnlyIssues(false);setCuePage(0);
+    }).then(()=>{if(!cancelled){setSaved('saved');setLoadFailed(false);setHydrated(true)}}).catch(()=>{if(!cancelled){setSaved('error');setLoadFailed(true)}});
     return()=>{cancelled=true};
-  },[resetCues]);
+  },[resetCues,loadAttempt]);
   useEffect(()=>{
-    if(!hydrated)return;
+    if(!hydrated||conflict.current)return;
+    const p:Project={version:1,name:projectName,mediaName:file?.name||originalMediaName,duration:effectiveDuration,cues,style,updatedAt:Date.now()};
+    const signature=JSON.stringify([p.name,p.mediaName,p.duration,p.cues,p.style]);
+    let cancelled=false;
     setSaved('saving');
     const timer=setTimeout(()=>{
-      const p:Project={version:1,name:projectName,mediaName:file?.name||originalMediaName,duration:effectiveDuration,cues,style,updatedAt:Date.now()};
-      saveProject(p).then(()=>setSaved('saved')).catch(()=>setSaved('error'));
+      saveQueue.current=saveQueue.current.then(async()=>{
+        if(cancelled||conflict.current)return;
+        if(signature===committed.current){setSaved('saved');return}
+        try{
+          revision.current=await saveProject(p,revision.current);
+          committed.current=signature;
+          if(!cancelled)setSaved('saved');
+        }catch(e){
+          if(e instanceof DraftConflictError){conflict.current=true;setSaved('conflict')}
+          else if(!cancelled)setSaved('error');
+        }
+      });
     },600);
-    return()=>clearTimeout(timer);
-  },[hydrated,projectName,file,originalMediaName,effectiveDuration,cues,style]);
+    return()=>{cancelled=true;clearTimeout(timer)};
+  },[hydrated,projectName,file,originalMediaName,effectiveDuration,cues,style,saveAttempt]);
 
   const loadMedia=(f:File)=>{
-    renderAbort.current?.abort();
+    if(!hydrated)return;
     if(!f.type.startsWith('video/')&&!f.type.startsWith('audio/')&&!/\.(mp4|mov|webm|m4v|mp3|m4a|wav|ogg|flac|aac)$/i.test(f.name)){
       setError('请选择音频或视频文件');return;
     }
     const relink=Boolean(cues.length&&(!file&&!originalMediaName||originalMediaName===f.name));
     if(cues.length&&!relink&&!window.confirm('打开新媒体将清空当前字幕。请先导出工程或字幕。确定继续？'))return;
-    transcriber.stop();setError('');setFile(f);
+    renderAbort.current?.abort();transcriber.stop();setError('');setFile(f);
     if(!relink){setProjectName(baseName(f.name));setDuration(0);setSelectedId(null);resetCues([])}
     setOriginalMediaName(f.name);setTime(0);setPeaks([]);
     setRenderState({phase:'idle',progress:0,message:''});
@@ -152,6 +187,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     loadMedia(f);
   };
   const importSubtitles=async(f:File)=>{
+    if(!hydrated)return;
     setError('');
     try{
       const buffer=await f.arrayBuffer();
@@ -159,24 +195,27 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       if((text.match(/�/g)||[]).length>2)text=new TextDecoder('gb18030').decode(buffer);
       const parsed=parseSubtitles(text);
       if(!parsed.length)throw Error('未检测到有效的字幕时间轴');
-      resetCues(parsed);setSelectedId(parsed[0].id);setTab('cues');
+      if(cues.length&&!window.confirm('导入字幕将替换当前字幕，是否继续？（可撤销）'))return;
+      transcriber.stop();setCues(parsed);setSelectedId(parsed[0].id);setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
       if(!file)setProjectName(baseName(f.name));
     }catch(e){setError(`字幕导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const importProject=async(f:File)=>{
-    renderAbort.current?.abort();
+    if(!hydrated)return;
     try{
       const p=verifyProject(JSON.parse(await f.text()));
-      transcriber.stop();setFile(null);setPeaks([]);setTime(0);
+      if((cues.length||file||originalMediaName)&&!window.confirm('打开工程将替换当前工程。请先导出备份。确定继续？'))return;
+      renderAbort.current?.abort();transcriber.stop();setFile(null);setPeaks([]);setTime(0);
       setDuration(p.duration);setProjectName(p.name);setOriginalMediaName(p.mediaName);
-      setStyle(p.style);resetCues(p.cues);setSelectedId(null);setError('');setTab('cues');
+      setStyle(p.style);resetCues(p.cues);setSelectedId(null);setError('');setTab('cues');setQuery('');setOnlyIssues(false);setCuePage(0);
     }catch(e){setError(`项目导入失败：${String(e instanceof Error?e.message:e)}`)}
   };
   const reset=async()=>{
+    if(!hydrated)return;
     renderAbort.current?.abort();
     transcriber.stop();resetCues([]);setFile(null);setPeaks([]);setProjectName('未命名项目');
     setOriginalMediaName('');setDuration(0);setTime(0);setSelectedId(null);setStyle(defaultStyle);setError('');
-    try{await clearProject()}catch{/* next autosave will replace */}
+    // Save the empty project through the same atomic revision check; never delete another tab's draft.
   };
   const seek=(s:number)=>{
     const t=Math.max(0,Math.min(s,effectiveDuration));
@@ -206,13 +245,13 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     const next=cues[index+1]?.start;
     const end=next&&next>start+0.1?Math.min(next,start+2):start+2;
     const cue:Cue={id:uid(),start:round3(start),end:round3(end),text:''};
-    setCues(list=>[...list.slice(0,index+1),cue,...list.slice(index+1)]);setSelectedId(cue.id);
+    setCues(list=>[...list.slice(0,index+1),cue,...list.slice(index+1)]);setSelectedId(cue.id);setQuery('');setOnlyIssues(false);setCuePage(Math.floor((index+1)/100));
   };
   const jumpToCue=(id:string)=>{
     const cue=cues.find(c=>c.id===id);
     if(!cue)return;
     setTab('cues');setOnlyIssues(false);setQuery('');setCuePage(Math.floor((cueIndex.get(id)??0)/100));setSelectedId(id);seek(cue.start);
-    window.requestAnimationFrame(()=>cueListRef.current?.querySelector(`[data-cue-id="${id}"]`)?.scrollIntoView({block:'center',behavior:'smooth'}));
+    window.requestAnimationFrame(()=>cueListRef.current?.querySelector(`[data-cue-id="${CSS.escape(id)}"]`)?.scrollIntoView({block:'center',behavior:'smooth'}));
   };
   const exportAs=(kind:'srt'|'vtt'|'json')=>{
     const valid=cues.filter(c=>c.end>c.start&&c.text.trim());
@@ -240,13 +279,15 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   };
   useEffect(()=>{
     const handle=(e:KeyboardEvent)=>{
-      const input=(e.target as HTMLElement).closest('textarea,input,select,[contenteditable]');
+      const path=e.composedPath();
+      if(!hydrated||e.defaultPrevented||e.isComposing||!shell.current||!path.includes(shell.current))return;
+      const interactive=path.some(node=>node instanceof Element&&node.matches('textarea,input,select,button,a,[contenteditable],[role=button],[role=checkbox],[role=slider],[role=combobox],[role=tab],[role=menuitem],[role=option]'));
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
         e.preventDefault();setTab('cues');setOnlyIssues(false);
         window.requestAnimationFrame(()=>searchInput.current?.focus());return;
       }
       if(e.key==='Escape'&&shortcutsOpen){setShortcutsOpen(false);return;}
-      if(input||shortcutsOpen)return;
+      if(interactive||shortcutsOpen)return;
       if(e.key==='?'){e.preventDefault();setShortcutsOpen(true);return;}
       if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){
         e.preventDefault();if(e.shiftKey)redo();else undo();
@@ -259,18 +300,18 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   });
   const mediaMissing=Boolean(originalMediaName&&!file);
 
-  return <div className={`app-shell ${embedded?'embedded':''} ${dragging?'dragging':''}`}
+  return <div ref={shell} tabIndex={-1} className={`app-shell ${embedded?'embedded':''} ${dragging?'dragging':''}`}
     onDragEnter={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current++;setDragging(true)}}}
     onDragOver={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){e.preventDefault();e.dataTransfer.dropEffect='copy'}}}
     onDragLeave={e=>{if(Array.from(e.dataTransfer.types).includes('Files')){dragDepth.current=Math.max(0,dragDepth.current-1);if(!dragDepth.current)setDragging(false)}}}
     onDrop={e=>{e.preventDefault();dragDepth.current=0;setDragging(false);if(e.dataTransfer.files[0])openMediaOrSubtitle(e.dataTransfer.files[0])}}>
     {dragging&&<div className="file-drop-overlay" role="status"><div><UploadCloud size={30}/><strong>松开以导入文件</strong><span>支持音视频、SRT、VTT 与字幕工程</span></div></div>}
-    {!embedded&&<header className="topbar">
+    {!embedded&&<header className="topbar" inert={!hydrated}>
       <div className="brand"><span className="brand-mark"><AudioLines size={20} strokeWidth={2.5}/></span><div><b>caption<span className="brand-light">studio</span></b><small>LOCAL FIRST EDITOR</small></div></div>
       <span className="header-divider"/>
       <div className="project-name"><input aria-label="项目名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/><ChevronDown size={14}/></div>
       <div className="header-spacer"/>
-      <div className="save-indicator">{saved==='saved'?<Check size={14}/>:saved==='saving'?<LoaderCircle className="spin" size={14}/>:<AlertTriangle size={14}/>} <span>{saved==='saved'?'已保存到本地':saved==='saving'?'正在保存':saved==='loading'?'正在读取':'保存失败'}</span></div>
+      <div className="save-indicator">{saved==='saved'?<Check size={14}/>:saved==='saving'?<LoaderCircle className="spin" size={14}/>:<AlertTriangle size={14}/>} <span>{saved==='saved'?'已保存到本地':saved==='saving'?'正在保存':saved==='loading'?'正在读取':saved==='conflict'?'草稿冲突':'保存失败'}</span></div>
       <button className="btn small icon-help" onClick={()=>setShortcutsOpen(true)} title="查看键盘快捷键" aria-label="键盘快捷键"><Keyboard size={17}/></button>
       <button className="btn small outline" onClick={exportProject}><HardDriveDownload size={16}/>导出工程</button>
       <button className="btn small primary" onClick={()=>mediaInput.current?.click()}><FolderOpen size={16}/>打开媒体</button>
@@ -280,7 +321,10 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     <input ref={projectInput} type="file" accept=".json" hidden onChange={e=>{if(e.target.files?.[0])void importProject(e.target.files[0]);e.target.value=''}}/>
     <input ref={fontInput} type="file" accept=".ttf,.otf" hidden onChange={e=>{setFont(e.target.files?.[0]??null);e.target.value=''}}/>
 
-    <div className="workspace">
+    {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><button className="btn outline" onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</button></div>}
+    {hydrated&&saved==='conflict'&&<div className="error-banner draft-conflict" role="alert"><AlertTriangle size={16}/><span>另一标签页已更新草稿。当前编辑仍保留，自动保存已暂停；可导出备份后重新读取。</span><button className="btn outline" onClick={exportProject}>导出当前备份</button><button className="btn outline" onClick={()=>{if(window.confirm('重新读取将替换本页未保存的编辑。请先导出备份。确定继续？')){transcriber.stop();renderAbort.current?.abort();setHydrated(false);setSaved('loading');setLoadAttempt(n=>n+1)}}}>读取最新草稿</button></div>}
+    {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><button className="btn outline" onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</button><button className="btn outline" onClick={exportProject}>导出备份</button></div>}
+    <div className="workspace" inert={!hydrated}>
       {!embedded&&<aside className="nav-rail" aria-label="工作区">
         <span className="rail-label">FRAMESLICE / WORKSPACE</span>
         <a href="/FrameSlice/" className="rail-item frame-home-link"><ArrowLeft size={18}/>返回视频工具</a>
@@ -294,7 +338,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         {embedded&&<div className="caption-action-toolbar" role="toolbar" aria-label="字幕工作台操作">
           <div className="caption-project-group">
             <div className="caption-project-field"><input aria-label="字幕工程名称" placeholder="工程名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/></div>
-            <span className="caption-save-state" data-save={saved} role="status">{saved==='saved'?'已保存':saved==='saving'?'保存中…':saved==='loading'?'读取中…':'保存异常'}</span>
+            <span className="caption-save-state" data-save={saved} role="status">{saved==='saved'?'已保存':saved==='saving'?'保存中…':saved==='loading'?'读取中…':saved==='conflict'?'草稿冲突':'保存异常'}</span>
           </div>
           <div className="caption-toolbar-actions">
             {(busy||transcriber.state.phase==='error'||transcriber.state.phase==='done')&&tab!=='transcribe'&&<button className="btn outline caption-task-status" onClick={()=>setTab('transcribe')}>{busy?'转录 / 波形 '+Math.round(transcriber.state.progress)+'%':transcriber.state.phase==='error'?'处理失败 · 查看':'处理完成 · 查看'}</button>}
@@ -338,7 +382,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               </div>
               <div className="media-info"><div><FileAudio size={15}/><span>{file?.name??'尚未打开媒体文件'}</span></div><span>{file?sizeText(file.size):'—'}</span></div>
             </section>
-            <Timeline duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={setSelectedId} onUpdate={updateCue}/>
+            <Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
 
           </div>
           <aside className="side-panel surface">
@@ -368,14 +412,14 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             </section>
             </Tabs.Panel>
             <Tabs.Panel value="cues" className="caption-tab-content">
-              <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
+              <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>changeQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
-                onToggleIssues={setOnlyIssues} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
-              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" onClick={()=>setCuePage(p=>Math.max(0,p-1))}>‹</button><span>{currentPage+1}/{pageCount}</span><button disabled={currentPage>=pageCount-1} title="下一页字幕" onClick={()=>setCuePage(p=>Math.min(pageCount-1,p+1))}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
+                onToggleIssues={changeIssueFilter} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
+              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" aria-label="上一页字幕" onClick={()=>browsePage(currentPage-1)}>‹</button>{pageCount>1?<label className="cue-page-jump"><input aria-label="字幕页码" inputMode="numeric" value={pageDraft??String(currentPage+1)} onChange={e=>setPageDraft(e.target.value)} onBlur={commitPage} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setPageDraft(null)}}/><span>/{pageCount}</span></label>:<span>1/1</span>}<button disabled={currentPage>=pageCount-1} title="下一页字幕" aria-label="下一页字幕" onClick={()=>browsePage(currentPage+1)}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
               <div className="cue-list" ref={cueListRef}>
                 {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=lintCue(c,cues[index+1]);return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
-                    <div className="cue-row-top"><button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在当前位置拆分" onClick={()=>setCues(xs=>splitCue(xs,c.id))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
+                    <div className="cue-row-top"><button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
                     <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
                     <div className="cue-row-bottom"><TimeEditor label="开始时间" time={c.start} onCommit={v=>updateCue(c.id,{start:v})}/><span>→</span><TimeEditor label="结束时间" time={c.end} onCommit={v=>updateCue(c.id,{end:v})}/><button className="cue-seek" onClick={()=>{seek(c.start);setSelectedId(c.id)}} title="跳转到字幕"><Play size={12}/></button></div>
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
@@ -411,7 +455,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
           </aside>
         </div>
         
-        <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${cues.findIndex(c=>c.id===selectedId)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
+        <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${(cueIndex.get(selectedId??'')??-1)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
       </main>
     </div>
     {shortcutsOpen&&<div className="shortcut-scrim" onMouseDown={e=>{if(e.target===e.currentTarget)setShortcutsOpen(false)}}>
@@ -427,6 +471,6 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
 function TimeEditor({time,label,onCommit}:{time:number;label:string;onCommit:(time:number)=>void}){
   const [draft,setDraft]=useState<string|null>(null);
   const commit=()=>{if(draft!==null){const value=parseTime(draft);if(Number.isFinite(value)&&value>=0)onCommit(round3(value));setDraft(null)}};
-  return <input className="time-input" aria-label={label} title={label} value={draft??shortTime(time)} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setDraft(null)}}/>;
+  return <input className="time-input" aria-label={label} title={label} value={draft??fmt(time,'vtt')} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setDraft(null)}}/>;
 }
 function colorAlpha(hex:string,a:number){const h=hex.replace('#','');return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`}

@@ -20,7 +20,8 @@ export function ReviewTools({cues,query,onlyIssues,followPlayback,selectedId,onT
   const [replacement,setReplacement]=useState('');
   const [notice,setNotice]=useState('');
   const problems=useMemo(()=>getProblemCueIds(cues),[cues]);
-  const replacements=query?cues.filter(c=>c.text.toLocaleLowerCase().includes(query.toLocaleLowerCase())).length:0;
+  const term=query.trim();
+  const replacements=useMemo(()=>term?cues.filter(c=>c.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())).length:0,[cues,term]);
   const goNext=()=>{
     if(!problems.length)return;
     const index=problems.indexOf(selectedId||'');
@@ -40,7 +41,7 @@ export function ReviewTools({cues,query,onlyIssues,followPlayback,selectedId,onT
   };
   const replaceAll=()=>{
     if(!query.trim()||!replacements)return;
-    onChange(list=>list.map(c=>({...c,text:replaceCaptionText(c.text,query,replacement)})));
+    onChange(list=>list.map(c=>({...c,text:replaceCaptionText(c.text,term,replacement)})));
     setNotice(`已替换 ${replacements} 条字幕，可通过撤销恢复`);
   };
   return <div className="review-toolbox">

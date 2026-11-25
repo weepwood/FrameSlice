@@ -374,3 +374,6 @@
 .fs-workbench .fs-settings-target .config-control .number-input{width:88px}
 .fs-select-content,.fs-dialog-content{border-radius:var(--fs-radius)}
 @media(max-width:720px){.fs-workbench .range-control input[type=number]{width:64px}.fs-workbench .fs-center-toolbar>input[aria-label="搜索任务"]{flex-basis:100%}.fs-workbench .fs-timeline-track{height:64px}}
+
+.fs-library-search{width:100%;min-width:0;margin:6px 0}
+.fs-job-pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:12px;color:var(--fs-muted);font-size:12px}

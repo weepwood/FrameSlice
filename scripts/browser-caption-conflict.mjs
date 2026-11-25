@@ -1,0 +1,57 @@
+import {chromium} from 'playwright-core';
+import {readFile} from 'node:fs/promises';
+const chrome=process.env.CHROME_PATH;
+if(!chrome)throw Error('CHROME_PATH required');
+const url=process.env.APP_URL??'http://127.0.0.1:4173/FrameSlice/';
+const browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox']});
+try{
+  const context=await browser.newContext({viewport:{width:1440,height:900},acceptDownloads:true});
+  const a=await context.newPage();
+  await a.goto(url,{waitUntil:'networkidle'});
+  const legacy={version:1,name:'Legacy draft',mediaName:'',duration:4,cues:[{id:'old',start:1,end:4,text:'Original legacy draft'}],style:{fontSize:55,textColor:'#ffffff',boxColor:'#111111',boxOpacity:.6,position:'bottom',bold:true},updatedAt:1};
+  await a.evaluate(project=>new Promise((resolve,reject)=>{
+    const req=indexedDB.open('caption-studio',1);
+    req.onupgradeneeded=()=>req.result.createObjectStore('projects');
+    req.onerror=()=>reject(req.error);
+    req.onsuccess=()=>{const db=req.result,tx=db.transaction('projects','readwrite');tx.objectStore('projects').put(project,'current');tx.oncomplete=()=>{db.close();resolve()};tx.onabort=()=>{db.close();reject(tx.error)}};
+  }),legacy);
+  const host=p=>p.locator('.caption-react-host');
+  const editor=p=>host(p).getByRole('textbox',{name:'第 1 条字幕'});
+  const saved=p=>host(p).locator('[data-save=saved]').waitFor();
+  const read=()=>a.evaluate(()=>new Promise((resolve,reject)=>{const req=indexedDB.open('caption-studio',1);req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result,tx=db.transaction('projects','readonly'),r=tx.objectStore('projects').get('current');tx.oncomplete=()=>{db.close();resolve(r.result)};tx.onabort=()=>{db.close();reject(tx.error)}}}));
+  const open=async p=>{await p.getByRole('button',{name:'字幕工作台'}).click();await editor(p).waitFor();await saved(p)};
+  await open(a);
+  const b=await context.newPage();
+  await b.goto(url,{waitUntil:'networkidle'});await open(b);
+  if((await read()).revision)throw Error('read-only opening rewrote legacy draft');
+  await Promise.all([editor(a).fill('Tab A edited'),editor(b).fill('Tab B edited')]);
+  const conflict=p=>host(p).locator('[data-save=conflict]').count();
+  await Promise.race([host(a).locator('[data-save=conflict]').waitFor(),host(b).locator('[data-save=conflict]').waitFor()]);
+  const loser=await conflict(a)?a:b,winner=loser===a?b:a;
+  await saved(winner);
+  const persisted=await read(),loserText=await editor(loser).inputValue();
+  if(!persisted.revision||persisted.cues[0].text!==await editor(winner).inputValue()||persisted.cues[0].text===loserText)throw Error('CAS winner/loser content mismatch');
+  await editor(loser).fill(loserText+' preserved');
+  await loser.waitForTimeout(850);
+  if((await read()).revision!==persisted.revision)throw Error('conflicted tab overwrote winner');
+  const [download]=await Promise.all([loser.waitForEvent('download'),host(loser).getByRole('button',{name:'导出当前备份'}).click()]);
+  const exported=JSON.parse(await readFile(await download.path(),'utf8'));
+  if(exported.cues[0].text!==loserText+' preserved'||'revision' in exported)throw Error('conflict backup mismatch');
+  loser.once('dialog',d=>d.dismiss());
+  await host(loser).getByRole('button',{name:'读取最新草稿'}).click();
+  if(await editor(loser).inputValue()!==loserText+' preserved')throw Error('cancel reload discarded local edit');
+  loser.once('dialog',d=>d.accept());
+  await host(loser).getByRole('button',{name:'读取最新草稿'}).click();
+  await saved(loser);
+  if(await editor(loser).inputValue()!==persisted.cues[0].text)throw Error('reload failed');
+  await editor(loser).fill('Newer revision');
+  await saved(loser);
+  if((await read()).cues[0].text!=='Newer revision')throw Error('write after reload failed');
+  // New project on stale tab must not delete the other tab's draft.
+  await host(winner).getByRole('button',{name:'工程操作'}).click();
+  winner.once('dialog',d=>d.accept());
+  await host(winner).getByRole('menuitem',{name:'新建工程'}).click();
+  await host(winner).locator('[data-save=conflict]').waitFor();
+  if((await read()).cues[0].text!=='Newer revision')throw Error('stale reset deleted newer draft');
+  console.log(JSON.stringify({legacyReadOnly:'passed',concurrentSave:'passed',conflictBackup:'passed',reloadCancel:'passed',reloadAndSave:'passed',staleReset:'passed'}));
+}finally{await browser.close()}

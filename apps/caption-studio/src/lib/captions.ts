@@ -106,16 +106,17 @@ export function chunksToCues(chunks:Chunk[],maxChars=36,mediaDuration?:number):C
   });
   return sorted(cues);
 }
-export function splitCue(cues:Cue[],id:string):Cue[]{
+export function splitCue(cues:Cue[],id:string,position?:number):Cue[]{
   const index=cues.findIndex(c=>c.id===id);
   if(index<0)return cues;
   const c=cues[index];
   const chars=Array.from(c.text);
   if(chars.length<2)return cues;
-  const middle=Math.floor(chars.length/2);
+  const at=round3(position??(c.start+c.end)/2);
+  if(!Number.isFinite(at)||at-c.start<.079999||c.end-at<.079999)return cues;
+  const middle=Math.max(1,Math.min(chars.length-1,Math.round(chars.length*(at-c.start)/(c.end-c.start))));
   const left=chars.slice(0,middle).join('').trim(),right=chars.slice(middle).join('').trim();
   if(!left||!right)return cues;
-  const at=round3((c.start+c.end)/2);
   return [...cues.slice(0,index),{...c,end:at,text:left},{id:uid(),start:at,end:c.end,text:right},...cues.slice(index+1)];
 }
 export function mergeNext(cues:Cue[],id:string):Cue[]{

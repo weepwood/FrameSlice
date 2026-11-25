@@ -2,13 +2,15 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {Minus,Plus,StepForward,Check} from 'lucide-react';
 import {Checkbox} from '@base-ui/react/checkbox';
 import {shortTime,type Cue} from '../lib/captions';
+import type {buildCueIndex} from '../lib/cue-index';
 interface Props {
+  intervalIndex:ReturnType<typeof buildCueIndex>;
   duration:number;cues:Cue[];peaks:number[];time:number;selectedId:string|null;
   onSeek:(v:number)=>void;onSelect:(id:string)=>void;
   onUpdate:(id:string,patch:Partial<Cue>)=>void;
 }
 type Drag={id:string;side:'start'|'end';value:number};
-export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,onUpdate}:Props){
+export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSeek,onSelect,onUpdate}:Props){
   const [span,setSpan]=useState(60);
   const [viewStart,setViewStart]=useState(0);
   const [follow,setFollow]=useState(true);
@@ -72,7 +74,7 @@ export function Timeline({duration,cues,peaks,time,selectedId,onSeek,onSelect,on
     setDrag({...drag,value});
   };
   const endDrag=()=>{if(drag)onUpdate(drag.id,{[drag.side]:drag.value});setDrag(null)};
-  const displayCues=cues.filter(c=>c.end>=start&&c.start<=start+visible);
+  const displayCues=useMemo(()=>intervalIndex.visible(start,start+visible),[intervalIndex,start,visible]);
   return <section className="timeline surface">
     <div className="section-title timeline-top">
       <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
