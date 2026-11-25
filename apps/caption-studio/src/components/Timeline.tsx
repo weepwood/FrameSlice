@@ -46,7 +46,7 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
       const ctx=node.getContext('2d');if(!ctx)return;
       ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
       const tokens=getComputedStyle(node);
-      ctx.fillStyle=tokens.getPropertyValue('--fs-wave-bg').trim()||'#e1e6e9';ctx.fillRect(0,0,width,height);
+      ctx.fillStyle=tokens.getPropertyValue('--fs-raised').trim()||'#e1e6e9';ctx.fillRect(0,0,width,height);
       const center=height/2;
       ctx.fillStyle=tokens.getPropertyValue('--fs-wave').trim()||'#6d8398';
       for(let x=0;x<width;x+=2){
@@ -110,7 +110,7 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     <div className="timeline-ruler">
       {ticks.map(t=><span className={t-start<visible*.04?'tick-start':start+visible-t<visible*.04?'tick-end':undefined} key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
     </div>
-    <div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
+    <div className="timeline-lanes"><div className="timeline-lane-labels" aria-hidden="true"><span>音频</span><span>字幕</span></div><div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
       <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">无音频波形</span>}
       <div className="cue-track">
         {displayCues.map(c=>{
@@ -125,7 +125,7 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
         })}
       </div>
       {time>=start&&time<=start+visible&&<div className="playhead" style={{left:`${(time-start)/visible*100}%`}}/>}
-    </div>
+    </div></div>
     <div className="timeline-scroll"><input type="range" aria-label="移动时间轴视窗" min={0} max={Math.max(0,duration-visible)} step={.1} value={start} disabled={duration<=visible} onChange={e=>{setViewStart(Number(e.target.value));setFollow(false)}}/></div>
 
   </section>;

@@ -119,7 +119,7 @@ try {
   }
 
   await page.locator('button.nav-item').nth(1).click()
-  await page.getByLabel('抽帧间隔秒数').fill('1')
+  await page.getByRole('spinbutton',{name:'抽帧间隔秒数',exact:true}).fill('1')
   await page.getByRole('button', { name: /开始提取图片/ }).click()
   await awaitResult('frame Worker')
   if (await page.locator('.frame-tile img').count() < 2) {

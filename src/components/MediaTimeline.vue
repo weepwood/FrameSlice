@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkbenchNumber from "./WorkbenchNumber.vue"
 import {computed,ref,watch,onBeforeUnmount} from 'vue'
 import {Minus,Plus,LocateFixed,Magnet,Maximize2,X} from 'lucide-vue-next'
 import {anchoredViewport,nearestKey,snapTimeline,visibleKeys} from '../lib/timeline-index.mjs'
@@ -63,7 +64,7 @@ const shownCuts=computed(()=>p.cuts.map(t=>({key:t,time:drag.value?.kind==='cut'
  <label class="fs-timeline-slider"><span>定位</span><input type="range" :min="0" :max="duration" step=".01" :value="time" :disabled="disabled" @input="emit('seek',Number(($event.target as HTMLInputElement).value))" aria-label="定位播放位置"/></label>
  <div class="fs-timeline-legend"><span><i class="legend-key"/> {{mode==='split'?'安全关键帧':'编码关键帧'}}</span><span><i class="legend-play"/> 播放位置</span><span v-if="mode==='split'"><i class="legend-cut"/> 手动切点</span><span v-else><i class="legend-range"/> 抽帧区间</span></div>
  <div class="fs-timeline-toolbar"><small>{{humanTime(offset)}} — {{humanTime(offset+span)}}</small><small>Ctrl / ⌘ + 滚轮缩放 · Shift + 滚轮平移</small><small v-if="mode==='split'&&cuts.length">手动切点优先</small></div>
- <div v-if="mode==='frames'" class="fs-timeline-toolbar"><label>起点秒 <input type="number" aria-label="时间轴抽帧起点" :value="start" min="0" :max="end" step=".001" :disabled="disabled" @change="e=>changeHandle('start',Number((e.target as HTMLInputElement).value))"/></label><label>终点秒 <input type="number" aria-label="时间轴抽帧终点" :value="end" :min="start" :max="duration" step=".001" :disabled="disabled" @change="e=>changeHandle('end',Number((e.target as HTMLInputElement).value))"/></label></div>
+ <div v-if="mode==='frames'" class="fs-timeline-toolbar"><label>起点秒 <WorkbenchNumber label="时间轴抽帧起点" :model-value="start" :min="0" :max="end" :step=".001" :disabled="disabled" @update:model-value="v=>changeHandle('start',v)"/></label><label>终点秒 <WorkbenchNumber label="时间轴抽帧终点" :model-value="end" :min="start" :max="duration" :step=".001" :disabled="disabled" @update:model-value="v=>changeHandle('end',v)"/></label></div>
  <div v-if="mode==='split'&&cuts.length" class="fs-timeline-cuts"><button v-for="t in cuts" :key="t" class="secondary-button" :disabled="disabled" @click="emit('remove',t)">{{humanTime(t)}} ×</button></div>
 </section>
 </template>

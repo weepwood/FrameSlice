@@ -1,3 +1,5 @@
+import {EditorPanels} from './components/EditorPanels';
+import {CaptionNumberField} from './components/CaptionNumberField';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
 import {Tabs} from '@base-ui/react/tabs';
@@ -372,8 +374,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         }
         {error&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>{error}</span><button aria-label="关闭错误提示" onClick={()=>setError('')}><X size={16}/></button></div>}
         {mediaMissing&&<div className="notice-banner"><Info size={16}/>已恢复字幕工程，但媒体文件不会自动保存。请重新打开「{originalMediaName}」以继续视频预览。</div>}
-        <div className="content-grid caption-editor-layout">
-          <div className="main-column">
+        <EditorPanels viewer={<div className="main-column">
             <section className="video-panel surface">
               <div className="section-title"><div><strong>视频预览</strong></div><span className="chip">{isVideo?'视频':'本地媒体'}</span></div>
               <div className="video-frame">
@@ -402,8 +403,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             </section>
             <Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>
 
-          </div>
-          <aside className="side-panel surface">
+          </div>} inspector={<aside className="side-panel surface">
             <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">
             <Tabs.List className="side-tabs" aria-label="工作区功能">
               <Tabs.Tab value="cues" className={tab==='cues'?'active':''}><Subtitles size={16}/>字幕</Tabs.Tab>
@@ -418,7 +418,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <div className="caption-field"><span>识别模型</span><CaptionSelect label="识别模型" value={model} disabled={busy} onChange={setModel} options={MODELS.map(m=>({value:m.id,label:m.title+" ("+m.size+")"}))}/></div>
                 <div className="caption-field"><span>原文语言</span><CaptionSelect label="原文语言" value={language} disabled={busy||model.endsWith('.en')} onChange={setLanguage} options={LANGS.map(([value,label])=>({value,label}))}/></div>
                 <div className="caption-field"><span>计算后端</span><CaptionSelect<Device> label="计算后端" value={device} disabled={busy} onChange={setDevice} options={[{value:"auto",label:"自动（GPU 优先）"},{value:"webgpu",label:"WebGPU"},{value:"wasm",label:"CPU / WASM"}]}/></div>
-                <label>每条字幕最大字符 <input type="number" min={8} max={120} value={maxChars} disabled={busy} onChange={e=>setMaxChars(Math.min(120,Math.max(8,Number(e.target.value)||30)))}/></label>
+                <label>每条字幕最大字符 <CaptionNumberField label="每条字幕最大字符" min={8} max={120} value={maxChars} disabled={busy} onChange={v=>{if(v!==null)setMaxChars(Math.min(120,Math.max(8,Math.round(v))))}}/></label>
               </div>
               <div className="transcribe-bottom"><div className="transcribe-helper"><Info size={15}/><span>首次转录需下载模型。</span></div>
                 {busy?<button className="btn danger-ghost" onClick={cancelTask}><X size={15}/>取消任务</button>:<button className="btn primary" disabled={!file} onClick={()=>void startTranscription()}><WandSparkles size={16}/>{cues.length?'重新生成字幕':'开始自动转录'}</button>}</div>
@@ -446,7 +446,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
                   </article>})}
               </div>
-              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><input aria-label="偏移秒数" type="number" step="0.1" value={shift} onChange={e=>setShift(e.target.value)}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
+              <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<button className="btn outline full" onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</button></div>
             </Tabs.Panel>
             <Tabs.Panel value="style" className="style-editor caption-tab-content">
               <div className="section-subheading"><strong>预览样式</strong></div>
@@ -473,8 +473,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="style-note"><AlertTriangle size={15}/> 实验性烧录：最大 64 MiB、5 分钟、1080p 像素预算，仍可能占用大量内存。长视频建议使用软字幕封装或桌面 FFmpeg。</div>
             </Tabs.Panel>
             </Tabs.Root>
-          </aside>
-        </div>
+          </aside>}/>
         
         <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${(cueIndex.get(selectedId??'')??-1)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
       </main>
