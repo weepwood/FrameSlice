@@ -16,7 +16,8 @@ concurrency:
 
 jobs:
   browser-smoke:
-    runs-on: ubuntu-latest
+    # Playwright 1.55 supports Ubuntu 24.04, not the moving ubuntu-latest (26.04).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -68,13 +69,28 @@ jobs:
           node scripts/browser-history.mjs
           node scripts/browser-caption-recovery.mjs
           node scripts/browser-caption-conflict.mjs
+          node scripts/browser-caption-batch.mjs
+          node scripts/browser-media-lifecycle.mjs
+          BROWSER_ENGINE=chromium node scripts/browser-capability.mjs
+      - name: 正式版本跨浏览器能力边界（Firefox / WebKit）
+        env:
+          APP_URL: http://127.0.0.1:4173/FrameSlice/
+        run: |
+          node node_modules/playwright-core/cli.js install --with-deps firefox webkit
+          # Collect both engine results, but keep either failure a release blocker.
+          failed=0
+          BROWSER_ENGINE=firefox node scripts/browser-capability.mjs || failed=1
+          BROWSER_ENGINE=webkit node scripts/browser-capability.mjs || failed=1
+          exit "$failed"
       - name: 独立固定视口视觉候选
+        id: visual
         if: always() && steps.preview.outcome == 'success'
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
           APP_URL: http://127.0.0.1:4173/FrameSlice/
         run: node scripts/browser-visual-candidate.mjs
       - name: 审核基线像素差异门禁
+        if: always() && steps.visual.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -100,4 +116,5 @@ jobs:
             visual-candidate/
             visual-diff/
             browser-benchmark.json
+            browser-capability-*.json
           if-no-files-found: warn

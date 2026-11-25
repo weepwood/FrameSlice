@@ -484,8 +484,10 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .cue-row-actions{gap:2px}
 .app-shell.embedded .cue-row-actions button{min-width:26px;min-height:26px}
 .app-shell.embedded .side-tools{gap:8px;padding:10px 12px}
-.app-shell.embedded .review-toolbox{padding-inline:12px}
-.app-shell.embedded .cue-stats{padding:8px 12px}
+.app-shell.embedded .review-toolbox{padding-inline:var(--fs-space-3,12px);border-color:var(--fs-border)}
+.app-shell.embedded .review-batch-actions>span,.app-shell.embedded .review-batch-actions button{color:var(--fs-muted)}
+.app-shell.embedded .review-batch-actions button:hover:not(:disabled){color:var(--fs-accent);background:var(--fs-selected)}
+.app-shell.embedded .cue-stats{padding:var(--fs-space-2,8px) var(--fs-space-3,12px);border-color:var(--fs-border)}
 .app-shell.embedded .side-panel{min-height:0}
 @container(max-width:450px){.app-shell.embedded .playback-controls{flex-wrap:wrap}.app-shell.embedded .playback-controls>input[type=range]{order:2;flex-basis:100%;margin:2px 0}.app-shell.embedded .timeline-top>div:first-child{flex:1 1 100%}.app-shell.embedded .timeline-actions{justify-content:flex-start}}
 
@@ -509,3 +511,15 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .cue-page-jump input{min-height:26px}
 .app-shell.embedded .cue-row-bottom .time-input{min-width:0;text-align:center}
 @container(max-width:450px){.app-shell.embedded .cue-stats{flex-wrap:wrap;column-gap:6px;row-gap:4px}.app-shell.embedded .cue-row-bottom{gap:4px}.app-shell.embedded .time-input{font-size:11px;padding-inline:2px}}
+
+/* Scoped batch operations: reuse existing checkbox and chip primitives. */
+.cue-batch-panel{margin:0 var(--fs-space-3,12px) var(--fs-space-2,8px);padding:var(--fs-space-2,8px);border:1px solid var(--fs-border,#dce3e7);border-radius:var(--fs-radius,6px);background:var(--fs-raised,#f1f4f7);display:grid;gap:8px}
+.cue-batch-heading,.cue-batch-actions,.cue-batch-check,.cue-batch-offset,.cue-batch-heading strong{display:flex;align-items:center;gap:6px;min-width:0}
+.cue-batch-heading{justify-content:space-between;font-size:12px}
+.cue-batch-actions{flex-wrap:wrap}
+.cue-batch-check,.cue-batch-offset{font-size:11px;color:var(--fs-muted,#657280)}
+.cue-batch-offset input{width:66px;max-width:100%;font:inherit;padding:4px;border:1px solid var(--fs-border,#dce3e7);border-radius:var(--fs-radius,6px);background:var(--fs-input,#fff);color:var(--fs-text,#24303b)}
+.cue-batch-notice{font-size:11px;color:var(--fs-text,#24303b);overflow-wrap:anywhere}
+.cue-batch-panel .cue-batch-danger{color:var(--fs-danger,#b04c43)}
+
+.cue-quality-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 var(--fs-space-3,12px) var(--fs-space-2,8px)}.cue-quality-tools .caption-select-trigger{flex:1;min-width:130px}

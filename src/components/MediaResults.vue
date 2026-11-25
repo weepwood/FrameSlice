@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkbenchPagination from './WorkbenchPagination.vue'
 import {computed,ref,watch,nextTick} from 'vue'
 import {FileVideo,Check,ArrowDownToLine,ChevronLeft,ChevronRight,Maximize2,X,Grid2X2,Grid3X3,Image as ImageIcon} from 'lucide-vue-next'
 import {DialogRoot,DialogPortal,DialogOverlay,DialogContent,DialogTitle,DialogDescription,DialogClose,ToggleGroupRoot,ToggleGroupItem} from 'reka-ui'
@@ -8,6 +9,15 @@ import type {FramePreview} from '../lib/frames'
 const props=defineProps<{parts:SplitResult[];frames:FramePreview[]}>()
 const emit=defineEmits<{save:[FramePreview]}>()
 const density=ref<'compact'|'large'>('compact'),open=ref(false),selectedName=ref('')
+const partPage=ref(0),partQuery=ref('')
+const partPageSize=50
+const matchingParts=computed(()=>{const term=partQuery.value.trim().toLocaleLowerCase();return props.parts.filter(p=>p.filename.toLocaleLowerCase().includes(term))})
+const partBytes=computed(()=>props.parts.reduce((total,p)=>total+p.size,0))
+const partPageCount=computed(()=>Math.max(1,Math.ceil(matchingParts.value.length/partPageSize)))
+const visibleParts=computed(()=>matchingParts.value.slice(partPage.value*partPageSize,(partPage.value+1)*partPageSize))
+watch(()=>props.parts,()=>{partPage.value=0;partQuery.value=''})
+watch(partQuery,()=>{partPage.value=0})
+watch(partPageCount,n=>{partPage.value=Math.min(partPage.value,n-1)})
 const selectedIndex=computed(()=>props.frames.findIndex(item=>item.name===selectedName.value))
 const selected=computed(()=>props.frames[selectedIndex.value])
 let opener:HTMLElement|null=null
@@ -18,7 +28,7 @@ function restoreFocus(event:Event){event.preventDefault();void nextTick(()=>{if(
 watch(selected, item=>{if(!item&&open.value)open.value=false})
 </script>
 <template>
-<div v-if="parts.length" class="result-list"><div v-for="item in parts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div>
+<section v-if="parts.length" class="fs-part-results" aria-label="分割结果"><header class="fs-result-toolbar"><div><strong>分割结果 · {{parts.length}} 个片段</strong><small>共 {{humanBytes(partBytes)}} · 已校验输出</small></div><input v-if="parts.length>5||partQuery" v-model="partQuery" type="search" aria-label="搜索分割结果" placeholder="搜索片段名称"/></header><WorkbenchPagination :page="partPage" :pages="partPageCount" :total="matchingParts.length" label="分割结果分页" unit="个片段" @change="partPage=$event"/><p v-if="!matchingParts.length" class="fs-analysis-disclaimer">没有匹配的片段</p><div class="result-list"><div v-for="item in visibleParts" :key="item.filename" class="result-item"><div class="result-file-icon"><FileVideo :size="18"/></div><div class="result-file-name"><strong>{{ item.filename }}</strong><span>{{ humanTime(item.start) }} — {{ humanTime(item.end) }} · {{ item.verification.level === 'deep' ? '逐包 CRC32 已校验' : 'MP4 结构已校验' }}</span></div><span class="result-size">{{ humanBytes(item.size) }}</span><Check :size="17" class="result-check"/></div></div></section>
 <section v-if="frames.length" class="fs-frame-results" aria-label="抽帧预览">
   <header class="fs-gallery-header">
     <div><strong><ImageIcon :size="16"/> 抽帧预览 <span class="fs-gallery-count">{{frames.length}}</span></strong><small>仅显示最近预览</small></div>

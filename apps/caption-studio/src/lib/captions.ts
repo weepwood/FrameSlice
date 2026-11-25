@@ -128,7 +128,8 @@ export function mergeNext(cues:Cue[],id:string):Cue[]{
 }
 export function shiftCues(cues:Cue[],offset:number):Cue[]{
   if (!cues.length) return [];
-  const minimum=Math.min(...cues.map(c=>c.start));
+  if(!Number.isFinite(offset))return cues;
+  const minimum=cues.reduce((min,c)=>Math.min(min,c.start),Infinity);
   const safe=Math.max(offset,-minimum); // preserve durations, never clamp cue endpoints individually
   return cues.map(c=>({...c,start:round3(c.start+safe),end:round3(c.end+safe)}));
 }

@@ -27,6 +27,7 @@ import WorkbenchCheckbox from './components/WorkbenchCheckbox.vue'
 import WorkbenchProgress from './components/WorkbenchProgress.vue'
 import WorkbenchSelect from './components/WorkbenchSelect.vue'
 import MediaResults from './components/MediaResults.vue'
+import {useTimelinePreviews} from './composables/useTimelinePreviews'
 import WorkbenchButton from './components/WorkbenchButton.vue'
 import {version} from '../package.json'
 import JobCenter from './components/JobCenter.vue'
@@ -99,6 +100,7 @@ const analysisError = ref('')
 const exportReportJson = ref('')
 const reportNotice = ref('')
 const savedFrameNames = ref<string[]>([])
+let storyboardRevision=0
 const storyboardBusy = ref(false)
 const storyboardError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -110,7 +112,6 @@ const manualCuts=ref<number[]>([])
 const frameStrategy=ref<FrameStrategy>('interval')
 const deduplicate=ref(false)
 const candidateCount=ref(3),minSharpness=ref(0),sceneThreshold=ref(.24)
-const thumbCache=new Map<string,FramePreview[]>()
 const filteredCount=ref(0)
 const resetResult=Boolean(readResetResult())
 const showJobs=ref(resetResult),jobsVisited=ref(resetResult)
@@ -121,11 +122,9 @@ const settingsInInspector=computed(()=>Boolean(settingsTarget.value&&wideLayout.
 const previewVideo=ref<HTMLVideoElement|null>(null)
 watch([mode,showJobs,videoTool,status],()=>{if(showJobs.value||mode.value==='captions'||(mode.value==='split'&&videoTool.value==='container')||status.value==='running')previewVideo.value?.pause()})
 const timelineTime=ref(0)
-const timelineThumbnails=ref<FramePreview[]>([])
-const timelineLoading=ref(false)
-let timelineAbort:AbortController|null=null
-function clearTimeline(){timelineAbort?.abort();for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
-async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){for(const t of rows)URL.revokeObjectURL(t.url);if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{timelineLoading.value=false}}
+const timeline=useTimelinePreviews(file,info,e=>{errorText.value=friendlyError(e)})
+const timelineThumbnails=timeline.thumbnails,timelineLoading=timeline.loading,loadTimeline=timeline.load
+function clearTimeline(){timeline.clear();timelineTime.value=0;manualCuts.value=[]}
 function seekTimeline(time:number){if(!Number.isFinite(time))return;const next=Math.max(0,Math.min(info.value?.duration??0,time));timelineTime.value=next;const video=previewVideo.value;if(video&&video.readyState>=1&&Math.abs(video.currentTime-next)>.001){try{video.currentTime=next}catch{/* unsupported browser preview; processing remains available */}}}
 function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
@@ -154,8 +153,15 @@ const estimatedParts = computed(() => {
   return Math.max(1, Math.ceil(file.value.size / Math.max(1, targetBytes.value * 0.95)))
 })
 const estimatedFrames = computed(() => info.value ? plannedFrameCount(info.value.duration, interval.value, frameStart.value, frameEnd.value) : 0)
-const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && !planning.value && status.value !== 'running'))
 const fileReadable = computed(() => supportsFolderWrite())
+const outputAvailable=computed(()=>fileReadable.value||!!outputFolder.value||!!resumeSession.value)
+const outputLimit=computed(()=>{
+  if(outputAvailable.value)return ''
+  if(mode.value==='split')return '当前浏览器不支持选择本地输出目录，无损分割需要桌面 Chrome / Edge。仍可查看媒体信息和分割规划。'
+  if(estimatedFrames.value>30)return '当前浏览器不支持选择本地输出目录；请缩短区间或增加间隔，使抽帧数量不超过 30 张。'
+  return ''
+})
+const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && !planning.value && status.value !== 'running' && !outputLimit.value))
 const progressPercent = computed(() => Math.round(progress.value * 100))
 
 let parseRevision = 0
@@ -276,6 +282,7 @@ function resetOutput() {
   exportReportJson.value = ''
   reportNotice.value = ''
   savedFrameNames.value = []
+  storyboardRevision++
   storyboardBusy.value = false
   storyboardError.value = ''
   status.value = 'idle'
@@ -291,6 +298,7 @@ function clearFile() {
   planAbort?.abort();splitPlan.value=[];planKey.value='';planError.value=''
   inspectController?.abort()
   inspectController = null
+  loading.value = false
   clearAnalysis()
   resetOutput()
   file.value = null
@@ -385,6 +393,7 @@ async function relinkRetry(event:Event){
 }
 async function start() {
   if (!file.value || !info.value || planning.value || status.value === 'running') return
+  if(outputLimit.value){errorText.value=outputLimit.value;return}
   if (mode.value === 'split' && splitStrategy.value === 'size' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
     errorText.value = '分割大小至少为 32 MB。'; return
   }
@@ -405,6 +414,7 @@ async function start() {
   if (!resumeSession.value && !outputFolder.value && supportsFolderWrite()) {
     try { await pickFolder() } catch { /* picker manages its own error */ }
   }
+  if(resumeEnabled.value&&!outputFolder.value&&!resumeSession.value){errorText.value='断点续作需要已授权的本地输出目录。请选择目录或关闭续作。';return}
   if (mode.value === 'split' && !outputFolder.value && !resumeSession.value) {
     errorText.value = '大视频分割必须先选择输出文件夹。请使用桌面 Chrome / Edge。'; return
   }
@@ -525,15 +535,16 @@ function downloadManifest() {
 }
 async function downloadStoryboard() {
   if (!frames.value.length || storyboardBusy.value || !file.value) return
+  const revision=++storyboardRevision,source=file.value,previews=[...frames.value]
   storyboardBusy.value = true
   storyboardError.value = ''
   try {
-    const blob = await createStoryboard(frames.value, file.value.name)
-    downloadBlob(blob, baseName(file.value.name) + '_storyboard.jpg')
+    const blob = await createStoryboard(previews, source.name)
+    if(revision===storyboardRevision&&file.value===source)downloadBlob(blob, baseName(source.name) + '_storyboard.jpg')
   } catch (error) {
-    storyboardError.value = friendlyError(error)
+    if(revision===storyboardRevision)storyboardError.value = friendlyError(error)
   } finally {
-    storyboardBusy.value = false
+    if(revision===storyboardRevision)storyboardBusy.value = false
   }
 }
 function retry() { resetOutput(); errorText.value = '' }
@@ -547,6 +558,7 @@ function warnOnUnload(event: BeforeUnloadEvent) {
 window.addEventListener('beforeunload', warnOnUnload)
 
 onBeforeUnmount(() => {
+  storyboardRevision++
   clearTimeline()
   unsubscribeJobs()
   window.removeEventListener('frameslice:subtitle-package', acceptSubtitleHandoff)
@@ -637,10 +649,10 @@ onBeforeUnmount(() => {
           </div>
           <div class="file-meta">
             <div class="file-name" :title="file.name">{{ file.name }}</div>
-            <div class="file-sub"><span>{{ humanBytes(file.size) }}</span><span class="separator-dot"></span><span>{{ info ? humanTime(info.duration) : '读取信息中…' }}</span><template v-if="info"><span class="separator-dot"></span><span>{{ info.width }} × {{ info.height }}</span></template></div>
+            <div class="file-sub"><span>{{ humanBytes(file.size) }}</span><span class="separator-dot"></span><span>{{ info ? humanTime(info.duration) : loading ? '读取信息中…' : '无法读取媒体信息' }}</span><template v-if="info"><span class="separator-dot"></span><span>{{ info.width }} × {{ info.height }}</span></template></div>
             <div class="file-codec" v-if="info"><span>{{ info.videoCodec }}</span><span v-if="info.audioCodec">{{ info.audioCodec }}</span></div>
           </div>
-          <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
+          <div class="file-state"><span class="status-pill" :data-state="info?'ready':loading?'loading':'error'" role="status" :aria-label="info?'媒体已就绪':loading?'正在解析媒体':'媒体读取失败'"><Check v-if="info" :size="13"/><span v-else-if="loading" class="small-spinner"></span><X v-else :size="13"/>{{ info ? '已就绪' : loading ? '解析中' : '读取失败' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
         <section v-if="file&&info" class="fs-preview-panel" aria-label="视频预览"><div class="fs-preview-header"><h2>视频预览</h2><span>{{humanTime(timelineTime)}} / {{humanTime(info.duration)}}</span></div><video ref="previewVideo" :key="videoUrl" :src="videoUrl" controls playsinline preload="metadata" aria-label="源视频播放器" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="timelineTime>0 && seekTimeline(timelineTime)"/><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>
@@ -707,7 +719,7 @@ onBeforeUnmount(() => {
             <WorkbenchSelect v-model="verificationLevel" label="视频输出校验等级" :disabled="status==='running'" :options="([{value:'quick',label:'快速校验（推荐）'},{value:'deep',label:'逐包深度校验'}] as const)"/>
           </div>
           <div class="config-row last">
-            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || '请指定本地输出目录' }}</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || (fileReadable?'请指定本地输出目录':'当前浏览器不支持目录选择') }}</span></div></div>
             <button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button>
           </div>
           <div class="config-footnote"><Info :size="16"/><span>无损切割按关键帧对齐，不能精确均分。支持单视频轨、最多一条音轨。</span></div>
@@ -723,7 +735,7 @@ onBeforeUnmount(() => {
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong></div></div><WorkbenchSelect v-model="imageFormat" label="图片格式" :disabled="status==='running'" :options="([{value:'image/jpeg',label:'JPEG'},{value:'image/png',label:'PNG'},{value:'image/webp',label:'WebP'}] as const)"/></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>输出分辨率</strong><span>不放大原图</span></div></div><WorkbenchSelect v-model="imageWidth" label="最大输出宽度" :disabled="status==='running'" :options="([{value:0,label:'原始尺寸'},{value:1280,label:'1280 px'},{value:1920,label:'1920 px'},{value:3840,label:'3840 px'}] as const)"/></div>
           <div v-if="imageFormat !== 'image/png'" class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>图片压缩质量</strong></div></div><div class="range-control"><SliderRoot class="fs-slider" :model-value="[jpegQuality]" :min="0.5" :max="1" :step="0.05" :disabled="status==='running'" @update:model-value="v=>{if(v?.length)jpegQuality=v[0]}"><SliderTrack class="fs-slider-track"><SliderRange class="fs-slider-range"/></SliderTrack><SliderThumb class="fs-slider-thumb" aria-label="截图质量"/></SliderRoot><span>{{ Math.round(jpegQuality * 100) }}%</span></div></div>
-          <div class="config-row last"><div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '未选择目录，最多生成 30 张可下载预览' }}</span></div></div><button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button></div>
+          <div class="config-row last"><div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || (fileReadable?'未选择目录，最多生成 30 张可下载预览':'不支持目录选择，最多 30 张单独下载') }}</span></div></div><button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button></div>
           <div class="config-footnote"><Info :size="16"/><span>HEVC、AV1 解码取决于浏览器支持。</span></div>
         </section>
 
@@ -736,7 +748,8 @@ onBeforeUnmount(() => {
           <p v-if="visiblePlan[0]?.excludedPreroll" class="fs-analysis-warning">首段不复制 {{visiblePlan[0].excludedPreroll.packets}} 个 AAC 前置包（完全位于视频开始之前），将写入报告。</p>
           <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
         </section>
-        <section v-if="file && info" class="fs-analysis"><WorkbenchCheckbox v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))">启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</WorkbenchCheckbox><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
+        <section v-if="file && info" class="fs-analysis"><WorkbenchCheckbox v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||!outputAvailable||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))">启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</WorkbenchCheckbox><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
+        <div v-if="file&&info&&!outputAvailable" class="fs-capability-notice" role="status"><Info :size="16"/><span>{{outputLimit||'当前浏览器不支持本地目录选择；仅提供最多 30 张图片的单独下载，不支持断点续作。实际解码取决于浏览器与编码。'}}</span></div>
         <section class="execution" v-if="file && info">
           <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">保存位置</span><strong class="fs-output-location" :title="resumeSession?.folder.name || selectedFolderName || '未指定'">{{resumeSession?.folder.name || selectedFolderName || '未指定'}}</strong></div></div>
           <Teleport :to="actionTarget || 'body'" :disabled="!actionInToolbar"><button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>

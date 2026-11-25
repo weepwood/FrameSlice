@@ -49,6 +49,8 @@
 .fs-workbench :is(.file-sub,.file-codec>span,.file-remove,.output-path,.empty-action,.fs-analysis-disclaimer) {color:var(--fs-muted);font-size:12px}
 .fs-workbench .file-codec>span {background:var(--fs-raised);border-color:var(--fs-border);font-size:11px}
 .fs-workbench .status-pill {background:var(--fs-raised);color:var(--fs-success);font-size:11px}
+.fs-workbench .status-pill[data-state=loading]{color:var(--fs-muted)}
+.fs-workbench .status-pill[data-state=error]{color:var(--fs-danger)}
 .fs-workbench .video-tool-switch {padding:0;gap:12px;margin-bottom:22px;background:transparent;border:0;border-bottom:1px solid var(--fs-border);border-radius:0;width:100%}
 .fs-workbench .video-tool-switch button {padding:9px 2px 10px;border:0;border-bottom:2px solid transparent;border-radius:0;box-shadow:none;background:transparent;color:var(--fs-muted);font-size:13px}
 .fs-workbench .video-tool-switch button.active {border-bottom-color:var(--fs-accent);background:transparent;color:var(--fs-accent)}
@@ -260,10 +262,10 @@
 
 /* Results and task center: prioritize media and task data, not decorative cards. */
 .fs-frame-results{margin-top:18px;min-width:0}
-.fs-gallery-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
-.fs-gallery-header>div:first-child{min-width:0;display:grid;gap:4px}
-.fs-gallery-header strong{display:flex;align-items:center;gap:7px;font-size:13px}
-.fs-gallery-header small{color:var(--fs-muted);font-size:11px;line-height:1.5}
+:is(.fs-gallery-header,.fs-result-toolbar){display:flex;align-items:center;justify-content:space-between;gap:var(--fs-space-2);flex-wrap:wrap;margin-bottom:10px}
+:is(.fs-gallery-header,.fs-result-toolbar)>div:first-child{min-width:0;display:grid;gap:4px}
+:is(.fs-gallery-header,.fs-result-toolbar) strong{display:flex;align-items:center;gap:7px;font-size:13px}
+:is(.fs-gallery-header,.fs-result-toolbar) small{color:var(--fs-muted);font-size:11px;line-height:1.5}
 .fs-gallery-count{font-size:11px;font-variant-numeric:tabular-nums;color:var(--fs-muted);background:var(--fs-raised);border-radius:4px;padding:2px 5px}
 .fs-gallery-density{display:flex;gap:2px;padding:3px;border:1px solid var(--fs-border);border-radius:var(--fs-radius);background:var(--fs-raised)}
 .fs-gallery-density button,.fs-gallery-icon{display:grid;place-items:center;background:transparent;color:var(--fs-muted);border:0;border-radius:4px;width:32px;height:32px;padding:0;cursor:pointer}
@@ -376,4 +378,16 @@
 @media(max-width:720px){.fs-workbench .range-control input[type=number]{width:64px}.fs-workbench .fs-center-toolbar>input[aria-label="搜索任务"]{flex-basis:100%}.fs-workbench .fs-timeline-track{height:64px}}
 
 .fs-library-search{width:100%;min-width:0;margin:6px 0}
-.fs-job-pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:12px;color:var(--fs-muted);font-size:12px}
+.fs-job-pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:var(--fs-space-2);padding:var(--fs-space-3);color:var(--fs-muted);font-size:12px;font-variant-numeric:tabular-nums}
+.fs-job-pagination>button{display:inline-flex;align-items:center;gap:4px}
+.fs-page-total{white-space:nowrap}
+.fs-workbench .result-file-name{min-width:0}
+.fs-workbench .result-file-name strong{overflow-wrap:anywhere}
+.fs-workbench .result-size{white-space:nowrap}
+
+.fs-result-toolbar{margin-top:var(--fs-space-3)}
+.fs-result-toolbar input{width:min(100%,220px)}
+.fs-part-results>.fs-job-pagination{justify-content:space-between;padding:0 0 var(--fs-space-2);gap:6px}
+.fs-part-results .result-list{margin-top:0}
+
+.fs-capability-notice{display:flex;align-items:flex-start;gap:var(--fs-space-2);padding:var(--fs-space-3);margin-top:var(--fs-space-3);border:1px solid var(--fs-border);border-radius:var(--fs-radius);background:var(--fs-raised);color:var(--fs-muted);font-size:12px;line-height:1.6}.fs-capability-notice>svg{flex:none;margin-top:2px;color:var(--fs-accent)}
