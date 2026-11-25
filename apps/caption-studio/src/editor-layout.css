@@ -1,0 +1,62 @@
+/* Caption workspace layout. One outer frame per column; local controls use Base UI. */
+.caption-editor-layout{
+  --ce-gap:12px;--ce-pad:14px;--ce-control:32px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,clamp(320px,27%,400px));
+  align-items:stretch;gap:var(--ce-gap);padding:0;
+}
+.app-shell .caption-editor-layout .main-column{
+  min-width:0;display:flex;flex-direction:column;gap:0;overflow:hidden;
+  border:1px solid var(--fs-border,#dce1e7);border-radius:8px;
+  background:var(--fs-surface,#fff);
+}
+.app-shell .caption-editor-layout .main-column>.surface{border:0;border-radius:0;box-shadow:none;margin:0}
+.app-shell .caption-editor-layout .video-panel>.section-title,
+.app-shell .caption-editor-layout .timeline-top{min-height:40px;height:auto;padding:8px var(--ce-pad);border:0}
+.app-shell .caption-editor-layout .video-frame{
+  width:100%;min-height:220px;height:clamp(240px,34vh,390px);max-height:none;aspect-ratio:auto;
+}
+.app-shell .caption-editor-layout .video-frame video{height:100%;max-height:100%;width:100%;object-fit:contain}
+.app-shell .caption-editor-layout .playback-controls{min-height:48px;height:auto;padding:8px var(--ce-pad);border:0;gap:8px}
+.app-shell .caption-editor-layout .media-info{border:0;padding:0 var(--ce-pad) 8px;min-height:0;height:auto;font-size:11px}
+.app-shell .caption-editor-layout .timeline{border-top:1px solid var(--fs-border,#dce1e7);flex:1;display:flex;flex-direction:column;padding-bottom:4px}
+.app-shell .caption-editor-layout .timeline-track{border:0;border-radius:4px;height:112px;background:var(--fs-raised,#eef0f3)}
+.app-shell .caption-editor-layout .cue-track{border-color:var(--fs-border,#dce1e7)}
+.app-shell .caption-editor-layout .timeline-ruler,.app-shell .caption-editor-layout .timeline-track{margin-inline:var(--ce-pad)}
+.app-shell .caption-editor-layout .timeline-scroll{margin:6px var(--ce-pad) 4px}
+.app-shell .caption-editor-layout .side-panel{position:static;min-height:0;max-height:none;min-width:0;align-self:stretch;display:flex;flex-direction:column;border-radius:8px;box-shadow:none;overflow:hidden}
+.caption-editor-layout .caption-inspector-tabs{flex:1;min-height:0}
+@container(min-width:741px){
+  .app-shell.embedded .caption-editor-layout .side-panel{contain:size}
+  .caption-editor-layout .caption-inspector-tabs{overflow:hidden}
+  .caption-editor-layout .caption-tab-content:not(.caption-cues-panel):not([hidden]){flex:1;min-height:0;overflow:auto}
+  .app-shell.embedded .caption-editor-layout .cue-list{min-height:0;max-height:none}
+}
+.app-shell .caption-editor-layout .side-tabs{padding:4px 8px;gap:3px;height:auto;min-height:42px;border:0;border-bottom:1px solid var(--fs-border,#dce1e7);background:var(--fs-surface,#fff)}
+.app-shell .caption-editor-layout .side-tabs button{min-height:32px;box-shadow:none;border:0;border-radius:5px;font-size:12px}
+.app-shell .caption-editor-layout .side-tabs button.active{background:var(--fs-selected,#e8effb);color:var(--fs-accent,#305fb1);box-shadow:none}
+.app-shell .caption-editor-layout .caption-cues-panel:not([hidden]){display:flex;flex-direction:column;flex:1;min-height:0}
+.app-shell .caption-editor-layout .side-tools{padding:10px 12px 4px;gap:6px}
+.app-shell .caption-editor-layout .subtitle-search{min-height:var(--ce-control);box-shadow:none}
+.app-shell .caption-editor-layout .history-buttons{gap:2px}
+.app-shell .caption-editor-layout .history-buttons .icon-btn{border:0;background:transparent;min-height:var(--ce-control);min-width:var(--ce-control)}
+.app-shell .caption-editor-layout .review-toolbox{padding:4px 12px 8px;border:0}
+.caption-editor-layout .review-controls{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.app-shell .caption-editor-layout .review-chip{min-height:30px;padding:4px 6px;border:0;box-shadow:none;background:transparent;color:var(--fs-muted,#536173);font-size:11px;white-space:nowrap}
+.app-shell .caption-editor-layout .review-chip:hover:not(:disabled),.app-shell .caption-editor-layout .review-chip.active,.app-shell .caption-editor-layout .review-chip[aria-expanded=true]{background:var(--fs-selected,#e8effb);color:var(--fs-accent,#305fb1)}
+.caption-editor-layout .review-icon{width:30px;justify-content:center}
+.caption-editor-layout .review-separator{width:1px;height:18px;background:var(--fs-border,#dce1e7);margin-inline:2px}
+.app-shell .caption-editor-layout .cue-stats{min-height:32px;padding:4px 12px;border:0;background:var(--fs-raised,#eef0f3);font-size:11px}
+.app-shell .caption-editor-layout .cue-list{flex:1;min-height:140px;max-height:clamp(220px,43vh,620px);padding:8px 10px;overflow:auto}
+.app-shell .caption-editor-layout .cue-list:has(.empty-cues){display:grid;place-items:center;max-height:none}
+.app-shell .caption-editor-layout .empty-cues{padding:24px 12px;gap:8px;color:var(--fs-muted,#536173)}
+.caption-editor-layout .empty-cues h3,.caption-editor-layout .empty-cues p{margin:0}
+.caption-editor-layout .empty-cues p{font-size:12px;line-height:1.6;text-wrap:balance}
+.caption-editor-layout .empty-cues svg{flex:none}
+.app-shell .caption-editor-layout .cue-footer{margin-top:auto;padding:10px 12px;border-top:1px solid var(--fs-border,#dce1e7);background:var(--fs-surface,#fff);gap:8px}
+.app-shell .caption-editor-layout .cue-footer .full{min-height:34px}
+.app-shell .caption-editor-layout .timeline-actions .icon-btn{border:0;background:transparent;min-width:30px;min-height:30px}
+.app-shell .caption-editor-layout .timeline-actions .icon-btn:hover:not(:disabled){background:var(--fs-selected,#e8effb)}
+.caption-editor-layout :is(.review-chip,.side-tabs button,.icon-btn){transition:background-color 120ms ease,color 120ms ease}
+@container(max-width:740px){.app-shell .caption-editor-layout{grid-template-columns:minmax(0,1fr)}.app-shell .caption-editor-layout .side-panel{min-height:280px}.app-shell .caption-editor-layout .video-frame{height:240px;min-height:200px}}
+@media(max-width:600px){.app-shell .caption-editor-layout{grid-template-columns:minmax(0,1fr);--ce-pad:10px}.app-shell .caption-editor-layout .video-frame{height:220px;min-height:180px}.app-shell .caption-editor-layout .timeline-top{gap:4px}.app-shell .caption-editor-layout .cue-list{max-height:460px}}
+@media(prefers-reduced-motion:reduce){.caption-editor-layout :is(.review-chip,.side-tabs button,.icon-btn){transition:none}}

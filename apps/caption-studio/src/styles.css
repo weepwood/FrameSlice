@@ -218,7 +218,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .workspace{min-height:0;display:block}
 .app-shell.embedded .editor-area{max-width:none;padding:0 0 28px;margin:0}
 
-.app-shell.embedded .main-column{gap:16px}
+
 .app-shell.embedded .surface{border:1px solid #e6e9e2;border-radius:12px;box-shadow:0 1px 5px rgba(30,55,33,.025);background:#fff}
 .app-shell.embedded .section-title{border-bottom-color:#ecf0ea}
 .app-shell.embedded .section-title strong{color:#354439}
@@ -320,7 +320,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 @media(max-width:600px) {.app-shell.embedded .caption-action-toolbar {padding:8px}.app-shell.embedded .caption-action-toolbar .btn {font-size:11px}.app-shell.embedded .workflow-step {padding:6px}}
 
 /* Put the timeline directly beneath the viewer, not after transcription settings. */
-.app-shell.embedded .main-column {gap:12px}
+
 .app-shell.embedded .timeline {margin-top:0}
 .app-shell.embedded .video-frame {max-height:clamp(220px,40vh,390px);display:grid;place-items:center;background:var(--fs-preview,#171e29)}
 .app-shell.embedded .empty-media {width:100%;height:100%;min-height:0;background:var(--fs-preview,#171e29);padding:12px}
@@ -328,11 +328,11 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .empty-media h2 {font-size:15px}
 .app-shell.embedded .empty-media p {margin-bottom:10px}
 .app-shell.embedded .empty-media .text-button {color:#bcc8d6}
-.app-shell.embedded .side-panel {min-height:0;align-self:start}
+
 .app-shell.embedded .side-tabs {height:42px}
 .app-shell.embedded .side-tabs button {color:var(--fs-muted)}
 .app-shell.embedded .side-tabs button.active {color:var(--fs-accent)}
-.app-shell.embedded .cue-list {min-height:180px;max-height:clamp(200px,55vh,640px);padding:0 9px}
+
 .app-shell.embedded .cue-row {border-radius:var(--fs-radius);margin-bottom:5px;padding:9px}
 .app-shell.embedded .cue-row textarea {line-height:1.6;font-size:13px}
 .app-shell.embedded .cue-row-actions button {min-width:26px;min-height:26px;color:var(--fs-muted)}
@@ -368,7 +368,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 
 
 
-.app-shell.embedded .side-panel{position:static;max-height:none;min-height:0}
+
 .app-shell.embedded .side-tabs button{gap:4px;font-size:12px}
 .app-shell.embedded .transcribe-panel{border:0;box-shadow:none;border-radius:0}
 .app-shell.embedded .transcribe-panel .settings-grid{grid-template-columns:minmax(0,1fr);padding:12px;gap:12px}
@@ -386,7 +386,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-select-popup [data-highlighted]{background:var(--fs-selected,#e7effc);color:var(--fs-text,#27313b)}
 .app-shell.embedded .transcribe-bottom{flex-direction:column;align-items:stretch;padding:12px;gap:8px}
 .caption-running-dot{width:6px;height:6px;border-radius:50%;background:var(--fs-accent,#346dc1)}
-.app-shell.embedded .cue-list{max-height:min(65vh,700px)}
+
 
 @media(max-width:600px){.app-shell.embedded .caption-action-toolbar{gap:4px}.app-shell.embedded .caption-action-toolbar .btn{min-height:34px}.app-shell.embedded .side-tabs button{font-size:11px;gap:3px}}
 
@@ -448,7 +448,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-menu-divider{height:1px;margin:4px 5px;background:var(--fs-border)}
 @container (max-width:650px){.caption-project-group{flex:1 1 100%}.caption-toolbar-actions{width:100%;justify-content:flex-end}.caption-project-field{flex:1}}
 @container (max-width:330px){.app-shell.embedded .caption-action-toolbar .btn{padding:0 8px;font-size:11px;gap:4px}.caption-more span{display:none}.caption-toolbar-actions{gap:5px}}
-.app-shell.embedded .content-grid,.app-shell.embedded .main-column{gap:var(--fs-space-4,16px)}
 .app-shell.embedded .section-title{min-height:42px;padding:10px 12px}
 .app-shell.embedded .caption-tab-content .settings-grid{gap:12px}
 
@@ -458,8 +457,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 
 /* Shared control dimensions and compact, container-relative editor. */
 .app-shell.embedded .editor-area{container-type:inline-size}
-.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr) minmax(280px,340px);align-items:start}
-@container(max-width:740px){.app-shell.embedded .content-grid{grid-template-columns:minmax(0,1fr)}}
+
 .app-shell.embedded :is(.caption-select-trigger,input[type=number],.subtitle-search,.review-chip,.time-input){min-height:var(--fs-control-height,34px);border-radius:var(--fs-radius,6px);font-size:12px}
 .app-shell.embedded input[type=number]{min-width:0;padding:6px 9px;font-variant-numeric:tabular-nums}
 .app-shell.embedded .subtitle-search input{min-width:0;font-size:12px}
@@ -477,7 +475,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:13px;height:13px;margin-top:-4px;border-radius:50%;background:var(--fs-accent);border:1px solid var(--fs-surface)}
 .app-shell.embedded input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fs-accent);border:1px solid var(--fs-surface)}
 .app-shell.embedded input[type=range]:disabled{opacity:.45;cursor:not-allowed}
-.app-shell.embedded .cue-list{padding:0 8px;min-height:120px;max-height:clamp(160px,56vh,600px)}
+
 .app-shell.embedded .cue-row{padding:8px;gap:4px;box-shadow:none}
 .app-shell.embedded .cue-row textarea{min-height:34px;padding:6px 8px;line-height:1.45;resize:vertical}
 .app-shell.embedded .cue-row-top,.app-shell.embedded .cue-row-bottom{gap:6px}
@@ -488,7 +486,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .review-batch-actions>span,.app-shell.embedded .review-batch-actions button{color:var(--fs-muted)}
 .app-shell.embedded .review-batch-actions button:hover:not(:disabled){color:var(--fs-accent);background:var(--fs-selected)}
 .app-shell.embedded .cue-stats{padding:var(--fs-space-2,8px) var(--fs-space-3,12px);border-color:var(--fs-border)}
-.app-shell.embedded .side-panel{min-height:0}
+
 @container(max-width:450px){.app-shell.embedded .playback-controls{flex-wrap:wrap}.app-shell.embedded .playback-controls>input[type=range]{order:2;flex-basis:100%;margin:2px 0}.app-shell.embedded .timeline-top>div:first-child{flex:1 1 100%}.app-shell.embedded .timeline-actions{justify-content:flex-start}}
 
 .app-shell.embedded .timeline-ruler .tick-start{transform:none}
