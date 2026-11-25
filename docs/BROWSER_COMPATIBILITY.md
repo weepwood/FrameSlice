@@ -27,3 +27,6 @@ BROWSER_ENGINE=chromium CHROME_PATH=/path/to/chrome node scripts/browser-capabil
 BROWSER_ENGINE=firefox node scripts/browser-capability.mjs
 BROWSER_ENGINE=webkit node scripts/browser-capability.mjs
 ```
+
+## V1.0 正式候选实测（CI 45554941662）
+Ubuntu 24.04，Chrome 158.0.8127.88（人为关闭目录选择）、Firefox 141.0、WebKit 26.0（原生无目录选择）：三者均通过媒体预检/规划、分割禁止启动、30张抽帧限制、实际JPEG下载及字幕草稿刷新恢复。报告在artifact 14995471961；Chrome完整OPFS媒体测试亦通过。非实机Safari、非全编码与真实AI验收。

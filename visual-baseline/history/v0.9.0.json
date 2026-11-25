@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "chrome": "158.0.8127.88",
+  "commit": "7130e22d1f5b11fbb9e6a1e6d032a0a3894a2582",
+  "images": [
+    {
+      "name": "split-light-1440.png",
+      "sha256": "56dc8ea6772d720e9927062837db0c50f692619f876b2721b1c3dc421bb625ec",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "frames-light-1440.png",
+      "sha256": "42d20c8f30973710ecdb786a31dbe5b2a13bc8b01511eaaa53ebf65ce1185e1f",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "captions-light-1440.png",
+      "sha256": "bc6bc2ff58ffb5fc010fde4fec9e2a7357a30613e840087573425791e5e9efca",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "jobs-light-1440.png",
+      "sha256": "9ed1c8e67c2f9e296351f4ce240b1c7f674b50133074548fbc44ec293de14e13",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "split-dark-1440.png",
+      "sha256": "e334e528d53ed61832d889f46a5dbb7393d7b687bc84099e82526a5bb2d3e405",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "frames-dark-1440.png",
+      "sha256": "fc037503fef49985e96e8d59b33c78196b63cb279ed833f58ac4ef75c72a0e9a",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "captions-dark-1440.png",
+      "sha256": "bd3eeeeb5ec52315b680c55f4f402db5b34d9c75b30e8cc7442a57433f82912a",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "jobs-dark-1440.png",
+      "sha256": "290965c66502a3fd435e49dfadb7eda144a6e0e167d56446d32c687f84464205",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "split-light-390.png",
+      "sha256": "c5953d2064eae213b573ec48bcf7d39c5be28470532da23c3c72806ccba0f32e",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "frames-light-390.png",
+      "sha256": "7f246f9bd940f4e997106325f8858e0e03c4112fc912ec27c5bebf750f1ce420",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "captions-light-390.png",
+      "sha256": "18cb314453b456077e860d0a8b86e782de575723a5dc25ffd7547d3d0d4a970e",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "jobs-light-390.png",
+      "sha256": "292ee6a88d412aab18ad8f842d924c0801f5c32fe9f59aad6cef077ff4c7e41e",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "split-dark-390.png",
+      "sha256": "925794037dad0d1dd0f1edaf2bc61b70925d1a9fe70c9d342853ab6a4b06972b",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "frames-dark-390.png",
+      "sha256": "30c276343b2b18fe4c02cd3ec47a9773b4e66889ae2deb611eb7863db895c48d",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "captions-dark-390.png",
+      "sha256": "ef4f9ad2e19e9372745ebea8272c386ffe11d3b39820966ea0312eb72b6a83da",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "jobs-dark-390.png",
+      "sha256": "2bbda2d45ae87c0b3a4a05bea2bc79a1f5d27b5232a79c687352a32bdd9dd312",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "head": "7908a0685bc0c97e794660083051b5863604a26b",
+  "runId": 45546999794,
+  "runAttempt": 1,
+  "artifactId": 14991299899,
+  "artifactDigest": "sha256:b66ab7d8ba35a651bec6eacda5b5a8a6812fa226a71ea8252b812595fbb68ed3",
+  "releaseTag": "v0.9.0",
+  "assetName": "visual-baseline-v0.9.0.zip",
+  "reviewedOn": "2026-11-25",
+  "scope": "四工作区双主题1440×900/390×844固定视口16图；正式ZIP及逐图哈希和尺寸独立核验。8图零差异，最大0.00649%，主要为版本标识。审核实际载入字幕、分割时间轴、窄屏工程菜单及未遮罩任务中心。保留原2%门禁、v0.8.0历史清单及资产。固定空态基线不代替全部交互状态。"
+}
