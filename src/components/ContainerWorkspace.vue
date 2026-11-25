@@ -287,7 +287,7 @@ onBeforeUnmount(() => cleanup())
           我已确认只保留所选轨道，其他轨道及附件可能丢失</WorkbenchCheckbox>
         <div class="ct-option-row ct-last">
           <div><strong>输出位置</strong><small>{{ folder?.name || '请指定本地文件夹，每次任务独立子目录' }}</small></div>
-          <button type="button" class="secondary-button" :disabled="working" @click="pickFolder"><Folder :size="15"/>{{ folder ? '更换目录' : '选择目录' }}</button>
+          <button type="button" class="secondary-button" :disabled="working||!supportsFolderWrite()" @click="pickFolder"><Folder :size="15"/>{{ folder ? '更换目录' : '选择目录' }}</button>
         </div>
         <button v-if="stage !== 'running'" type="button" class="primary-button ct-primary" :disabled="!canRun" @click="start">
           <Play :size="16" fill="currentColor"/>{{ action === 'extract' ? '开始提取所选轨道' : '开始无损重新封装' }}

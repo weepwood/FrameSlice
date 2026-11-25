@@ -70,6 +70,14 @@ jobs:
           node scripts/browser-caption-conflict.mjs
           node scripts/browser-caption-batch.mjs
           node scripts/browser-media-lifecycle.mjs
+          BROWSER_ENGINE=chromium node scripts/browser-capability.mjs
+      - name: 正式版本跨浏览器能力边界（Firefox / WebKit）
+        env:
+          APP_URL: http://127.0.0.1:4173/FrameSlice/
+        run: |
+          node node_modules/playwright-core/cli.js install --with-deps firefox webkit
+          BROWSER_ENGINE=firefox node scripts/browser-capability.mjs
+          BROWSER_ENGINE=webkit node scripts/browser-capability.mjs
       - name: 独立固定视口视觉候选
         if: always() && steps.preview.outcome == 'success'
         env:
@@ -102,4 +110,5 @@ jobs:
             visual-candidate/
             visual-diff/
             browser-benchmark.json
+            browser-capability-*.json
           if-no-files-found: warn

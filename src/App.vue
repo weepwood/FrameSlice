@@ -153,8 +153,15 @@ const estimatedParts = computed(() => {
   return Math.max(1, Math.ceil(file.value.size / Math.max(1, targetBytes.value * 0.95)))
 })
 const estimatedFrames = computed(() => info.value ? plannedFrameCount(info.value.duration, interval.value, frameStart.value, frameEnd.value) : 0)
-const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && !planning.value && status.value !== 'running'))
 const fileReadable = computed(() => supportsFolderWrite())
+const outputAvailable=computed(()=>fileReadable.value||!!outputFolder.value||!!resumeSession.value)
+const outputLimit=computed(()=>{
+  if(outputAvailable.value)return ''
+  if(mode.value==='split')return '当前浏览器不支持选择本地输出目录，无损分割需要桌面 Chrome / Edge。仍可查看媒体信息和分割规划。'
+  if(estimatedFrames.value>30)return '当前浏览器不支持选择本地输出目录；请缩短区间或增加间隔，使抽帧数量不超过 30 张。'
+  return ''
+})
+const canRun = computed(() => Boolean(file.value && info.value && !loading.value && !analyzing.value && !planning.value && status.value !== 'running' && !outputLimit.value))
 const progressPercent = computed(() => Math.round(progress.value * 100))
 
 let parseRevision = 0
@@ -386,6 +393,7 @@ async function relinkRetry(event:Event){
 }
 async function start() {
   if (!file.value || !info.value || planning.value || status.value === 'running') return
+  if(outputLimit.value){errorText.value=outputLimit.value;return}
   if (mode.value === 'split' && splitStrategy.value === 'size' && (!Number.isFinite(size.value) || targetBytes.value < 32 * 1024 * 1024)) {
     errorText.value = '分割大小至少为 32 MB。'; return
   }
@@ -406,6 +414,7 @@ async function start() {
   if (!resumeSession.value && !outputFolder.value && supportsFolderWrite()) {
     try { await pickFolder() } catch { /* picker manages its own error */ }
   }
+  if(resumeEnabled.value&&!outputFolder.value&&!resumeSession.value){errorText.value='断点续作需要已授权的本地输出目录。请选择目录或关闭续作。';return}
   if (mode.value === 'split' && !outputFolder.value && !resumeSession.value) {
     errorText.value = '大视频分割必须先选择输出文件夹。请使用桌面 Chrome / Edge。'; return
   }
@@ -710,7 +719,7 @@ onBeforeUnmount(() => {
             <WorkbenchSelect v-model="verificationLevel" label="视频输出校验等级" :disabled="status==='running'" :options="([{value:'quick',label:'快速校验（推荐）'},{value:'deep',label:'逐包深度校验'}] as const)"/>
           </div>
           <div class="config-row last">
-            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || '请指定本地输出目录' }}</span></div></div>
+            <div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ resumeSession?.folder.name || selectedFolderName || (fileReadable?'请指定本地输出目录':'当前浏览器不支持目录选择') }}</span></div></div>
             <button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button>
           </div>
           <div class="config-footnote"><Info :size="16"/><span>无损切割按关键帧对齐，不能精确均分。支持单视频轨、最多一条音轨。</span></div>
@@ -726,7 +735,7 @@ onBeforeUnmount(() => {
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><ImageIcon :size="19"/></div><div><strong>图片格式</strong></div></div><WorkbenchSelect v-model="imageFormat" label="图片格式" :disabled="status==='running'" :options="([{value:'image/jpeg',label:'JPEG'},{value:'image/png',label:'PNG'},{value:'image/webp',label:'WebP'}] as const)"/></div>
           <div class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>输出分辨率</strong><span>不放大原图</span></div></div><WorkbenchSelect v-model="imageWidth" label="最大输出宽度" :disabled="status==='running'" :options="([{value:0,label:'原始尺寸'},{value:1280,label:'1280 px'},{value:1920,label:'1920 px'},{value:3840,label:'3840 px'}] as const)"/></div>
           <div v-if="imageFormat !== 'image/png'" class="config-row"><div class="setting-copy"><div class="setting-icon"><SlidersHorizontal :size="19"/></div><div><strong>图片压缩质量</strong></div></div><div class="range-control"><SliderRoot class="fs-slider" :model-value="[jpegQuality]" :min="0.5" :max="1" :step="0.05" :disabled="status==='running'" @update:model-value="v=>{if(v?.length)jpegQuality=v[0]}"><SliderTrack class="fs-slider-track"><SliderRange class="fs-slider-range"/></SliderTrack><SliderThumb class="fs-slider-thumb" aria-label="截图质量"/></SliderRoot><span>{{ Math.round(jpegQuality * 100) }}%</span></div></div>
-          <div class="config-row last"><div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || '未选择目录，最多生成 30 张可下载预览' }}</span></div></div><button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button></div>
+          <div class="config-row last"><div class="setting-copy"><div class="setting-icon"><FolderOpen :size="19"/></div><div><strong>保存位置</strong><span>{{ selectedFolderName || (fileReadable?'未选择目录，最多生成 30 张可下载预览':'不支持目录选择，最多 30 张单独下载') }}</span></div></div><button type="button" :disabled="status === 'running' || !fileReadable" class="secondary-button" @click="pickFolder"><Folder :size="15"/>{{ selectedFolderName ? '更换目录' : '选择目录' }}</button></div>
           <div class="config-footnote"><Info :size="16"/><span>HEVC、AV1 解码取决于浏览器支持。</span></div>
         </section>
 
@@ -739,7 +748,8 @@ onBeforeUnmount(() => {
           <p v-if="visiblePlan[0]?.excludedPreroll" class="fs-analysis-warning">首段不复制 {{visiblePlan[0].excludedPreroll.packets}} 个 AAC 前置包（完全位于视频开始之前），将写入报告。</p>
           <p v-if="visiblePlan.length>50">仅显示前 50 段。</p>
         </section>
-        <section v-if="file && info" class="fs-analysis"><WorkbenchCheckbox v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))">启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</WorkbenchCheckbox><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
+        <section v-if="file && info" class="fs-analysis"><WorkbenchCheckbox v-model="resumeEnabled" :disabled="status==='running'||!!resumeSession||!outputAvailable||(mode==='frames'&&(frameStrategy!=='interval'||deduplicate))">启用断点续作（额外读取完整源文件与输出文件，需要本地目录）</WorkbenchCheckbox><p v-if="resumeSession">已关联续作目录：{{resumeSession.folder.name}} <button type="button" class="secondary-button" :disabled="status==='running'" @click="resumeSession=null;resumeEnabled=false">新建任务</button></p></section>
+        <div v-if="file&&info&&!outputAvailable" class="fs-capability-notice" role="status"><Info :size="16"/><span>{{outputLimit||'当前浏览器不支持本地目录选择；仅提供最多 30 张图片的单独下载，不支持断点续作。实际解码取决于浏览器与编码。'}}</span></div>
         <section class="execution" v-if="file && info">
           <div class="execution-summary"><div><span class="summary-label">预计输出</span><strong>{{ mode === 'split' ? `约 ${estimatedParts} 个视频文件` : `${estimatedFrames} 张图片` }}</strong></div><div><span class="summary-label">处理方式</span><strong>{{ mode === 'split' ? (splitStrategy === 'duration' ? '按时长 · 关键帧无损' : '按大小 · 关键帧无损') : '本地解码 · 逐张导出' }}</strong></div><div><span class="summary-label">保存位置</span><strong class="fs-output-location" :title="resumeSession?.folder.name || selectedFolderName || '未指定'">{{resumeSession?.folder.name || selectedFolderName || '未指定'}}</strong></div></div>
           <Teleport :to="actionTarget || 'body'" :disabled="!actionInToolbar"><button v-if="status !== 'running'" type="button" class="primary-button" :disabled="!canRun" @click="start"><Play :size="16" fill="currentColor"/> {{ mode === 'split' ? '开始分割视频' : '开始提取图片' }} <ArrowRight :size="17"/></button>

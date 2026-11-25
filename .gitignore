@@ -5,3 +5,8 @@ dist/
 *.log
 .env*
 !.env.example
+
+# Generated local browser evidence (published as CI artifacts, not source).
+/visual-candidate/
+/visual-regression/
+/browser-capability-*.json
