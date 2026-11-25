@@ -7,7 +7,8 @@ import {CaptionNumberField} from './components/CaptionNumberField';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,Activity,AlertTriangle,ArrowDownToLine,AudioLines,Check,ChevronDown,Clock3,Download,FileAudio,FileText,FileVideo,FolderOpen,HardDriveDownload,Info,Languages,LoaderCircle,Pause,Play,Plus,RotateCcw,Scissors,Search,Settings2,ShieldCheck,SkipBack,SkipForward,Split,Subtitles,Trash2,Undo2,Redo2,UploadCloud,WandSparkles,X,Keyboard,Repeat2} from 'lucide-react';
 import {Tabs} from '@base-ui/react/tabs';
-import {Checkbox} from '@base-ui/react/checkbox';
+import {CaptionCheckbox} from './components/CaptionCheckbox';
+import {CaptionButton} from './components/CaptionButton';
 import {ProjectMenu} from './components/ProjectMenu';
 import {CaptionProgress} from './components/CaptionProgress';
 import {CaptionSelect} from './components/CaptionSelect';
@@ -375,9 +376,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
           </div>
           <div className="caption-toolbar-actions">
             {(busy||transcriber.state.phase==='error'||transcriber.state.phase==='done')&&tab!=='transcribe'&&<button className="btn outline caption-task-status" onClick={()=>setTab('transcribe')}>{busy?'转录 / 波形 '+Math.round(transcriber.state.progress)+'%':transcriber.state.phase==='error'?'处理失败 · 查看':'处理完成 · 查看'}</button>}
-            <button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={15}/>导入字幕</button>
+            <CaptionButton onClick={()=>captionsInput.current?.click()}><FileText size={15}/>导入字幕</CaptionButton>
             <ProjectMenu onOpen={()=>projectInput.current?.click()} onExport={exportProject} onNew={()=>{if(window.confirm('确定新建空白工程？未导出的内容可能丢失。'))void reset()}} canPackage={!!file&&!!cues.length&&!busy} onPackage={()=>{if(!file||!cues.length||busy)return;window.dispatchEvent(new CustomEvent('frameslice:subtitle-package',{detail:{file,subtitle:new File([toSRT(cues)],'caption-export.srt',{type:'text/plain;charset=utf-8'})}}))}}/>
-            <button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={15}/>打开媒体</button>
+            <CaptionButton primary onClick={()=>mediaInput.current?.click()}><FileVideo size={15}/>打开媒体</CaptionButton>
           </div>
         </div>}
         {!embedded&&<div className="editor-header">
@@ -410,7 +411,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                       <span className="fs-player-spacer"/><media-mute-button/><media-volume-range/><media-playback-rate-menu-button/>{isVideo&&<media-pip-button/>}<CaptionFullscreen video={video} onError={setError}/>
                     </media-control-bar>
                   </div><media-playback-rate-menu anchor="auto" hidden rates="0.25 0.5 0.75 1 1.25 1.5 2"/></>}
-                </media-controller>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><button className="btn primary" onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</button><button className="btn outline" onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</button></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
+                </media-controller>:<div className="empty-media"><div className="empty-icon"><UploadCloud size={25}/></div><h2>打开媒体或字幕</h2><p>MP4、WebM、MP3、WAV</p><div className="empty-actions"><CaptionButton primary onClick={()=>mediaInput.current?.click()}><FileVideo size={16}/>选择媒体文件</CaptionButton><CaptionButton onClick={()=>captionsInput.current?.click()}><FileText size={16}/>导入 SRT / VTT</CaptionButton></div>{!cues.length&&<button className="text-button" onClick={()=>{resetCues(sampleCues.map(c=>({...c,id:uid()})));setSelectedId(null);setProjectName('示例字幕')}}>加载示例字幕</button>}</div>}
               </div>
               {playerFailed&&mediaURL&&<div role="status" className="media-info">专业播放器加载失败，已使用浏览器原生控件。</div>}
               {!mediaURL&&<div className="playback-controls">
@@ -460,7 +461,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="cue-list" ref={cueListRef}>
                 {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3><p>从上方导入 SRT / VTT，或创建第一条字幕。</p></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=review.byId.get(c.id)??[];return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>
-                    <div className="cue-row-top">{batchMode&&<Checkbox.Root className="caption-checkbox" aria-label={'选择第 '+(index+1)+' 条字幕'} checked={batchIds.has(c.id)} onCheckedChange={checked=>setBatchIds(old=>{const next=new Set(old);if(checked)next.add(c.id);else next.delete(c.id);return next})}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root>}<button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
+                    <div className="cue-row-top">{batchMode&&<CaptionCheckbox label={'选择第 '+(index+1)+' 条字幕'} checked={batchIds.has(c.id)} onChange={checked=>setBatchIds(old=>{const next=new Set(old);if(checked)next.add(c.id);else next.delete(c.id);return next})}/>}<button className="cue-number" onClick={e=>{e.stopPropagation();seek(c.start);setSelectedId(c.id)}}>{String(index+1).padStart(2,'0')}</button><span className="cue-duration">{(c.end-c.start).toFixed(1)}s</span><div className="cue-row-actions"><button title="在播放位置拆分" aria-label="在播放位置拆分字幕" disabled={time-c.start<.08||c.end-time<.08||Array.from(c.text).length<2} onClick={()=>setCues(xs=>splitCue(xs,c.id,time))}><Scissors size={14}/></button><button title="与下一条合并" disabled={index===cues.length-1} onClick={()=>setCues(xs=>mergeNext(xs,c.id))}><Split size={14}/></button><button title="新增下一条" onClick={()=>insertAfter(c.id)}><Plus size={14}/></button><button title="删除字幕" onClick={()=>setCues(xs=>xs.filter(x=>x.id!==c.id))}><Trash2 size={14}/></button></div></div>
                     <textarea aria-label={`第 ${index+1} 条字幕`} rows={Math.max(1,Math.min(4,Math.ceil(c.text.length/30)))} value={c.text} onChange={e=>updateCue(c.id,{text:e.target.value})} onFocus={()=>setSelectedId(c.id)}/>
                     <div className="cue-row-bottom"><TimeEditor label="开始时间" time={c.start} onCommit={v=>updateCue(c.id,{start:v})}/><span>→</span><TimeEditor label="结束时间" time={c.end} onCommit={v=>updateCue(c.id,{end:v})}/><button className="cue-seek" onClick={()=>{seek(c.start);setSelectedId(c.id)}} title="跳转到字幕"><Play size={12}/></button></div>
                     {issues.length>0&&<div className="cue-issues">{issues.map(issue=><span key={issue}>{issueNames[issue]}</span>)}</div>}
@@ -476,15 +477,15 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label>背景颜色 <input type="color" value={style.boxColor} onChange={e=>setStyle(s=>({...s,boxColor:e.target.value}))}/></label>
                 <label>背景透明度 <div className="size-range"><input type="range" min={0} max={100} value={style.boxOpacity*100} onChange={e=>setStyle(s=>({...s,boxOpacity:Number(e.target.value)/100}))}/><output>{Math.round(style.boxOpacity*100)}%</output></div></label>
                 <div className="caption-field"><span>字幕位置</span><CaptionSelect<CaptionStyle["position"]> label="字幕位置" value={style.position} onChange={position=>setStyle(s=>({...s,position}))} options={[{value:"bottom",label:"底部居中"},{value:"middle",label:"画面居中"},{value:"top",label:"顶部居中"}]}/></div>
-                <div className="switch-row"><label htmlFor="caption-bold">文字加粗</label><Checkbox.Root id="caption-bold" aria-label="文字加粗" className="caption-checkbox" checked={style.bold} onCheckedChange={checked=>setStyle(s=>({...s,bold:checked===true}))}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root></div>
+                <div className="switch-row"><label htmlFor="caption-bold">文字加粗</label><CaptionCheckbox id="caption-bold" label="文字加粗" checked={style.bold} onChange={bold=>setStyle(s=>({...s,bold}))}/></div>
               </div>
-              <button className="btn outline full" onClick={()=>setStyle(defaultStyle)}>恢复默认样式</button>
+              <CaptionButton full onClick={()=>setStyle(defaultStyle)}>恢复默认样式</CaptionButton>
               <div className="style-note"><Info size={15}/> 浏览器字幕预览与 FFmpeg 烧录可能存在字体度量差异。中文烧录建议手动选择支持中文的字体文件。</div>
             </Tabs.Panel>
             <Tabs.Panel value="export" className="export-editor caption-tab-content">
               <div className="section-subheading"><strong>字幕文件</strong></div>
               <div className="export-grid"><button disabled={!cues.length} onClick={()=>exportAs('srt')}><FileText size={22}/><strong>SRT</strong><small>通用字幕文件</small><Download size={15}/></button><button disabled={!cues.length} onClick={()=>exportAs('vtt')}><FileText size={22}/><strong>VTT</strong><small>网页视频字幕</small><Download size={15}/></button></div>
-              <button className="btn outline full" onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</button>
+              <CaptionButton full onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</CaptionButton>
               <div className="section-subheading render-heading"><strong>烧录字幕到视频</strong><small>实验功能 · 适合短视频</small></div>
               <button className="file-pick" onClick={()=>fontInput.current?.click()}><Languages size={17}/>{font?.name||'选择中文字体 .ttf / .otf（推荐）'}<ChevronDown size={14}/></button>
               {renderState.phase==='working'?<div className="render-progress"><CaptionProgress value={renderState.progress} max={1} label="烧录进度"/><span>{renderState.message} {Math.round(renderState.progress*100)}%</span><button className="btn outline full" onClick={()=>renderAbort.current?.abort()}>取消烧录</button></div>:<button className="btn primary full" disabled={!isVideo||!cues.length} onClick={()=>void renderVideo()}><FileVideo size={16}/>生成带字幕 MP4</button>}

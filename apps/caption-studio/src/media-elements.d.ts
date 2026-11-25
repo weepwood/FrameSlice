@@ -5,6 +5,9 @@ type MediaElement=DetailedHTMLProps<HTMLAttributes<HTMLElement>,HTMLElement>&{
 declare module 'react'{
  namespace JSX{
   interface IntrinsicElements{
+   'fluent-checkbox':DetailedHTMLProps<HTMLAttributes<HTMLElement&{checked:boolean;indeterminate:boolean;disabled:boolean}>,HTMLElement&{checked:boolean;indeterminate:boolean;disabled:boolean}>&{disabled?:boolean};
+   'fluent-button':MediaElement&{type?:string;appearance?:string;size?:string;disabled?:boolean};
+   'fluent-progress-bar':MediaElement&{value?:number;min?:number;max?:number;thickness?:string};
    'media-controller':MediaElement;
    'media-control-bar':MediaElement;
    'media-play-button':MediaElement;

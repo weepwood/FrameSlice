@@ -6,9 +6,7 @@ import './assets/unified-workbench.css'
 import './assets/fluent-theme.css'
 import './assets/fluent-controls.css'
 import './assets/fluent-player.css'
-import '@fluentui/web-components/button.js'
-import '@fluentui/web-components/checkbox.js'
-import '@fluentui/web-components/progress-bar.js'
+import './fluent-register'
 
 async function bootstrap(){
  try{await applyRequestedStorageReset()}catch(error){console.warn('本地存储清理请求无法读取',error)}

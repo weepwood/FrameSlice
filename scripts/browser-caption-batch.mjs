@@ -21,6 +21,15 @@ try{
  await host.getByRole('button',{name:'下一页字幕'}).click();
  await host.getByRole('checkbox',{name:'选择第 101 条字幕',exact:true}).click();
  await panel.getByText('多选 · 101 条',{exact:true}).waitFor();
+ const pageCheck=panel.getByRole('checkbox',{name:'选择当前页字幕'});
+ if(await pageCheck.getAttribute('aria-checked')!=='mixed'||!await pageCheck.evaluate(el=>el.tagName==='FLUENT-CHECKBOX'&&el.indeterminate&&!el.checked))throw Error('page mixed checkbox state incorrect');
+ await pageCheck.press('Space');
+ await panel.getByText('多选 · 200 条',{exact:true}).waitFor();
+ await pageCheck.and(panel.locator('fluent-checkbox[aria-checked=true]')).waitFor({timeout:5000});
+ if(!await pageCheck.evaluate(el=>el.checked&&!el.indeterminate))throw Error('mixed state did not become checked');
+ await pageCheck.press('Space');
+ await panel.getByText('多选 · 100 条',{exact:true}).waitFor();
+
  await panel.getByRole('button',{name:'清空选择'}).click();
  await host.getByRole('textbox',{name:'搜索字幕'}).fill('Match');
  await panel.getByRole('button',{name:'选择全部匹配 (103)'}).click();
@@ -83,5 +92,5 @@ try{
  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'导出历史 JSON'}).click()]);
  const jobs=JSON.parse(await readFile(await download.path(),'utf8'));
  if(jobs.length!==36||jobs.some(j=>j.type!=='split')||jobs[0].createdAt!==1000||jobs.at(-1).createdAt!==1070)throw Error('filtered export incorrect');
- console.log(JSON.stringify({crossPageSelection:'passed',filteredSelection:'passed',invalidShiftRejected:'passed',selectedShiftAndUndo:'passed',cleanupAndUndo:'passed',deleteCancelAndUndo:'passed',mobileLayout:'passed',jobTypeAndSort:'passed',export:'passed',qualityFilter:'passed',qualityNavigation:'passed',qualityReport:'passed'}));
+ console.log(JSON.stringify({mixedCheckboxKeyboard:'passed',crossPageSelection:'passed',filteredSelection:'passed',invalidShiftRejected:'passed',selectedShiftAndUndo:'passed',cleanupAndUndo:'passed',deleteCancelAndUndo:'passed',mobileLayout:'passed',jobTypeAndSort:'passed',export:'passed',qualityFilter:'passed',qualityNavigation:'passed',qualityReport:'passed'}));
 }finally{await browser.close()}

@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Minus,Plus,StepForward,Check} from 'lucide-react';
-import {Checkbox} from '@base-ui/react/checkbox';
+import {Minus,Plus,StepForward} from 'lucide-react';
+import {CaptionCheckbox} from './CaptionCheckbox';
 import {shortTime,type Cue} from '../lib/captions';
 import type {buildCueIndex} from '../lib/cue-index';
 interface Props {
@@ -100,7 +100,7 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
     <div className="section-title timeline-top">
       <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
       <div className="timeline-actions">
-        <div className="inline-checkbox"><Checkbox.Root className="caption-checkbox" aria-label="跟随播放" checked={follow} onCheckedChange={v=>setFollow(v===true)}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
+        <div className="inline-checkbox"><CaptionCheckbox label="跟随播放" checked={follow} onChange={setFollow}/><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
         <button className="icon-btn" aria-label="缩小时间轴" disabled={visible>=Math.min(600,duration)} onClick={()=>zoom(visible*2)}><Minus size={15}/></button>
         <span className="zoom-label">{visible >=60?`${Number((visible/60).toFixed(1))} min`:`${Number(visible.toFixed(2))}s`}</span>
         <button className="icon-btn" aria-label="放大时间轴" disabled={visible<=1} onClick={()=>zoom(visible/2)}><Plus size={15}/></button>

@@ -383,9 +383,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .caption-tab-content{min-width:0;outline:none}
 .caption-tab-content[hidden]{display:none}
 .caption-tab-content:focus-visible{outline:2px solid var(--fs-focus,#4678ce);outline-offset:-2px}
-.caption-checkbox{display:inline-grid;place-items:center;width:16px;height:16px;padding:0;border:1px solid var(--fs-border,#dce1e7);border-radius:4px;background:var(--fs-input,#fff);color:var(--fs-on-accent,#fff)}
-.caption-checkbox[data-checked]{background:var(--fs-accent,#305fb1);border-color:var(--fs-accent,#305fb1)}
-.caption-checkbox span{display:grid;place-items:center}
 
 .app-shell.embedded .side-tabs button{min-height:36px}
 
@@ -404,7 +401,7 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .side-tabs button{flex:1;min-width:0;min-height:34px;border-radius:4px;white-space:nowrap}
 .app-shell.embedded .side-tabs button.active{background:var(--fs-surface);box-shadow:0 1px 2px #0001}
 .app-shell.embedded .side-tabs button.active::after{display:none}
-.app-shell.embedded .side-tabs button:focus-visible,.caption-checkbox:focus-visible{outline:2px solid var(--fs-focus,#4678ce);outline-offset:-2px}
+.app-shell.embedded .side-tabs button:focus-visible,.fs-fluent-caption-checkbox:focus-visible{outline:2px solid var(--fs-focus,#4678ce);outline-offset:-2px}
 .app-shell.embedded .caption-tab-content .section-title{padding-block:10px}
 .app-shell.embedded .caption-field{gap:4px}
 
@@ -437,9 +434,6 @@ input[type=range],input[type=checkbox] { accent-color:#2f8183; }
 .app-shell.embedded .section-title{min-height:42px;padding:10px 12px}
 .app-shell.embedded .caption-tab-content .settings-grid{gap:12px}
 
-.caption-progress-track{width:100%;height:7px;overflow:hidden;border-radius:4px;background:var(--fs-raised,#e6edf6)}
-.caption-progress-fill{border-radius:inherit;background:var(--fs-accent,#305fb1);transition:width 160ms ease}
-@media(prefers-reduced-motion:reduce){.caption-progress-fill{transition:none}}
 
 /* Shared control dimensions and compact, container-relative editor. */
 .app-shell.embedded .editor-area{container-type:inline-size}

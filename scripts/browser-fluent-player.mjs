@@ -46,6 +46,10 @@ try{
    await page.waitForFunction(()=>!document.fullscreenElement);
   }
   await player.focus();
+  if(await fullscreen.isVisible()&&await page.evaluate(()=>document.fullscreenEnabled)){
+   await player.press('f');await page.waitForFunction(()=>!!document.fullscreenElement);
+   await player.press('f');await page.waitForFunction(()=>!document.fullscreenElement);
+  }
   await player.press('j');const before=await video.evaluate(v=>v.currentTime);
   await player.press('l');if(Math.abs(await video.evaluate(v=>v.currentTime)-before-5)>.3)throw Error('focused seek shortcut failed');
   await player.press('m');if(await video.evaluate(v=>v.muted))throw Error('focused mute shortcut failed');

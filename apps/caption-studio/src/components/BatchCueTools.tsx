@@ -1,7 +1,7 @@
 import {CaptionNumberField} from './CaptionNumberField';
 import {useState} from 'react';
-import {Check,CheckCheck,ListChecks,Trash2,X} from 'lucide-react';
-import {Checkbox} from '@base-ui/react/checkbox';
+import {CheckCheck,ListChecks,Trash2,X} from 'lucide-react';
+import {CaptionCheckbox} from './CaptionCheckbox';
 import {cleanSelected,shiftSelected,scaleSelected} from '../lib/batch-edit';
 import type {Cue} from '../lib/captions';
 type Props={cues:Cue[];page:Cue[];shown:Cue[];selected:ReadonlySet<string>;onSelect:(ids:Set<string>)=>void;onChange:(next:Cue[])=>void;onClose:()=>void};
@@ -23,7 +23,7 @@ export function BatchCueTools({cues,page,shown,selected,onSelect,onChange,onClos
   return <section className="cue-batch-panel" aria-label="多选字幕操作">
     <div className="cue-batch-heading"><strong><ListChecks size={15}/>多选 · {count} 条</strong><button className="icon-btn" aria-label="退出多选" onClick={onClose}><X size={15}/></button></div>
     <div className="cue-batch-actions">
-      <label className="cue-batch-check"><Checkbox.Root className="caption-checkbox" aria-label="选择当前页字幕" checked={allPage} indeterminate={!allPage&&somePage} disabled={!page.length} onCheckedChange={checked=>togglePage(checked===true)}><Checkbox.Indicator><Check size={12}/></Checkbox.Indicator></Checkbox.Root><span>当前页</span></label>
+      <label className="cue-batch-check"><CaptionCheckbox label="选择当前页字幕" checked={allPage} indeterminate={!allPage&&somePage} disabled={!page.length} onChange={togglePage}/><span>当前页</span></label>
       <button className="review-chip" disabled={!shown.length} onClick={()=>onSelect(new Set(shown.map(c=>c.id)))}>选择全部匹配 ({shown.length})</button>
       <button className="review-chip" disabled={!count} onClick={()=>onSelect(new Set())}>清空选择</button>
     </div>
