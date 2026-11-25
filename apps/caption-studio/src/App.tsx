@@ -10,7 +10,7 @@ import {ReviewTools} from './components/ReviewTools';
 import {useHistory} from './hooks/useHistory';
 import {useTranscriber} from './hooks/useTranscriber';
 import {chunksToCues,defaultStyle,fmt,lintCue,mergeNext,parseSubtitles,parseTime,round3,shiftCues,shortTime,sorted,splitCue,toSRT,toVTT,uid,type CaptionStyle,type Chunk,type Cue,type Issue} from './lib/captions';
-import {clearProject,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
+import {DraftConflictError,loadProject,saveProject,verifyProject,type Project} from './lib/storage';
 import {buildCueIndex} from './lib/cue-index';
 import type {Device} from './workers/transcribe.worker';
 import {workspace} from '../../../src/core/workspace';
@@ -58,6 +58,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [query,setQuery]=useState('');
   const [onlyIssues,setOnlyIssues]=useState(false);
   const [cuePage,setCuePage]=useState(0);
+  const [pageDraft,setPageDraft]=useState<string|null>(null);
   const [followPlayback,setFollowPlayback]=useState(true);
   const [playbackRate,setPlaybackRate]=useState(1);
   const [loopSelected,setLoopSelected]=useState(false);
@@ -65,7 +66,11 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const [dragging,setDragging]=useState(false);
   const dragDepth=useRef(0);
   const [error,setError]=useState('');
-  const [saved,setSaved]=useState<'loading'|'saved'|'saving'|'error'>('loading');
+  const [saved,setSaved]=useState<'loading'|'saved'|'saving'|'error'|'conflict'>('loading');
+  const revision=useRef<string|null>(null);
+  const committed=useRef<string|null>(null);
+  const saveQueue=useRef<Promise<void>>(Promise.resolve());
+  const conflict=useRef(false);
   const [hydrated,setHydrated]=useState(false);
   const [loadFailed,setLoadFailed]=useState(false);
   const [loadAttempt,setLoadAttempt]=useState(0);
@@ -104,6 +109,9 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
   const pageCues=useMemo(()=>shown.slice(currentPage*100,(currentPage+1)*100),[shown,currentPage]);
   const changeQuery=(value:string)=>{setQuery(value);setCuePage(0)};
   const changeIssueFilter=(value:boolean)=>{setOnlyIssues(value);setCuePage(0)};
+  const browsePage=(page:number)=>{setFollowPlayback(false);setCuePage(Math.max(0,Math.min(pageCount-1,page)));setPageDraft(null)};
+  const commitPage=()=>{if(pageDraft!==null){const value=Number(pageDraft);if(pageDraft.trim()&&Number.isInteger(value))browsePage(value-1);else setPageDraft(null)}};
+  useEffect(()=>setPageDraft(null),[query,onlyIssues,pageCount]);
   useEffect(()=>{
     if(!followPlayback||tab!=='cues'||query||onlyIssues||!activeCue)return;
     const root=cueListRef.current?.getRootNode();
@@ -127,21 +135,36 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
 
   useEffect(()=>{
     let cancelled=false;
-    loadProject().then(p=>{
-      if(!p||cancelled)return;
-      const clean=verifyProject(p);
+    loadProject().then(({project:p,revision:loadedRevision})=>{
+      if(cancelled)return;
+      const clean=p?verifyProject(p):{version:1 as const,name:'未命名项目',mediaName:'',duration:0,cues:[],style:defaultStyle,updatedAt:0};
+      revision.current=loadedRevision;conflict.current=false;
+      committed.current=JSON.stringify([clean.name,clean.mediaName,clean.cues.reduce((max,c)=>Math.max(max,c.end),clean.duration),clean.cues,clean.style]);
       setProjectName(clean.name);setOriginalMediaName(clean.mediaName);
       setDuration(clean.duration);setStyle(clean.style);resetCues(clean.cues);
+      setFile(null);setTime(0);setPeaks([]);setSelectedId(null);setQuery('');setOnlyIssues(false);setCuePage(0);
     }).then(()=>{if(!cancelled){setSaved('saved');setLoadFailed(false);setHydrated(true)}}).catch(()=>{if(!cancelled){setSaved('error');setLoadFailed(true)}});
     return()=>{cancelled=true};
   },[resetCues,loadAttempt]);
   useEffect(()=>{
-    if(!hydrated)return;
-    setSaved('saving');
+    if(!hydrated||conflict.current)return;
+    const p:Project={version:1,name:projectName,mediaName:file?.name||originalMediaName,duration:effectiveDuration,cues,style,updatedAt:Date.now()};
+    const signature=JSON.stringify([p.name,p.mediaName,p.duration,p.cues,p.style]);
     let cancelled=false;
+    setSaved('saving');
     const timer=setTimeout(()=>{
-      const p:Project={version:1,name:projectName,mediaName:file?.name||originalMediaName,duration:effectiveDuration,cues,style,updatedAt:Date.now()};
-      saveProject(p).then(()=>{if(!cancelled)setSaved('saved')}).catch(()=>{if(!cancelled)setSaved('error')});
+      saveQueue.current=saveQueue.current.then(async()=>{
+        if(cancelled||conflict.current)return;
+        if(signature===committed.current){setSaved('saved');return}
+        try{
+          revision.current=await saveProject(p,revision.current);
+          committed.current=signature;
+          if(!cancelled)setSaved('saved');
+        }catch(e){
+          if(e instanceof DraftConflictError){conflict.current=true;setSaved('conflict')}
+          else if(!cancelled)setSaved('error');
+        }
+      });
     },600);
     return()=>{cancelled=true;clearTimeout(timer)};
   },[hydrated,projectName,file,originalMediaName,effectiveDuration,cues,style,saveAttempt]);
@@ -192,7 +215,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     renderAbort.current?.abort();
     transcriber.stop();resetCues([]);setFile(null);setPeaks([]);setProjectName('未命名项目');
     setOriginalMediaName('');setDuration(0);setTime(0);setSelectedId(null);setStyle(defaultStyle);setError('');
-    try{await clearProject()}catch{/* next autosave will replace */}
+    // Save the empty project through the same atomic revision check; never delete another tab's draft.
   };
   const seek=(s:number)=>{
     const t=Math.max(0,Math.min(s,effectiveDuration));
@@ -288,7 +311,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
       <span className="header-divider"/>
       <div className="project-name"><input aria-label="项目名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/><ChevronDown size={14}/></div>
       <div className="header-spacer"/>
-      <div className="save-indicator">{saved==='saved'?<Check size={14}/>:saved==='saving'?<LoaderCircle className="spin" size={14}/>:<AlertTriangle size={14}/>} <span>{saved==='saved'?'已保存到本地':saved==='saving'?'正在保存':saved==='loading'?'正在读取':'保存失败'}</span></div>
+      <div className="save-indicator">{saved==='saved'?<Check size={14}/>:saved==='saving'?<LoaderCircle className="spin" size={14}/>:<AlertTriangle size={14}/>} <span>{saved==='saved'?'已保存到本地':saved==='saving'?'正在保存':saved==='loading'?'正在读取':saved==='conflict'?'草稿冲突':'保存失败'}</span></div>
       <button className="btn small icon-help" onClick={()=>setShortcutsOpen(true)} title="查看键盘快捷键" aria-label="键盘快捷键"><Keyboard size={17}/></button>
       <button className="btn small outline" onClick={exportProject}><HardDriveDownload size={16}/>导出工程</button>
       <button className="btn small primary" onClick={()=>mediaInput.current?.click()}><FolderOpen size={16}/>打开媒体</button>
@@ -299,6 +322,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
     <input ref={fontInput} type="file" accept=".ttf,.otf" hidden onChange={e=>{setFont(e.target.files?.[0]??null);e.target.value=''}}/>
 
     {loadFailed&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>无法读取本地字幕草稿，已暂停自动保存以保护旧数据。</span><button className="btn outline" onClick={()=>{setLoadFailed(false);setSaved('loading');setLoadAttempt(n=>n+1)}}>重试读取</button></div>}
+    {hydrated&&saved==='conflict'&&<div className="error-banner draft-conflict" role="alert"><AlertTriangle size={16}/><span>另一标签页已更新草稿。当前编辑仍保留，自动保存已暂停；可导出备份后重新读取。</span><button className="btn outline" onClick={exportProject}>导出当前备份</button><button className="btn outline" onClick={()=>{if(window.confirm('重新读取将替换本页未保存的编辑。请先导出备份。确定继续？')){transcriber.stop();renderAbort.current?.abort();setHydrated(false);setSaved('loading');setLoadAttempt(n=>n+1)}}}>读取最新草稿</button></div>}
     {hydrated&&saved==='error'&&<div className="error-banner" role="alert"><AlertTriangle size={16}/><span>字幕草稿未能保存，请重试或导出工程备份。</span><button className="btn outline" onClick={()=>setSaveAttempt(n=>n+1)}>重试保存</button><button className="btn outline" onClick={exportProject}>导出备份</button></div>}
     <div className="workspace" inert={!hydrated}>
       {!embedded&&<aside className="nav-rail" aria-label="工作区">
@@ -314,7 +338,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
         {embedded&&<div className="caption-action-toolbar" role="toolbar" aria-label="字幕工作台操作">
           <div className="caption-project-group">
             <div className="caption-project-field"><input aria-label="字幕工程名称" placeholder="工程名称" value={projectName} onChange={e=>setProjectName(e.target.value)} maxLength={100}/></div>
-            <span className="caption-save-state" data-save={saved} role="status">{saved==='saved'?'已保存':saved==='saving'?'保存中…':saved==='loading'?'读取中…':'保存异常'}</span>
+            <span className="caption-save-state" data-save={saved} role="status">{saved==='saved'?'已保存':saved==='saving'?'保存中…':saved==='loading'?'读取中…':saved==='conflict'?'草稿冲突':'保存异常'}</span>
           </div>
           <div className="caption-toolbar-actions">
             {(busy||transcriber.state.phase==='error'||transcriber.state.phase==='done')&&tab!=='transcribe'&&<button className="btn outline caption-task-status" onClick={()=>setTab('transcribe')}>{busy?'转录 / 波形 '+Math.round(transcriber.state.progress)+'%':transcriber.state.phase==='error'?'处理失败 · 查看':'处理完成 · 查看'}</button>}
@@ -391,7 +415,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="side-tools"><div className="subtitle-search"><Search size={15}/><input ref={searchInput} placeholder="搜索字幕" aria-label="搜索字幕" value={query} onChange={e=>changeQuery(e.target.value)}/></div><div className="history-buttons"><button className="icon-btn" disabled={!canUndo} onClick={undo} title="撤销 (Ctrl+Z)"><Undo2 size={16}/></button><button className="icon-btn" disabled={!canRedo} onClick={redo} title="重做"><Redo2 size={16}/></button></div></div>
               <ReviewTools cues={cues} query={query} onlyIssues={onlyIssues} followPlayback={followPlayback} selectedId={selectedId}
                 onToggleIssues={changeIssueFilter} onFollowPlayback={setFollowPlayback} onNavigate={jumpToCue} onChange={setCues}/>
-              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" onClick={()=>setCuePage(p=>Math.max(0,p-1))}>‹</button><span>{currentPage+1}/{pageCount}</span><button disabled={currentPage>=pageCount-1} title="下一页字幕" onClick={()=>setCuePage(p=>Math.min(pageCount-1,p+1))}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
+              <div className="cue-stats"><span>{shown.length} / {cues.length} 条字幕</span><div className="cue-pagination"><button disabled={currentPage===0} title="上一页字幕" aria-label="上一页字幕" onClick={()=>browsePage(currentPage-1)}>‹</button>{pageCount>1?<label className="cue-page-jump"><input aria-label="字幕页码" inputMode="numeric" value={pageDraft??String(currentPage+1)} onChange={e=>setPageDraft(e.target.value)} onBlur={commitPage} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setPageDraft(null)}}/><span>/{pageCount}</span></label>:<span>1/1</span>}<button disabled={currentPage>=pageCount-1} title="下一页字幕" aria-label="下一页字幕" onClick={()=>browsePage(currentPage+1)}>›</button></div><span className={problemCount?'issue-count':''}>{problemCount?<AlertTriangle size={13}/>:<Check size={13}/>} {cues.length?(problemCount?problemCount+' 项问题':'已检查'):'—'}</span></div>
               <div className="cue-list" ref={cueListRef}>
                 {!cues.length?<div className="empty-cues"><FileText size={29}/><h3>还没有字幕</h3></div>:shown.length===0?<div className="empty-cues"><Search size={22}/>没有匹配的字幕</div>:
                   pageCues.map((c)=>{const index=cueIndex.get(c.id)??-1,issues=lintCue(c,cues[index+1]);return <article key={c.id} data-cue-id={c.id} data-current={activeCue?.id===c.id} className={`cue-row ${selectedId===c.id?'selected':''} ${activeCue?.id===c.id?'playing':''}`} onClick={()=>setSelectedId(c.id)}>

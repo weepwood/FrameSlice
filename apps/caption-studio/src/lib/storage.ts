@@ -1,4 +1,4 @@
-import {defaultStyle,type CaptionStyle,type Cue} from './captions';
+import {defaultStyle,uid,type CaptionStyle,type Cue} from './captions';
 export interface Project {
   version: 1;
   name: string;
@@ -36,14 +36,35 @@ async function access<T>(mode:IDBTransactionMode, work:(store:IDBObjectStore)=>I
     });
   } finally { db.close(); }
 }
-export async function loadProject():Promise<Project|null>{
-  return (await access('readonly',s=>s.get(KEY)) as Project|undefined)??null;
+type StoredProject=Project & {revision?:string};
+export class DraftConflictError extends Error {
+  constructor(){super('其他标签页已更新字幕草稿');this.name='DraftConflictError'}
 }
-export async function saveProject(project:Project):Promise<void>{
-  await access('readwrite',s=>s.put(project,KEY));
+function revisionOf(project:StoredProject|null|undefined):string|null{
+  if(!project)return null;
+  return typeof project.revision==='string'&&project.revision?project.revision:'legacy:'+JSON.stringify(project);
 }
-export async function clearProject():Promise<void>{
-  await access('readwrite',s=>s.delete(KEY));
+export async function loadProject():Promise<{project:Project|null;revision:string|null}>{
+  const project=(await access('readonly',s=>s.get(KEY))) as StoredProject|undefined;
+  return {project:project??null,revision:revisionOf(project)};
+}
+/** Atomic compare-and-swap: concurrent editors cannot silently replace another draft. */
+export async function saveProject(project:Project,expected:string|null):Promise<string>{
+  const db=await openDb();
+  const revision=uid();
+  try{
+    return await new Promise<string>((resolve,reject)=>{
+      const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+      let conflict=false;
+      tx.oncomplete=()=>resolve(revision);
+      tx.onabort=()=>reject(conflict?new DraftConflictError():tx.error??new DOMException('字幕草稿事务已中止','AbortError'));
+      const current=store.get(KEY);
+      current.onsuccess=()=>{
+        if(revisionOf(current.result)!==expected){conflict=true;tx.abort();return}
+        store.put({...project,revision},KEY);
+      };
+    });
+  }finally{db.close()}
 }
 export function verifyProject(x:unknown):Project{
   if(!x||typeof x!=='object')throw Error('不是有效的项目文件');

@@ -79,5 +79,17 @@ try{
   await caption.getByRole('slider',{name:'跳转播放位置',exact:true}).fill('13598.5');
   await caption.getByRole('textbox',{name:'第 5000 条字幕'}).waitFor();
   if(await caption.locator('.cue-row').count()!==100)throw Error('large last page count wrong');
-  console.log(JSON.stringify({readAbort:'passed',writeAbort:'passed',oldDraftPreserved:'passed',retryAndReload:'passed',projectCancel:'passed',largeProject:5000,exactTime:'passed',followLastPage:'passed'}));
+  const pageNumber=caption.getByRole('textbox',{name:'字幕页码'});
+  await pageNumber.fill('12');await pageNumber.press('Enter');
+  await caption.getByRole('textbox',{name:'第 1101 条字幕'}).waitFor();
+  await caption.getByRole('button',{name:'上一页字幕'}).click();
+  await caption.getByRole('textbox',{name:'第 1001 条字幕'}).waitFor();
+  if(await pageNumber.inputValue()!=='11')throw Error('manual pagination was overridden by playback');
+  await page.setViewportSize({width:390,height:844});
+  const row=caption.locator('.cue-row').first();
+  await row.scrollIntoViewIfNeeded();
+  if(await row.evaluate(el=>el.scrollWidth>el.clientWidth+1))throw Error('mobile cue row overflow');
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('mobile document overflow');
+
+  console.log(JSON.stringify({readAbort:'passed',writeAbort:'passed',oldDraftPreserved:'passed',retryAndReload:'passed',projectCancel:'passed',largeProject:5000,exactTime:'passed',followLastPage:'passed',manualPageJump:'passed',mobileOverflow:'passed'}));
 }finally{await browser.close()}
