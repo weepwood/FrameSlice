@@ -23,7 +23,9 @@ try{
  await page.getByText(/1 个片段 · 下列为媒体包估算/).waitFor();
  report.split='blocked-before-output';report.inspectAndPlan='passed';
  await page.getByRole('button',{name:'定时抽帧'}).click();
- await page.getByRole('spinbutton',{name:'抽帧间隔秒数'}).fill('0.1');
+ const interval=page.getByRole('spinbutton',{name:'抽帧间隔秒数',exact:true});
+ await interval.fill('0.1');await interval.press('Tab');
+ if(Number(await interval.getAttribute('aria-valuenow'))!==0.1)throw Error('interval edit not committed');
  const frameAction=page.getByRole('button',{name:/开始提取图片/});
  // Fixture may be shorter than 3s; use the 56s fixture for the >30 limit.
  const many=Buffer.from((await readFile(new URL('../tests/fixtures/many-keyframes-h264.mp4.b64',import.meta.url),'utf8')).trim(),'base64');
@@ -34,7 +36,8 @@ try{
  report.frameLimit='passed';
  await page.locator('input[type=file]').setInputFiles({name:'fallback.mp4',mimeType:'video/mp4',buffer:bytes});
  await page.locator('.file-codec').waitFor();
- await page.getByRole('spinbutton',{name:'抽帧间隔秒数'}).fill('1');
+ await interval.fill('1');await interval.press('Tab');
+ if(Number(await interval.getAttribute('aria-valuenow'))!==1)throw Error('interval edit not committed');
  await frameAction.click();
  await page.locator('.status-card:is(.success,.failure)').waitFor({timeout:60000});
  if(await page.locator('.status-card.success').count()){
