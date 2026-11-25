@@ -12,7 +12,7 @@
 .fs-fluent-button::part(content){display:flex;align-items:center;gap:6px}
 .fs-workbench .fs-workspace-header{letter-spacing:0}
 .fs-workbench .fs-workspace-title h1{font-weight:600;letter-spacing:0}
-.fs-workbench .fs-select-content,.app-shell :is(.caption-project-menu,.caption-select-popup){box-shadow:var(--shadow8,0 4px 12px #0002);border-radius:var(--borderRadiusMedium,4px)}
+.fs-select-content,.caption-project-menu,.caption-select-popup{box-shadow:var(--shadow8,0 4px 12px #0002);border-radius:var(--borderRadiusMedium,4px)}
 .app-shell .caption-editor-layout .cue-row.selected{background:var(--colorNeutralBackground1Selected,var(--fs-selected))}
 
 .fs-fluent-button svg{fill:none;stroke:currentColor;flex:none}
@@ -20,3 +20,17 @@
 /* Brand text and filled controls use distinct Fluent tokens for dark-theme contrast. */
 .fs-workbench :is(.mark,.drop-action,.primary-button,.cancel-button),.app-shell.embedded :is(.btn.primary,.play-button),.app-shell .caption-editor-layout .cue-bar.selected{background:var(--fs-brand-fill,var(--fs-accent));color:var(--fs-on-accent)}
 .fs-workbench .primary-button:hover:not(:disabled),.app-shell.embedded .btn.primary:hover:not(:disabled){background:var(--colorBrandBackgroundHover,var(--fs-brand-fill));filter:none}
+
+.fs-fluent-checkbox{flex:none;margin:1px 0 0;width:16px;height:16px}
+.fs-fluent-checkbox[disabled]+label{color:var(--fs-muted);cursor:not-allowed}
+
+/* Portals are siblings of the app, so these rules deliberately do not rely on
+   a workspace ancestor. Retain the libraries' focus and collision behavior. */
+.fs-select-content,.caption-select-popup,.caption-project-menu,.fs-dialog-content{border-color:var(--colorNeutralStroke2,var(--fs-border));background:var(--fs-surface);box-shadow:var(--shadow8,0 4px 12px #0002)}
+.fs-select-item[data-highlighted],.caption-select-item[data-highlighted],.caption-menu-item[data-highlighted]{background:var(--colorNeutralBackground1Hover,var(--fs-selected))}
+.fs-select-item[data-state=checked],.caption-select-item[data-selected]{color:var(--colorBrandForeground1,var(--fs-accent))}
+.fs-workbench :is(.fs-select-trigger,.fs-number-group),.app-shell.embedded :is(.caption-select-trigger,.fs-number-group,.subtitle-search,.caption-project-field input,.time-input){border-bottom-color:var(--colorNeutralStrokeAccessible,var(--fs-border))}
+.fs-workbench :is(.fs-select-trigger,.fs-number-group):focus-within,.app-shell.embedded :is(.caption-select-trigger,.fs-number-group,.subtitle-search,.caption-project-field input,.time-input):focus-within{border-bottom-color:var(--colorCompoundBrandStroke,var(--fs-focus))}
+.fs-workbench .fs-workbench-progress-fill,.caption-progress-fill{background:var(--colorBrandBackground,var(--fs-accent))}
+.fs-workbench .fs-segmented .secondary-button[data-state=on]{color:var(--colorBrandForeground1,var(--fs-accent));border-color:var(--colorNeutralStroke2,var(--fs-border))}
+.app-shell .caption-editor-layout .side-tabs button.active{color:var(--colorBrandForeground1,var(--fs-accent));background:var(--colorSubtleBackgroundSelected,var(--fs-selected))}

@@ -1,0 +1,32 @@
+import {chromium} from 'playwright-core';
+import {readFile} from 'node:fs/promises';
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']});
+const url=process.env.APP_URL??'http://127.0.0.1:4173/FrameSlice/';
+const bytes=Buffer.from((await readFile(new URL('../tests/fixtures/many-keyframes-h264.mp4.b64',import.meta.url),'utf8')).trim(),'base64');
+const file={name:'fallback.mp4',mimeType:'video/mp4',buffer:bytes};
+try{
+ const page=await browser.newPage({viewport:{width:1440,height:900}});
+ let requests=0;page.on('request',r=>{if(new URL(r.url()).pathname.endsWith('/player/media-chrome.js'))requests++});
+ await page.goto(url+'#captions',{waitUntil:'networkidle'});
+ const host=page.locator('.caption-react-host');
+ await host.locator('[data-save=saved]').waitFor();
+ if(requests)throw Error('empty caption workspace fetched player');
+ await host.locator('input[accept^="video/"]').setInputFiles(file);
+ await host.locator('media-play-button').waitFor();
+ if(requests!==1)throw Error('caption-first shared runtime did not load once');
+ await page.close();
+ const fallback=await browser.newPage();
+ await fallback.route('**/player/media-chrome.js*',route=>route.abort());
+ await fallback.goto(url,{waitUntil:'networkidle'});
+ await fallback.locator('input[type=file][accept^="video/*,.mp4"]').setInputFiles(file);
+ await fallback.getByText('专业播放器加载失败，已使用浏览器原生控件。',{exact:true}).waitFor();
+ const v=fallback.locator('.fs-preview-panel video');
+ if(!await v.evaluate(el=>el.controls))throw Error('native fallback missing');
+ await fallback.getByRole('button',{name:'字幕工作台',exact:true}).click();
+ const caption=fallback.locator('.caption-react-host');
+ await caption.locator('[data-save=saved]').waitFor();
+ await caption.locator('input[accept^="video/"]').setInputFiles(file);
+ await caption.getByText('专业播放器加载失败，已使用浏览器原生控件。',{exact:true}).waitFor();
+ if(!await caption.locator('video').evaluate(el=>el.controls))throw Error('caption native fallback missing');
+ console.log(JSON.stringify({captionFirst:'passed',vueFallback:'passed',captionFallback:'passed'}));
+}finally{await browser.close()}

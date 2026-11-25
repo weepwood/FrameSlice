@@ -43,3 +43,6 @@
 .fs-media-player .fs-player-spacer{display:none}
 }
 @container(max-width:320px){.fs-media-player media-volume-range{width:30px}.fs-media-player media-control-bar{--media-button-padding:3px}}
+
+.fs-media-player:not(:defined){display:block}
+.fs-media-player:not(:defined) video[slot=media]{position:relative}

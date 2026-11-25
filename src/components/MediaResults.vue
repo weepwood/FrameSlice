@@ -22,8 +22,9 @@ const selectedIndex=computed(()=>props.frames.findIndex(item=>item.name===select
 const selected=computed(()=>props.frames[selectedIndex.value])
 let opener:HTMLElement|null=null
 function show(item:FramePreview,event:MouseEvent){opener=event.currentTarget as HTMLElement;selectedName.value=item.name;open.value=true}
-function move(delta:number){const item=props.frames[selectedIndex.value+delta];if(item)selectedName.value=item.name}
-function keydown(event:KeyboardEvent){if(event.altKey||event.ctrlKey||event.metaKey)return;if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();move(event.key==='ArrowLeft'?-1:1)}else if(event.key==='Home'||event.key==='End'){event.preventDefault();const item=props.frames[event.key==='Home'?0:props.frames.length-1];if(item)selectedName.value=item.name}}
+function keepGalleryFocus(){const previous=document.activeElement;void nextTick(()=>{if(!open.value)return;const dialog=document.querySelector<HTMLElement>('.fs-gallery-dialog');if(dialog&&(document.activeElement===document.body||previous instanceof HTMLButtonElement&&previous.disabled&&document.activeElement===previous))dialog.focus()})}
+function move(delta:number){const item=props.frames[selectedIndex.value+delta];if(item){selectedName.value=item.name;keepGalleryFocus()}}
+function keydown(event:KeyboardEvent){if(event.altKey||event.ctrlKey||event.metaKey)return;if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();move(event.key==='ArrowLeft'?-1:1)}else if(event.key==='Home'||event.key==='End'){event.preventDefault();const item=props.frames[event.key==='Home'?0:props.frames.length-1];if(item){selectedName.value=item.name;keepGalleryFocus()}}}
 function restoreFocus(event:Event){event.preventDefault();void nextTick(()=>{if(opener?.isConnected)opener.focus();else document.querySelector<HTMLElement>('.frame-gallery .frame-preview-button')?.focus();opener=null})}
 watch(selected, item=>{if(!item&&open.value)open.value=false})
 </script>

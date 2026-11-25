@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {loadMediaPlayer} from './player/load'
+import {restorePlayback,savePlayback} from './player/preferences'
 import WorkspaceHeader from './components/WorkspaceHeader.vue'
 import SidebarStatus from './components/SidebarStatus.vue'
 import JobStatus from './components/JobStatus.vue'
@@ -128,6 +130,15 @@ const actionTarget=ref<HTMLElement|null>(null)
 const actionInToolbar=computed(()=>Boolean(actionTarget.value&&wideLayout.value&&!showJobs.value&&mode.value!=='captions'&&!(mode.value==='split'&&videoTool.value==='container')))
 const settingsInInspector=computed(()=>Boolean(settingsTarget.value&&wideLayout.value&&inspectorOpen.value&&!showJobs.value&&mode.value!=='captions'&&!(mode.value==='split'&&videoTool.value==='container')))
 const previewVideo=ref<HTMLVideoElement|null>(null)
+const playerReady=ref(false)
+const playerFailed=ref(false)
+watch(videoUrl,async url=>{
+ if(!url)return
+ playerFailed.value=false
+ try{await loadMediaPlayer();playerReady.value=true}
+ catch{playerFailed.value=true}
+},{immediate:true})
+
 watch([mode,showJobs,videoTool,status],()=>{if(showJobs.value||mode.value==='captions'||(mode.value==='split'&&videoTool.value==='container')||status.value==='running')previewVideo.value?.pause()})
 const timelineTime=ref(0)
 const timeline=useTimelinePreviews(file,info,e=>{errorText.value=friendlyError(e)})
@@ -655,16 +666,16 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="file&&info" class="fs-preview-panel" aria-label="视频预览"><div class="fs-preview-header"><h2>视频预览</h2><span>{{humanTime(timelineTime)}} / {{humanTime(info.duration)}}</span></div><media-controller class="fs-media-player" noautohide="" gesturesdisabled="">
-<video ref="previewVideo" :key="videoUrl" :src="videoUrl" slot="media" playsinline preload="metadata" aria-label="源视频播放器" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="timelineTime>0 && seekTimeline(timelineTime)"/>
-<media-loading-indicator slot="centered-chrome"></media-loading-indicator>
-<div class="fs-player-controls" noautohide="">
+<video ref="previewVideo" :key="videoUrl" :src="videoUrl" slot="media" playsinline preload="metadata" :controls="!playerReady" aria-label="源视频播放器" @volumechange="e=>savePlayback(e.target as HTMLVideoElement)" @ratechange="e=>savePlayback(e.target as HTMLVideoElement)" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="e=>{restorePlayback(e.target as HTMLVideoElement);if(timelineTime>0)seekTimeline(timelineTime)}"/>
+<media-loading-indicator v-if="playerReady" slot="centered-chrome"></media-loading-indicator>
+<div v-if="playerReady" class="fs-player-controls" noautohide="">
   <media-time-range></media-time-range>
   <media-control-bar>
     <media-seek-backward-button seekoffset="5"></media-seek-backward-button><media-play-button></media-play-button><media-seek-forward-button seekoffset="5"></media-seek-forward-button>
     <media-time-display showduration=""></media-time-display><span class="fs-player-spacer"></span>
     <media-mute-button></media-mute-button><media-volume-range></media-volume-range><media-playback-rate-button rates="0.25 0.5 0.75 1 1.25 1.5 2"></media-playback-rate-button><media-pip-button></media-pip-button><media-fullscreen-button></media-fullscreen-button>
   </media-control-bar>
-</div></media-controller><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>
+</div></media-controller><p v-if="playerFailed" class="fs-preview-hint" role="status">专业播放器加载失败，已使用浏览器原生控件。</p><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>
         <MediaTimeline v-if="file && info" :source="videoUrl" :duration="info.duration" :time="timelineTime" :thumbnails="timelineThumbnails" :keys="mode==='frames'?(mediaAnalysis?.keyframeIndex??[]):(mediaAnalysis?.safeKeyframeIndex??[])" :cuts="manualCuts" :disabled="status==='running'" :loading="timelineLoading" :mode="mode==='frames'?'frames':'split'" :start="frameStart" :end="frameEnd" @seek="seekTimeline" @load="loadTimeline" @cancel="timeline.cancel" @move-cut="moveManualCut" @range="(s,e)=>{frameStart=s;frameEnd=e}" @cut="addManualCut" @remove="t=>manualCuts=manualCuts.filter(x=>x!==t)"/>
         <section v-if="file && info" class="fs-analysis" aria-label="视频体检与关键帧分析">
           <div class="fs-analysis-header">

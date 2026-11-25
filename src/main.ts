@@ -7,10 +7,7 @@ import './assets/fluent-theme.css'
 import './assets/fluent-controls.css'
 import './assets/fluent-player.css'
 import '@fluentui/web-components/button.js'
-import 'media-chrome'
-import 'media-chrome/lang/zh-CN'
-import {setLanguage} from 'media-chrome/utils/i18n'
-setLanguage('zh-CN')
+import '@fluentui/web-components/checkbox.js'
 
 async function bootstrap(){
  try{await applyRequestedStorageReset()}catch(error){console.warn('本地存储清理请求无法读取',error)}

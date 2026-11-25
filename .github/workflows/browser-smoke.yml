@@ -76,6 +76,8 @@ jobs:
           node scripts/browser-desktop-workbench.mjs
           node scripts/browser-unified-workbench.mjs
           node scripts/browser-fluent-player.mjs
+          node scripts/browser-player-fallback.mjs
+          BROWSER_ENGINE=chromium node scripts/browser-fluent-cross.mjs
           BROWSER_ENGINE=chromium node scripts/browser-capability.mjs
       - name: 正式版本跨浏览器能力边界（Firefox / WebKit）
         env:
@@ -88,6 +90,8 @@ jobs:
           BROWSER_ENGINE=webkit node scripts/browser-capability.mjs || failed=1
           BROWSER_ENGINE=firefox node scripts/browser-desktop-workbench.mjs || failed=1
           BROWSER_ENGINE=webkit node scripts/browser-desktop-workbench.mjs || failed=1
+          BROWSER_ENGINE=firefox node scripts/browser-fluent-cross.mjs || failed=1
+          BROWSER_ENGINE=webkit node scripts/browser-fluent-cross.mjs || failed=1
           exit "$failed"
       - name: 独立固定视口视觉候选
         id: visual
@@ -133,4 +137,5 @@ jobs:
             browser-capability-*.json
             browser-desktop-*.json
             browser-resource-soak.json
+            browser-fluent-cross-*.json
           if-no-files-found: warn
