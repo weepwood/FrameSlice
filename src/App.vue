@@ -27,6 +27,7 @@ import WorkbenchCheckbox from './components/WorkbenchCheckbox.vue'
 import WorkbenchProgress from './components/WorkbenchProgress.vue'
 import WorkbenchSelect from './components/WorkbenchSelect.vue'
 import MediaResults from './components/MediaResults.vue'
+import {useTimelinePreviews} from './composables/useTimelinePreviews'
 import WorkbenchButton from './components/WorkbenchButton.vue'
 import {version} from '../package.json'
 import JobCenter from './components/JobCenter.vue'
@@ -111,7 +112,6 @@ const manualCuts=ref<number[]>([])
 const frameStrategy=ref<FrameStrategy>('interval')
 const deduplicate=ref(false)
 const candidateCount=ref(3),minSharpness=ref(0),sceneThreshold=ref(.24)
-const thumbCache=new Map<string,FramePreview[]>()
 const filteredCount=ref(0)
 const resetResult=Boolean(readResetResult())
 const showJobs=ref(resetResult),jobsVisited=ref(resetResult)
@@ -122,11 +122,9 @@ const settingsInInspector=computed(()=>Boolean(settingsTarget.value&&wideLayout.
 const previewVideo=ref<HTMLVideoElement|null>(null)
 watch([mode,showJobs,videoTool,status],()=>{if(showJobs.value||mode.value==='captions'||(mode.value==='split'&&videoTool.value==='container')||status.value==='running')previewVideo.value?.pause()})
 const timelineTime=ref(0)
-const timelineThumbnails=ref<FramePreview[]>([])
-const timelineLoading=ref(false)
-let timelineAbort:AbortController|null=null
-function clearTimeline(){timelineAbort?.abort();timelineAbort=null;timelineLoading.value=false;for(const rows of thumbCache.values())for(const t of rows)URL.revokeObjectURL(t.url);thumbCache.clear();timelineThumbnails.value=[];timelineTime.value=0;manualCuts.value=[]}
-async function loadTimeline(start=0,end=info.value?.duration??0,level=1){if(!file.value||!info.value||timelineLoading.value||end<=start)return;const source=file.value,duration=info.value.duration,key=JSON.stringify([start,end,level]),hit=thumbCache.get(key);if(hit){thumbCache.delete(key);thumbCache.set(key,hit);timelineThumbnails.value=hit;return}const ctl=new AbortController();timelineAbort=ctl;timelineLoading.value=true;const rows:FramePreview[]=[];timelineThumbnails.value=rows;try{await workspace.run('frames',source,ctl.signal,ctx=>runWorkerJob({mode:'frames',file:source,folder:null,duration,interval:Math.max(.1,(end-start)/12),startTime:start,endTime:end,format:'image/jpeg',width:1280,quality:.5},ctl.signal,{onProgress:(p,l)=>ctx.progress(p,l),onSegment:()=>{},onPreview:s=>{if(!ctl.signal.aborted&&file.value===source){rows.push({name:s.name,timestamp:s.timestamp,url:URL.createObjectURL(s.blob)});timelineThumbnails.value=[...rows]}}}));if(!ctl.signal.aborted&&file.value===source){thumbCache.set(key,rows);while(thumbCache.size>6){const first=thumbCache.keys().next().value!;for(const t of thumbCache.get(first)??[])URL.revokeObjectURL(t.url);thumbCache.delete(first)}}}catch(e){if(!ctl.signal.aborted)errorText.value=friendlyError(e)}finally{if(!thumbCache.has(key)||thumbCache.get(key)!==rows){for(const t of rows)URL.revokeObjectURL(t.url);if(timelineAbort===ctl)timelineThumbnails.value=[]}if(timelineAbort===ctl){timelineAbort=null;timelineLoading.value=false}}}
+const timeline=useTimelinePreviews(file,info,e=>{errorText.value=friendlyError(e)})
+const timelineThumbnails=timeline.thumbnails,timelineLoading=timeline.loading,loadTimeline=timeline.load
+function clearTimeline(){timeline.clear();timelineTime.value=0;manualCuts.value=[]}
 function seekTimeline(time:number){if(!Number.isFinite(time))return;const next=Math.max(0,Math.min(info.value?.duration??0,time));timelineTime.value=next;const video=previewVideo.value;if(video&&video.readyState>=1&&Math.abs(video.currentTime-next)>.001){try{video.currentTime=next}catch{/* unsupported browser preview; processing remains available */}}}
 function addManualCut(time:number){const keys=mediaAnalysis.value?.safeKeyframeIndex??[];const key=nearestKey(keys,time);if(key===undefined||key<=0||key>=(info.value?.duration??0)){errorText.value='请选择有效的内部关键帧边界';return}manualCuts.value=[...new Set([...manualCuts.value,key])].sort((a,b)=>a-b);splitStrategy.value='size'}
 const splitMinutes = ref(10)
@@ -642,10 +640,10 @@ onBeforeUnmount(() => {
           </div>
           <div class="file-meta">
             <div class="file-name" :title="file.name">{{ file.name }}</div>
-            <div class="file-sub"><span>{{ humanBytes(file.size) }}</span><span class="separator-dot"></span><span>{{ info ? humanTime(info.duration) : '读取信息中…' }}</span><template v-if="info"><span class="separator-dot"></span><span>{{ info.width }} × {{ info.height }}</span></template></div>
+            <div class="file-sub"><span>{{ humanBytes(file.size) }}</span><span class="separator-dot"></span><span>{{ info ? humanTime(info.duration) : loading ? '读取信息中…' : '无法读取媒体信息' }}</span><template v-if="info"><span class="separator-dot"></span><span>{{ info.width }} × {{ info.height }}</span></template></div>
             <div class="file-codec" v-if="info"><span>{{ info.videoCodec }}</span><span v-if="info.audioCodec">{{ info.audioCodec }}</span></div>
           </div>
-          <div class="file-state"><span class="status-pill"><Check v-if="info" :size="13"/><span v-else class="small-spinner"></span>{{ info ? '已就绪' : '解析中' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
+          <div class="file-state"><span class="status-pill" :data-state="info?'ready':loading?'loading':'error'" role="status" :aria-label="info?'媒体已就绪':loading?'正在解析媒体':'媒体读取失败'"><Check v-if="info" :size="13"/><span v-else-if="loading" class="small-spinner"></span><X v-else :size="13"/>{{ info ? '已就绪' : loading ? '解析中' : '读取失败' }}</span><button type="button" :disabled="status === 'running'" class="file-remove" @click="clearFile" title="移除文件"><X :size="17"/></button></div>
         </section>
 
         <section v-if="file&&info" class="fs-preview-panel" aria-label="视频预览"><div class="fs-preview-header"><h2>视频预览</h2><span>{{humanTime(timelineTime)}} / {{humanTime(info.duration)}}</span></div><video ref="previewVideo" :key="videoUrl" :src="videoUrl" controls playsinline preload="metadata" aria-label="源视频播放器" @timeupdate="e=>{const v=e.target as HTMLVideoElement;if(Number.isFinite(v.currentTime))timelineTime=v.currentTime}" @loadedmetadata="timelineTime>0 && seekTimeline(timelineTime)"/><p v-if="info" class="fs-preview-hint">预览取决于浏览器解码支持；无损处理仍以媒体引擎校验为准。</p></section>

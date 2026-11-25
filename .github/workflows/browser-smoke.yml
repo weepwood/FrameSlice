@@ -69,6 +69,7 @@ jobs:
           node scripts/browser-caption-recovery.mjs
           node scripts/browser-caption-conflict.mjs
           node scripts/browser-caption-batch.mjs
+          node scripts/browser-media-lifecycle.mjs
       - name: 独立固定视口视觉候选
         if: always() && steps.preview.outcome == 'success'
         env:

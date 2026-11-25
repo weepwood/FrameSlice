@@ -1,5 +1,6 @@
 import {chromium} from 'playwright-core';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdir} from 'node:fs/promises';
+import {themeOption} from './select-option.mjs';
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox']});
 const url=process.env.APP_URL??'http://127.0.0.1:4173/FrameSlice/';
 try{
@@ -24,6 +25,12 @@ try{
  await host.getByRole('textbox',{name:'搜索字幕'}).fill('Match');
  await panel.getByRole('button',{name:'选择全部匹配 (103)'}).click();
  await panel.getByText('多选 · 103 条',{exact:true}).waitFor();
+ await mkdir('visual-regression',{recursive:true});
+ await panel.scrollIntoViewIfNeeded();
+ await themeOption(page,'light');await page.screenshot({path:'visual-regression/caption-batch-light.png',animations:'disabled'});
+ await themeOption(page,'dark');await page.screenshot({path:'visual-regression/caption-batch-dark.png',animations:'disabled'});
+ await themeOption(page,'light');
+
  await panel.getByRole('spinbutton',{name:'选中字幕偏移秒数'}).fill('2');
  await panel.getByRole('button',{name:'提前选中'}).click();
  await panel.getByText(/负时间或无效时间/).waitFor();
@@ -65,6 +72,7 @@ try{
  const report=JSON.parse(await readFile(await qualityDownload.path(),'utf8'));
  if(report.totalCues!==5||report.affectedCues!==3||report.totalFindings!==5||report.counts.empty!==2||report.counts.time!==1||report.counts.overlap!==1||report.counts.fast!==1)throw Error('quality report mismatch '+JSON.stringify(report));
  if(report.findings.some(f=>'text' in f))throw Error('quality export unnecessarily includes subtitle text');
+ await page.screenshot({path:'visual-regression/caption-quality-light.png',animations:'disabled'});
  await page.getByRole('button',{name:'任务中心'}).click();
  const list=page.getByRole('region',{name:'任务列表'});
  await page.getByRole('combobox',{name:'任务类型筛选'}).click();
