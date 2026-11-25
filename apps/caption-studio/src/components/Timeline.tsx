@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Minus,Plus,StepForward} from 'lucide-react';
+import {Minus,Plus,StepForward,AudioLines,Subtitles,ScanLine} from 'lucide-react';
 import {CaptionCheckbox} from './CaptionCheckbox';
 import {shortTime,type Cue} from '../lib/captions';
 import type {buildCueIndex} from '../lib/cue-index';
@@ -8,9 +8,10 @@ interface Props {
   duration:number;cues:Cue[];peaks:number[];time:number;selectedId:string|null;
   onSeek:(v:number)=>void;onSelect:(id:string)=>void;
   onUpdate:(id:string,patch:Partial<Cue>)=>void;
+  onWaveform:()=>void;waveformDisabled:boolean;
 }
 type Drag={id:string;side:'start'|'end';value:number};
-export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSeek,onSelect,onUpdate}:Props){
+export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSeek,onSelect,onUpdate,onWaveform,waveformDisabled}:Props){
   const [span,setSpan]=useState(60);
   const [viewStart,setViewStart]=useState(0);
   const [follow,setFollow]=useState(true);
@@ -48,9 +49,9 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
       const ctx=node.getContext('2d');if(!ctx)return;
       ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
       const tokens=getComputedStyle(node);
-      ctx.fillStyle=tokens.getPropertyValue('--fs-raised').trim()||'#e1e6e9';ctx.fillRect(0,0,width,height);
+      // The CSS owns the track surface; computed color resolves nested Fluent variables.
       const center=height/2;
-      ctx.fillStyle=tokens.getPropertyValue('--fs-wave').trim()||'#6d8398';
+      ctx.fillStyle=tokens.color;
       for(let x=0;x<width;x+=2){
         const a=start+x/width*visible,b=start+(x+2)/width*visible;
         const from=Math.floor(a/Math.max(duration,0.01)*peaks.length);
@@ -100,22 +101,22 @@ export function Timeline({intervalIndex,duration,cues,peaks,time,selectedId,onSe
   };
   const cancelDrag=()=>{liveDrag.current=null;scrub.current=null;setDrag(null)};
   const displayCues=useMemo(()=>intervalIndex.visible(start,start+visible),[intervalIndex,start,visible]);
-  return <section className="timeline surface" data-empty={!duration}>
+  return <section className="timeline surface" data-empty={!duration} aria-label="字幕时间轴">
     <div className="section-title timeline-top">
-      <div><strong>时间轴</strong><span className="subtle">{shortTime(time)} / {shortTime(duration)}</span></div>
-      <div className="timeline-actions">
+      <div><strong>时间轴</strong><span className="caption-timeline-clock"><b>{shortTime(time)}</b><span>/ {shortTime(duration)}</span></span></div>
+      <div className="timeline-actions"><button className="icon-btn timeline-wave-action" disabled={waveformDisabled} onClick={onWaveform} title={peaks.length?'重新提取波形':'提取音频波形'} aria-label={peaks.length?'重新提取波形':'提取音频波形'}><AudioLines size={16}/></button><span className="timeline-action-divider" aria-hidden="true"/>
         <div className="inline-checkbox"><CaptionCheckbox label="跟随播放" checked={follow} onChange={setFollow}/><span onClick={()=>setFollow(v=>!v)}>跟随播放</span></div>
         <button className="icon-btn" aria-label="缩小时间轴" disabled={visible>=Math.min(600,duration)} onClick={()=>zoom(visible*2)}><Minus size={15}/></button>
-        <span className="zoom-label">{visible >=60?`${Number((visible/60).toFixed(1))} min`:`${Number(visible.toFixed(2))}s`}</span>
+        <span className="zoom-label" title="当前可见时间范围">{visible >=60?`${Number((visible/60).toFixed(1))} min`:`${Number(visible.toFixed(2))}s`}</span>
         <button className="icon-btn" aria-label="放大时间轴" disabled={visible<=1} onClick={()=>zoom(visible/2)}><Plus size={15}/></button>
-        <button className="icon-btn" aria-label="定位到播放位置" title="定位到播放位置" onClick={()=>setViewStart(Math.max(0,time-visible*.3))}><StepForward size={15}/></button>
+        <button className="icon-btn" aria-label="适应时间轴视窗" title="适应时间轴视窗（最多10分钟）" disabled={!duration} onClick={()=>{setSpan(Math.min(600,Math.max(1,duration)));setViewStart(Math.min(Math.max(0,duration-600),Math.max(0,time-300)))}}><ScanLine size={15}/></button><button className="icon-btn" aria-label="定位到播放位置" title="定位到播放位置" onClick={()=>setViewStart(Math.max(0,time-visible*.3))}><StepForward size={15}/></button>
       </div>
     </div>
     <div className="timeline-ruler">
       {ticks.map(t=><span className={t-start<visible*.04?'tick-start':start+visible-t<visible*.04?'tick-end':undefined} key={t} style={{left:`${(t-start)/visible*100}%`}}>{shortTime(t)}</span>)}
     </div>
-    <div className="timeline-lanes"><div className="timeline-lane-labels" aria-hidden="true"><span>音频</span><span>字幕</span></div><div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
-      <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">无音频波形</span>}
+    <div className="timeline-lanes"><div className="timeline-lane-labels" aria-hidden="true"><span><AudioLines size={14}/>音频</span><span><Subtitles size={14}/>字幕</span></div><div ref={track} className="timeline-track" onPointerDown={e=>{if(e.button!==0||(e.target as HTMLElement).closest('.cue-bar'))return;e.preventDefault();e.currentTarget.focus({preventScroll:true});e.currentTarget.setPointerCapture(e.pointerId);scrub.current=e.pointerId;setFollow(false);onSeek(point(e))}} onPointerMove={move} onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag} tabIndex={0} role="group" aria-label="字幕波形时间轴" onKeyDown={e=>{if(e.target!==e.currentTarget||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();onSeek(e.key==='Home'?0:e.key==='End'?duration:time+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?1:.1))}}>
+      <canvas ref={canvas} className="waveform" role="img" aria-label={peaks.length?"声音波形":"尚未生成波形"}/>{!peaks.length&&<span className="waveform-empty">{duration?'尚未生成音频波形':'导入媒体后显示音频波形'}</span>}
       <div className="cue-track">
         {displayCues.map(c=>{
           const s=drag?.id===c.id&&drag.side==='start'?drag.value:c.start;

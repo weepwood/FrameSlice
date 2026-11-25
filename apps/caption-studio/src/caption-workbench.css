@@ -74,3 +74,72 @@
 .app-shell.embedded .caption-editor-layout .cue-row:not(.selected):not(.playing):not(:hover){background:transparent}
 .app-shell.embedded .caption-editor-layout .cue-row textarea:not(:focus){background:transparent;border-color:transparent}
 .app-shell.embedded .caption-project-group .caption-project-field input:not(:hover):not(:focus){background:transparent;border-color:transparent}
+
+/* One full-width timeline dock below the preview and inspector. No remount on resize. */
+.app-shell.embedded .caption-editor-layout[data-stacked=false]{height:clamp(610px,calc(100dvh - 176px),1000px)}
+.caption-editor-layout .caption-upper-part{min-height:0}
+.caption-editor-layout .caption-upper-part>.caption-panel-group{height:100%}
+.caption-editor-layout .caption-timeline-part{min-height:0;display:flex;flex-direction:column}
+.app-shell .caption-editor-layout .caption-timeline-part>.timeline{border:1px solid var(--fs-border);border-radius:6px;box-shadow:none;background:var(--fs-surface);margin:0;min-height:0;height:100%}
+.caption-editor-layout .caption-height-divider{height:10px;min-height:10px;background:transparent;border:0}
+.caption-editor-layout .caption-height-divider:after{top:4px}
+.caption-editor-layout .caption-timeline-clock{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums;font-size:11px;color:var(--fs-muted);white-space:nowrap}
+.caption-timeline-clock b{color:var(--fs-text);font-weight:600}
+.caption-editor-layout .timeline-action-divider{height:18px;width:1px;background:var(--fs-border);margin:0 3px}
+.app-shell .caption-editor-layout .timeline-actions .icon-btn{border-radius:4px}
+.app-shell .caption-editor-layout .timeline-actions .zoom-label{min-width:42px;padding:3px 5px;border-radius:4px;background:var(--fs-raised);text-align:center;font-variant-numeric:tabular-nums}
+.app-shell .caption-editor-layout .timeline-lanes{grid-template-columns:84px minmax(0,1fr);gap:0;--ce-cue-lane:42px}
+.app-shell .caption-editor-layout .timeline-lane-labels{background:var(--colorNeutralBackground3);padding:0;border-radius:4px 0 0 4px;border:1px solid var(--fs-border);border-right:0;align-items:stretch;justify-content:initial;overflow:hidden}
+.app-shell .caption-editor-layout .timeline-lane-labels span{display:flex;gap:6px;align-items:center;padding:7px 9px;margin:0}
+.app-shell .caption-editor-layout .timeline-lane-labels span:first-child{flex:1;align-items:flex-start}
+.app-shell .caption-editor-layout .timeline-lane-labels span:last-child{height:var(--ce-cue-lane);border-top:1px solid var(--fs-border)}
+.app-shell .caption-editor-layout .timeline-lanes .timeline-track{border-radius:0 4px 4px 0}
+.app-shell .caption-editor-layout .timeline-ruler,.app-shell .caption-editor-layout .timeline-scroll{margin-left:calc(var(--ce-pad) + 84px)}
+.app-shell .caption-editor-layout .timeline-lanes .waveform{color:var(--colorBrandForeground1);background:var(--colorNeutralBackground3)}
+.app-shell .caption-editor-layout .timeline-lanes .cue-track{background:var(--colorNeutralBackground1)}
+.app-shell .caption-editor-layout .cue-bar{border-radius:3px;font-size:11px}
+.app-shell .caption-editor-layout .timeline-track .playhead{width:1px}
+.app-shell .caption-editor-layout .caption-tab-content:not(.caption-cues-panel){padding:14px 12px}
+.app-shell .caption-editor-layout .transcribe-panel{padding:0;margin:0;background:transparent}
+.caption-tool-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 16px}
+.caption-tool-heading strong{font-size:14px;color:var(--fs-text);font-weight:600}
+.caption-tool-heading p{font-size:11px;line-height:1.6;color:var(--fs-muted);margin:4px 0 0}
+.caption-local-label{display:inline-flex;align-items:center;gap:4px;flex:none;font-size:10px;color:var(--fs-muted);padding:3px 6px;background:var(--fs-raised);border-radius:4px}
+.app-shell .caption-editor-layout .transcribe-panel .settings-grid{padding:0;gap:12px}
+.app-shell .caption-editor-layout .transcribe-bottom{padding:12px 0 0;background:transparent}
+.app-shell .caption-editor-layout .transcribe-helper{background:transparent;padding:0}
+.caption-style-sample{display:grid;place-items:center;min-height:78px;border-radius:5px;background:#242424;margin-bottom:14px;padding:12px}
+.caption-style-sample span{padding:3px 9px;border-radius:3px;line-height:1.6}
+.app-shell .caption-editor-layout .style-fields{gap:9px;margin-bottom:12px}
+.app-shell .caption-editor-layout .style-note{border:0;background:var(--fs-raised);border-radius:5px;padding:9px;margin-top:12px}
+.app-shell .caption-editor-layout .export-grid{gap:8px;margin-bottom:10px}
+.app-shell .caption-editor-layout .export-grid button{border-radius:5px;padding:10px;gap:4px;background:var(--fs-surface);border-color:var(--fs-border)}
+.app-shell .caption-editor-layout .export-grid button:not(:disabled):hover{background:var(--colorNeutralBackground1Hover)}
+.app-shell .caption-editor-layout .export-grid button>svg:first-child{color:var(--colorBrandForeground1)}
+.app-shell .caption-editor-layout .export-grid small{color:var(--fs-muted)}
+.caption-editor-layout[data-stacked=true] .caption-upper-part,.caption-editor-layout[data-stacked=true] .caption-timeline-part{height:auto!important;overflow:visible!important}
+.caption-editor-layout[data-stacked=true] .caption-height-group{gap:12px}
+.caption-editor-layout[data-stacked=true] .caption-upper-part>.caption-panel-group{height:auto!important}
+.caption-editor-layout[data-stacked=true] .caption-timeline-part>.timeline{height:auto}
+@media(max-width:600px){
+ .app-shell .caption-editor-layout .timeline-lanes{grid-template-columns:34px minmax(0,1fr)}
+ .app-shell .caption-editor-layout .timeline-lane-labels span{padding:5px 3px;font-size:10px;justify-content:center}
+ .app-shell .caption-editor-layout .timeline-lane-labels svg{display:none}
+ .app-shell .caption-editor-layout .timeline-ruler,.app-shell .caption-editor-layout .timeline-scroll{margin-left:calc(var(--ce-pad) + 34px)}
+ .caption-editor-layout .timeline-action-divider{margin:0 1px}
+}
+
+/* The upper inspector must remain usable when the timeline is enlarged. */
+.app-shell .caption-editor-layout .caption-inspector-heading,
+.app-shell .caption-editor-layout .side-tabs,
+.app-shell .caption-editor-layout .cue-footer{flex-shrink:0}
+.app-shell .caption-editor-layout[data-stacked=false] .caption-cues-panel:not([hidden]){overflow:auto}
+.app-shell .caption-editor-layout[data-stacked=false] .cue-list{min-height:64px;max-height:none}
+.app-shell .caption-editor-layout .cue-row{padding:6px 5px}
+.app-shell.embedded .caption-editor-layout .cue-row textarea{margin:2px 0;min-height:30px;padding:3px 5px}
+.app-shell .caption-editor-layout .cue-footer{gap:5px;padding:6px 10px}
+.app-shell .caption-editor-layout .cue-footer .full{min-height:32px}
+.app-shell.embedded .bottom-meta{padding:4px 2px;margin-top:5px;min-height:24px}
+.caption-style-sample[data-position=top]{align-items:start}
+.caption-style-sample[data-position=bottom]{align-items:end}
+@media(max-width:600px){.app-shell .caption-editor-layout .cue-list{max-height:320px}}

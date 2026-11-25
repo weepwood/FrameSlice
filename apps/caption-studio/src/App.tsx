@@ -424,7 +424,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
                 <label className="speed-control"><span>倍速</span><CaptionSelect label="播放速度" value={playbackRate} onChange={setPlaybackRate} options={[.5,.75,1,1.25,1.5,2].map(value=>({value,label:value+"×"}))}/></label>
               </div>}
               {file&&<div className="media-info"><div><FileAudio size={14}/><span>{isVideo?'视频文件':'音频文件'}</span></div><span>{sizeText(file.size)}</span></div>}
-            </section>} timeline={<Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue}/>} inspector={<aside className="side-panel surface">
+            </section>} timeline={<Timeline intervalIndex={intervals} duration={effectiveDuration} cues={cues} peaks={peaks} time={time} selectedId={selectedId} onSeek={seek} onSelect={id=>{setSelectedId(id);const index=cueIndex.get(id);if(index!==undefined){setQuery('');setOnlyIssues(false);setIssueKind('all');setCuePage(Math.floor(index/100));setTab('cues')}}} onUpdate={updateCue} onWaveform={()=>void makeWaveform()} waveformDisabled={!file||busy}/>} inspector={<aside className="side-panel surface">
             <div className="caption-inspector-heading"><div><Subtitles size={16}/><strong>字幕编辑</strong></div><span>{cues.length} 条字幕</span></div>
             <Tabs.Root value={tab} onValueChange={value=>setTab(value as Tab)} className="caption-inspector-tabs">
             <Tabs.List className="side-tabs" aria-label="工作区功能">
@@ -435,7 +435,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             </Tabs.List>
             <Tabs.Panel value="transcribe" className="caption-tab-content">
             <section className="transcribe-panel surface">
-              <div className="section-title"><div><strong>语音转录</strong></div><span className="chip"><Activity size={13}/> 本地模型</span></div>
+              <div className="caption-tool-heading"><div><strong>语音转录</strong><p>使用本地模型识别音轨并生成字幕。</p></div><span className="caption-local-label"><Activity size={13}/> 本地模型</span></div>
               <div className="settings-grid">
                 <div className="caption-field"><span>识别模型</span><CaptionSelect label="识别模型" value={model} disabled={busy} onChange={setModel} options={MODELS.map(m=>({value:m.id,label:m.title+" ("+m.size+")"}))}/></div>
                 <div className="caption-field"><span>原文语言</span><CaptionSelect label="原文语言" value={language} disabled={busy||model.endsWith('.en')} onChange={setLanguage} options={LANGS.map(([value,label])=>({value,label}))}/></div>
@@ -471,7 +471,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="cue-footer">{cues.length>0&&<div className="shift-controls"><span>整体偏移</span><CaptionNumberField label="偏移秒数" min={0} step={.1} compact value={shift===""?null:Number(shift)} onChange={v=>setShift(v===null?"":String(v))}/><span>秒</span><button onClick={()=>setCues(c=>shiftCues(c,-(Number(shift)||0)))} title="提前字幕">−</button><button onClick={()=>setCues(c=>shiftCues(c,Number(shift)||0))} title="延后字幕">+</button></div>}<CaptionButton full onClick={()=>insertAfter(cues[cues.length-1]?.id)}><Plus size={15}/>新增字幕</CaptionButton></div>
             </Tabs.Panel>
             <Tabs.Panel value="style" className="style-editor caption-tab-content">
-              <div className="section-subheading"><strong>预览样式</strong></div>
+              <div className="caption-tool-heading"><div><strong>预览样式</strong><p>调整字幕在视频中的显示效果。</p></div></div><div className="caption-style-sample" data-position={style.position} aria-label="字幕样式示意"><span style={{color:style.textColor,backgroundColor:colorAlpha(style.boxColor,style.boxOpacity),fontWeight:style.bold?700:400,fontSize:Math.max(12,Math.min(22,style.fontSize/4))}}>字幕样式示意</span></div>
               <div className="style-fields">
                 <label>字号 <div className="size-range"><input type="range" min={24} max={92} value={style.fontSize} onChange={e=>setStyle(s=>({...s,fontSize:Number(e.target.value)}))}/><output>{style.fontSize}px</output></div></label>
                 <label>文字颜色 <input type="color" value={style.textColor} onChange={e=>setStyle(s=>({...s,textColor:e.target.value}))}/></label>
@@ -484,7 +484,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
               <div className="style-note"><Info size={15}/> 浏览器字幕预览与 FFmpeg 烧录可能存在字体度量差异。中文烧录建议手动选择支持中文的字体文件。</div>
             </Tabs.Panel>
             <Tabs.Panel value="export" className="export-editor caption-tab-content">
-              <div className="section-subheading"><strong>字幕文件</strong></div>
+              <div className="caption-tool-heading"><div><strong>导出字幕</strong><p>选择字幕格式，或保存可恢复的工程。</p></div></div>
               <div className="export-grid"><button disabled={!cues.length} onClick={()=>exportAs('srt')}><FileText size={22}/><strong>SRT</strong><small>通用字幕文件</small><Download size={15}/></button><button disabled={!cues.length} onClick={()=>exportAs('vtt')}><FileText size={22}/><strong>VTT</strong><small>网页视频字幕</small><Download size={15}/></button></div>
               <CaptionButton full onClick={exportProject}><HardDriveDownload size={16}/>导出可恢复的 JSON 工程</CaptionButton>
               <div className="section-subheading render-heading"><strong>烧录字幕到视频</strong><small>实验功能 · 适合短视频</small></div>
@@ -497,7 +497,7 @@ export default function App({embedded=false}:{embedded?:boolean}={}){
             </Tabs.Root>
           </aside>}/>
         
-        <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${(cueIndex.get(selectedId??'')??-1)+1} 条字幕`:'未选择字幕'}</div><div><button onClick={()=>void makeWaveform()} disabled={!file||busy}><AudioLines size={14}/> {peaks.length?'重新提取波形':'提取音频波形'}</button><span className="dot">·</span><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
+        <div className="bottom-meta"><div><Clock3 size={14}/> {effectiveDuration?`媒体时长 ${fmt(effectiveDuration,'vtt')}`:'等待媒体'} <span className="dot">·</span>{selectedCue?`已选中第 ${(cueIndex.get(selectedId??'')??-1)+1} 条字幕`:'未选择字幕'}</div><div><a href="https://github.com/sudesh1456/whisper-caption-editor" target="_blank" rel="noreferrer">原项目 / MIT</a></div></div>
       </main>
     </div>
     {shortcutsOpen&&<div className="shortcut-scrim" onMouseDown={e=>{if(e.target===e.currentTarget)setShortcutsOpen(false)}}>

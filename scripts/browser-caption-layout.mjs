@@ -11,6 +11,9 @@ try{
  const main=host.locator('.main-column'),side=host.locator('.side-panel');
  const align=async()=>{const a=await main.boundingBox(),b=await side.boundingBox();if(Math.abs(a.y-b.y)>1||Math.abs(a.y+a.height-b.y-b.height)>1)throw Error('editor panels not aligned')};
  await align();
+ const dock=host.getByRole('region',{name:'字幕时间轴'});
+ const checkDock=async()=>{const a=await main.boundingBox(),b=await side.boundingBox(),t=await dock.boundingBox();if(Math.abs(t.x-a.x)>2||Math.abs(t.x+t.width-b.x-b.width)>2||t.y<a.y+a.height)throw Error('timeline is not full width below both panels')};
+ await checkDock();
  const frame=host.locator('.video-frame');
  const emptyButtons=frame.getByRole('button',{name:/选择媒体文件|导入 SRT/});
  const checkEmpty=async()=>{
@@ -39,7 +42,22 @@ try{
  await toolbar.getByRole('button',{name:'更多字幕操作'}).click();
  await host.getByRole('menuitem',{name:'关闭替换'}).click();
  await host.getByRole('textbox',{name:'替换为'}).waitFor({state:'detached'});
- await align();
+ await align();await checkDock();
+ const checkFooter=async()=>{const p=await side.boundingBox(),b=await host.getByRole('button',{name:'新增字幕',exact:true}).boundingBox();if(!b||b.y+b.height>p.y+p.height+1)throw Error('caption footer clipped')};
+ await checkFooter();
+ await page.setViewportSize({width:1280,height:720});await checkDock();await checkFooter();
+ await page.setViewportSize({width:1440,height:900});
+ await host.getByRole('tab',{name:'样式',exact:true}).click();
+ await host.locator('.caption-style-sample').waitFor();
+ const bold=host.getByRole('checkbox',{name:'文字加粗'});
+ const wasBold=await bold.getAttribute('aria-checked')==='true';
+ await bold.click();
+ await bold.and(host.locator('[aria-checked="'+String(!wasBold)+'"]')).waitFor();
+ if(await host.locator('.caption-style-sample span').evaluate(e=>Number(getComputedStyle(e).fontWeight))!==(wasBold?400:700))throw Error('style sample did not update');
+ await bold.click();
+ await host.getByRole('tab',{name:'导出',exact:true}).click();await host.getByRole('button',{name:'SRT 通用字幕文件',exact:true}).waitFor();
+ await host.getByRole('tab',{name:'转录',exact:true}).click();await host.getByRole('button',{name:/重新生成字幕|开始自动转录/}).waitFor();
+ await host.getByRole('tab',{name:'字幕',exact:true}).click();
  await mkdir('visual-regression',{recursive:true});
  await themeOption(page,'light');await page.screenshot({path:'visual-regression/editor-redesign-light.png',animations:'disabled'});
  await themeOption(page,'dark');await host.locator('[data-save=saved]').waitFor();await page.screenshot({path:'visual-regression/editor-redesign-dark.png',animations:'disabled'});
@@ -49,5 +67,5 @@ try{
  const labels=await host.locator('.timeline-ruler span').evaluateAll(els=>els.map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right})));
  if(labels.length<2||labels.some((r,i)=>i>0&&r.left<labels[i-1].right+2))throw Error('narrow ruler labels overlap');
  await page.screenshot({path:'visual-regression/editor-redesign-dark-390.png',animations:'disabled'});
- console.log(JSON.stringify({emptyEntryRouting:'passed',emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
+ console.log(JSON.stringify({fullWidthTimeline:'passed',footerVisible:'passed',auxiliaryPanels:'passed',emptyEntryRouting:'passed',emptyToolsHidden:'passed',alignedPanels:'passed',baseUIMenu:'passed',replace:'passed',mobile:'passed'}));
 }finally{await browser.close()}

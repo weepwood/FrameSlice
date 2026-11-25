@@ -21,16 +21,16 @@ export function EditorPanels({viewer,timeline,inspector}:{viewer:ReactNode;timel
   update();const observer=new ResizeObserver(update);observer.observe(el);return()=>observer.disconnect();
  },[]);
  return <div ref={root} className="caption-editor-layout" data-stacked={stacked}>
-  <Group id="caption-workbench" className="caption-panel-group" orientation={stacked?'vertical':'horizontal'} disabled={stacked} disableCursor defaultLayout={initial} onLayoutChanged={layout=>{if(!stacked&&layout.inspector>=20&&layout.inspector<=50)try{localStorage.setItem(KEY,JSON.stringify(layout))}catch{}}}>
-   <Panel id="viewer" defaultSize="66%" minSize={stacked?"0%":"50%"} className="caption-panel-inner"><div className="main-column">
-    <Group id="caption-viewer-height" className="caption-height-group" orientation="vertical" disabled={stacked} disableCursor defaultLayout={height} onLayoutChanged={layout=>{if(!stacked&&layout.timeline>=25&&layout.timeline<=55)try{localStorage.setItem(HEIGHT_KEY,JSON.stringify(layout))}catch{}}}>
-     <Panel id="preview" defaultSize="65%" minSize={stacked?"0%":"320px"} className="caption-viewer-part">{viewer}</Panel>
-     <Separator id="caption-height-divider" className="caption-height-divider" aria-label="调整时间轴高度" disabled={stacked}/>
-     <Panel id="timeline" defaultSize="35%" minSize={stacked?"0%":"180px"} maxSize={stacked?"100%":"55%"} className="caption-viewer-part">{timeline}</Panel>
+  <Group id="caption-viewer-height" className="caption-height-group" orientation="vertical" disabled={stacked} disableCursor defaultLayout={height} onLayoutChanged={layout=>{if(!stacked&&layout.timeline>=25&&layout.timeline<=55)try{localStorage.setItem(HEIGHT_KEY,JSON.stringify(layout))}catch{}}}>
+   <Panel id="preview" defaultSize="65%" minSize={stacked?"0%":"320px"} className="caption-upper-part">
+    <Group id="caption-workbench" className="caption-panel-group" orientation={stacked?'vertical':'horizontal'} disabled={stacked} disableCursor defaultLayout={initial} onLayoutChanged={layout=>{if(!stacked&&layout.inspector>=20&&layout.inspector<=50)try{localStorage.setItem(KEY,JSON.stringify(layout))}catch{}}}>
+     <Panel id="viewer" defaultSize="66%" minSize={stacked?"0%":"50%"} className="caption-panel-inner"><div className="main-column"><div className="caption-viewer-part">{viewer}</div></div></Panel>
+     <Separator id="caption-inspector-divider" className="caption-panel-divider" aria-label="调整字幕检查器宽度" disabled={stacked}/>
+     <Panel id="inspector" defaultSize="34%" minSize={stacked?"0%":"300px"} maxSize={stacked?"100%":"50%"} className="caption-panel-inner">{inspector}</Panel>
     </Group>
-   </div></Panel>
-   <Separator id="caption-inspector-divider" className="caption-panel-divider" aria-label="调整字幕检查器宽度" disabled={stacked}/>
-   <Panel id="inspector" defaultSize="34%" minSize={stacked?"0%":"300px"} maxSize={stacked?"100%":"50%"} className="caption-panel-inner">{inspector}</Panel>
+   </Panel>
+   <Separator id="caption-height-divider" className="caption-height-divider" aria-label="调整时间轴高度" disabled={stacked}/>
+   <Panel id="timeline" defaultSize="35%" minSize={stacked?"0%":"180px"} maxSize={stacked?"100%":"55%"} className="caption-timeline-part">{timeline}</Panel>
   </Group>
  </div>;
 }
